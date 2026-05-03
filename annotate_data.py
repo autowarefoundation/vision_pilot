@@ -4,7 +4,7 @@ import json
 import numpy as np
 
 # =================================================
-# CONFIGURATION (HARDENED)
+# CONFIGURATION
 # =================================================
 
 # Read data root from environment variable
@@ -32,7 +32,7 @@ WINDOW_NAME = "Annotate"
 WINDOW_TITLE_BASE = "Annotate | t = OCCUPIED (True), f = FREE (False)"
 
 # =================================================
-# HELPER FUNCTION
+# Color Overlay Function
 # =================================================
 
 def apply_overlay(img, occupied, alpha=0.25):
@@ -47,7 +47,7 @@ def apply_overlay(img, occupied, alpha=0.25):
     return cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0)
 
 # =================================================
-# MAIN FUNCTION
+# MAIN
 # =================================================
 
 def main():
