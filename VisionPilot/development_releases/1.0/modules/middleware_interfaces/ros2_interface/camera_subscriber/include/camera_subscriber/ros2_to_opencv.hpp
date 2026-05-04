@@ -79,6 +79,19 @@ namespace camera_subscriber {
                 const sensor_msgs::msg::Image::SharedPtr msg
             );
 
+            /**
+            * @brief Thread-safe conversion from ROS2 Image message to cv::Mat
+            * 
+            * @param msg The ROS2 image message
+            *
+            * @return cv::Mat : The converted image, or empty Mat if conversion failed
+            * 
+            * Uses cv_bridge library to handle various ROS2 image encodings.
+            */
+            cv::Mat convert_ros2_image_to_opencv(
+                const sensor_msgs::msg::Image::SharedPtr &msg
+            );
+
     };
 
 };
