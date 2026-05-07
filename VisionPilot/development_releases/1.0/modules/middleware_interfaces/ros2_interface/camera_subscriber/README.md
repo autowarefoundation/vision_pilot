@@ -15,3 +15,32 @@ Other features:
 - Able to handle multiple encodings, supporting multiple image formats like RGB, Mono, etc.
 - Also some nice statistics of subscription health (frame reception, drop, error metrics etc.).
 
+## II. Architecture
+
+```
+
+ROS2 publisher (camera, simulator, rosbag replay etc.)
+            ↓
+            ↓
+    [ROS2 image topic]
+            ↓
+            ↓
+ROS2ImageSubscriber (camera subscriber module)
+            |
+            |---- [is_stream_started] flag : stream active?
+            |---- [is_valid_frame]    flag : frame valid?
+            │
+            |---- [cv_bridge conversion]
+            │
+            |---- [Thread-safe queue - size = 1 (time critical)]
+            │
+            |---- [Frame metadata tracking]
+            ↓
+            ↓
+OpenCV cv::Mat stream
+            ↓
+            ↓
+VisionPilot pipeline (E2E models inference and other processing)
+
+```
+
