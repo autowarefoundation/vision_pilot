@@ -1,40 +1,28 @@
 #include <camera_subscriber/ros2_to_opencv.hpp>
-#include <rclcpp/rclcpp.hpp>
 
 #include <chrono>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <vector>
+#include <thread>
 
 #include <visualization/visualization.hpp>
 
-int main(int argc, char **argv) {
-    rclcpp::init(argc, argv);
-
-    std::cout << "Hello and welcome to  VisionPilot!\n";
-
+int main(int argc, char** argv) {
     std::string topic = "/camera/image";
     if (argc > 1) {
         topic = argv[1];
     }
 
-    auto camera_node = std::make_shared<camera_subscriber::ROS2ImageSubscriber>(
-        topic,
-        "vision_pilot_camera_subscriber"
-    );
+    std::cout << "Hello and welcome to VisionPilot!\n";
 
-    RCLCPP_INFO(camera_node->get_logger(), "VisionPilot camera loop started");
-    RCLCPP_INFO(camera_node->get_logger(), "  topic: %s", topic.c_str());
+    camera_subscriber::ROS2ImageSubscriber camera_subscriber(topic);
 
-    rclcpp::Rate loop_rate(30);
+    while (true) {
+        auto [has_frame, frame] = camera_subscriber.get_latest_frame();
 
-    while (rclcpp::ok()) {
-        rclcpp::spin_some(camera_node);
-
-        auto [has_frame, frame] = camera_node->get_latest_frame();
         if (has_frame && !frame.empty()) {
-            auto stats = camera_node->get_stats();
+            auto stats = camera_subscriber.get_stats();
             std::vector<std::string> overlay_strs = {
                 "topic: " + topic,
                 "frames received: " + std::to_string(stats.frames_received),
@@ -49,11 +37,10 @@ int main(int argc, char **argv) {
             );
         }
 
-        loop_rate.sleep();
+        std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
 
     visualization::close_windows();
-    rclcpp::shutdown();
 
     return 0;
 }
