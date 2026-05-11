@@ -117,9 +117,6 @@ namespace v4l2_interface {
             return std::make_tuple(false, cv::Mat());
         }
 
-        // Process captured frame
-        cv::Mat processed_frame = process_v4l2_frame(frame);
-
         if (processed_frame.empty()) {
             {
                 std::lock_guard<std::mutex> stats_lock(stats_mutex);
@@ -166,6 +163,30 @@ namespace v4l2_interface {
             }
         }
     };
+
+
+    bool V4L2Reader::has_frames() const {
+        std::lock_guard<std::mutex> lock(frame_mutex);
+        return has_latest_frame;
+    }
+
+
+    bool V4L2Reader::is_stream_active() const {
+        return is_stream_started;
+    }
+
+
+    bool V4L2Reader::is_device_open() const {
+        return camera_capture.isOpened();
+    }
+
+
+    void V4L2Reader::clear_frame_buffer() {
+        std::lock_guard<std::mutex> lock(frame_mutex);
+        latest_frame.release();
+        has_latest_frame = false;
+        log_info("Frame buffer cleared");
+    }
 
 
 }

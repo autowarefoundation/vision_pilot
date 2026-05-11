@@ -124,19 +124,6 @@ namespace v4l2_interface {
 
     private:
 
-        
-        /**
-        * @brief Internal method to convert V4L2 raw frame to cv::Mat
-        * 
-        * Currently handles direct frame from VideoCapture.
-        * Can be extended for additional codec/format handling.
-        * 
-        * @param frame frame captured from VideoCapture
-        *
-        * @return cv::Mat : processed frame, or empty Mat if conversion failed
-        */
-        cv::Mat process_v4l2_frame(const cv::Mat& frame);
-
 
         // OpenCV VideoCapture with V4L2 backend
         cv::VideoCapture camera_capture;
