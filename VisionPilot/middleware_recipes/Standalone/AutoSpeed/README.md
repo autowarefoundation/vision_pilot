@@ -24,8 +24,18 @@ Multi-threaded inference pipeline with ONNX Runtime (CPU/TensorRT) for real-time
 
 3. **Dependencies**
    - OpenCV 4.x
-   - GStreamer 1.0
+   - GStreamer 1.0 (including `gstreamer-app-1.0`)
    - yaml-cpp
+
+   **Fedora/RHEL:**
+   ```bash
+   sudo dnf install opencv-devel gstreamer1-devel gstreamer1-plugins-base-devel gstreamer1-plugins-good yaml-cpp-devel cmake gcc-c++
+   ```
+
+   **Debian/Ubuntu:**
+   ```bash
+   sudo apt install libopencv-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good libyaml-cpp-dev cmake g++
+   ```
 
 ### Build Steps
 
