@@ -1,1 +1,1 @@
-#include "../include/control/lateral_control.hpp"
+#include <control/lateral_control.hpp>
