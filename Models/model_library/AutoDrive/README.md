@@ -5,8 +5,8 @@ For autonomous cruise and driver-assistance applications, it is important to est
 AutoDrive processes a pair of frames (`t-1`, `t`) and uses a shared-feature temporal fusion head to capture short-term motion cues that a single-frame model can miss. It is designed for 2:1 input aspect ratio and is typically used with the same center-crop preprocessing used during training.
 
 ### Demo Video
-[Watch the demo video](<ADD_DRIVE_DEMO_LINK_HERE>)
 
+[![Watch the Video](../../../Media/AutoDrive_thumbnail.jpg)](https://drive.google.com/file/d/1Lh7uIslZMond8p-vavX6jxtgzU1goETb/preview)
 ## Get Started
 
 To quickly try AutoDrive on your own data, please follow the steps in the [tutorial](tutorial.ipynb).  
