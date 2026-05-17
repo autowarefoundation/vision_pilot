@@ -11,6 +11,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstring>
@@ -88,14 +89,19 @@ struct LatencyStats {
 
     void print() const
     {
+        // pipeline_ms = wall clock while all three models run in parallel
+        // (≈ max(drive, steer, speed), not their sum)
+        const double parallel_max = std::max({ema_autodrive, ema_autosteer, ema_autospeed});
         printf("[Latency EMA] preprocess=%.2f ms | "
-               "drive=%.2f ms  steer=%.2f ms  speed=%.2f ms | "
-               "pipeline=%.2f ms (%.1f fps)\n",
+               "drive=%.2f  steer=%.2f  speed=%.2f ms (parallel) | "
+               "wall=%.2f ms  max_model=%.2f ms  (%.1f fps)\n",
                ema_preprocess,
                ema_autodrive, ema_autosteer, ema_autospeed,
-               ema_pipeline,
+               ema_pipeline, parallel_max,
                ema_pipeline > 0.0 ? 1000.0 / ema_pipeline : 0.0);
     }
+
+    void reset() { *this = {}; }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,7 +147,8 @@ public:
 
     // Push a pre-processed BGR frame (must already be NET_W × NET_H).
     // Returns nullopt on the very first call — AutoDrive needs prev + curr.
-    std::optional<FrameOutputs> process(const cv::Mat& frame_bgr)
+    // record_latency=false for GPU warmup passes (not counted in EMA).
+    std::optional<FrameOutputs> process(const cv::Mat& frame_bgr, bool record_latency = true)
     {
         // ── 1. Write into the circular buffer ────────────────────────────
         // Slots alternate: slot 0 ↔ slot 1 every frame.
@@ -198,8 +205,10 @@ public:
         out.auto_steer       = res_steer;
         out.auto_speed       = res_speed;
         out.frame_id         = frame_count_;
-        out.latency          = { preprocess_ms, ms_drive, ms_steer, ms_speed, pipeline_ms };
-        latency_stats_.update(out.latency);
+        out.latency = { preprocess_ms, ms_drive, ms_steer, ms_speed, pipeline_ms };
+        if (record_latency) {
+            latency_stats_.update(out.latency);
+        }
 
         return out;
     }
@@ -208,8 +217,9 @@ public:
     {
         frame_buffer_[0].release();
         frame_buffer_[1].release();
-        write_idx_    = 1;
-        frame_count_  = 0;
+        write_idx_       = 1;
+        frame_count_     = 0;
+        latency_stats_.reset();
     }
 
     const LatencyStats& latency_stats() const { return latency_stats_; }
@@ -292,14 +302,25 @@ static cv::Mat spatial_preprocess(const cv::Mat& raw)
     return out;
 }
 
+static void print_latency_detail(const FrameLatency& lt, const char* label)
+{
+    const double parallel_max = std::max({lt.autodrive_ms, lt.autosteer_ms, lt.autospeed_ms});
+    printf("  %s latency (models run in parallel — wall ≈ max, not sum):\n", label);
+    printf("    preprocess=%.2f ms\n", lt.preprocess_ms);
+    printf("    autodrive=%.2f ms  autosteer=%.2f ms  autospeed=%.2f ms\n",
+           lt.autodrive_ms, lt.autosteer_ms, lt.autospeed_ms);
+    printf("    parallel wall=%.2f ms  max_model=%.2f ms  (%.1f fps)\n",
+           lt.pipeline_ms, parallel_max,
+           lt.pipeline_ms > 0.0 ? 1000.0 / lt.pipeline_ms : 0.0);
+}
+
 static void print_inference_summary(const FrameOutputs& out)
 {
     const auto& d  = out.auto_drive;
     const auto& s  = out.auto_steer;
     const auto& sp = out.auto_speed;
-    const auto& lt = out.latency;
 
-    printf("[VisionPilot] Initial inference check (frame %llu)\n",
+    printf("[VisionPilot] Initial inference check (frame %llu, steady-state after GPU warmup)\n",
            static_cast<unsigned long long>(out.frame_id));
     printf("  AutoDrive  valid=%d  dist_norm=%.6f  curvature=%.6f  flag_prob=%.5f\n",
            d.valid, d.dist_normalized, d.curvature_raw, d.flag_prob);
@@ -307,35 +328,49 @@ static void print_inference_summary(const FrameOutputs& out)
            s.valid, s.xp[0], s.h_vector[0]);
     printf("  AutoSpeed  valid=%d  detections=%zu\n",
            sp.valid, sp.detections.size());
-    printf("  Latency    preprocess=%.2f ms | "
-           "drive=%.2f ms  steer=%.2f ms  speed=%.2f ms | "
-           "pipeline=%.2f ms  (%.1f fps equivalent)\n",
-           lt.preprocess_ms,
-           lt.autodrive_ms, lt.autosteer_ms, lt.autospeed_ms,
-           lt.pipeline_ms,
-           lt.pipeline_ms > 0.0 ? 1000.0 / lt.pipeline_ms : 0.0);
+    print_latency_detail(out.latency, "Steady-state");
 
     if (!d.valid || !s.valid || !sp.valid) {
         std::cerr << "[VisionPilot] WARNING: one or more models returned invalid output\n";
     }
 }
 
-// Warm-up: two frames → one synced inference; rewinds video and clears buffer.
+// Discard N full inference cycles so CUDA kernels are compiled before we measure.
+static void gpu_warmup(InferencePipeline& pipeline, cv::VideoCapture& cap, int cycles)
+{
+    if (cycles <= 0) return;
+
+    printf("[VisionPilot] GPU warmup: %d inference cycle(s) (not timed)\n", cycles);
+    cv::Mat frame;
+    for (int c = 0; c < cycles; ++c) {
+        if (!cap.read(frame) || frame.empty()) break;
+        pipeline.process(spatial_preprocess(frame), false);
+        if (!cap.read(frame) || frame.empty()) break;
+        pipeline.process(spatial_preprocess(frame), false);
+    }
+    cap.set(cv::CAP_PROP_POS_FRAMES, 0);
+    pipeline.reset();
+}
+
+// Warmup → measured inference → rewind video.
 static bool run_initial_inference_check(
     InferencePipeline& pipeline, cv::VideoCapture& cap)
 {
+    // First CUDA runs are ~500 ms+ (kernel compile); discard before measuring.
+    gpu_warmup(pipeline, cap, 2);
+
     cv::Mat frame;
     if (!cap.read(frame) || frame.empty()) {
         std::cerr << "[VisionPilot] Initial check: cannot read first frame\n";
         return false;
     }
-    pipeline.process(spatial_preprocess(frame));
+    pipeline.process(spatial_preprocess(frame), false);
 
     if (!cap.read(frame) || frame.empty()) {
         std::cerr << "[VisionPilot] Initial check: cannot read second frame\n";
         return false;
     }
-    auto result = pipeline.process(spatial_preprocess(frame));
+    auto result = pipeline.process(spatial_preprocess(frame), true);
     if (!result) {
         std::cerr << "[VisionPilot] Initial check: inference returned no output\n";
         return false;
@@ -380,8 +415,9 @@ static std::vector<std::string> make_inference_overlay(
             "AutoSpeed  dets=" + std::to_string(result.auto_speed.detections.size()) +
             "  [" + fmt(lt.autospeed_ms) + " ms]");
     }
+    const double wall_ms = lt.pipeline_ms;
     lines.push_back(
-        "Pipeline " + fmt(lt.pipeline_ms) + " ms  (" + fmt(1000.0 / lt.pipeline_ms, 1) + " fps)");
+        "Parallel wall " + fmt(wall_ms) + " ms  (" + fmt(1000.0 / wall_ms, 1) + " fps)");
     return lines;
 }
 
