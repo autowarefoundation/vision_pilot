@@ -9,6 +9,7 @@ target_link_libraries(VisionPilot
         PRIVATE
         engine
         models
+        fusion
         can_interface
         v4l2_interface
         camera_subscriber
