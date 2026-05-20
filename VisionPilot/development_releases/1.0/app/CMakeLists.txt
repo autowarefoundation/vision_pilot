@@ -1,18 +1,17 @@
 add_executable(VisionPilot
-        vision_pilot.cpp
-        vision_pilot_config.cpp
+    vision_pilot.cpp
 )
 
-target_include_directories(VisionPilot PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
 target_link_libraries(VisionPilot
-        PRIVATE
-        engine
-        models
-        fusion
-        can_interface
-        v4l2_interface
-        camera_subscriber
-        visualization
-        rclcpp::rclcpp
+    PRIVATE
+    config           # VisionPilotConfig, load_vision_pilot_config
+    logging          # VP_INFO / VP_WARN / VP_ERROR
+    engine           # OnnxEngine
+    models           # AutoDrive, AutoSteer, AutoSpeed
+    fusion           # LongitudinalFusion (includes tracking internally)
+    can_interface
+    v4l2_interface
+    camera_subscriber
+    visualization
+    rclcpp::rclcpp
 )

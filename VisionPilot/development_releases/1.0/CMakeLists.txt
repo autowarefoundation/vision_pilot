@@ -21,9 +21,11 @@ find_package(cv_bridge REQUIRED)
 # Modules
 add_subdirectory(modules/engine)
 
-add_subdirectory(modules/control)
-
 add_subdirectory(modules/logging)
+
+add_subdirectory(modules/config)
+
+add_subdirectory(modules/control)
 
 add_subdirectory(modules/middleware_interfaces/ros2_interface/camera_subscriber)
 add_subdirectory(modules/middleware_interfaces/ros2_interface/control_cmd_publisher)
@@ -32,7 +34,7 @@ add_subdirectory(modules/middleware_interfaces/ros2_interface/visualization_publ
 
 add_subdirectory(modules/models)
 
-add_subdirectory(modules/safety_guardian/fusion)
+add_subdirectory(modules/safety_guardian/fusion)   # tracking is embedded inside fusion
 add_subdirectory(modules/safety_guardian/planning)
 
 add_subdirectory(modules/sensing/can_interface)
