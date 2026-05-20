@@ -25,6 +25,8 @@ target_link_libraries(fusion
     PUBLIC
         models          # AutoDriveOutput, AutoSpeedOutput, Detection in public API
         ${OpenCV_LIBS}  # cv::Mat in public header
+    PRIVATE
+        logging         # VP_INFO macros used in longitudinal_fusion.cpp
 )
 
 target_compile_features(fusion PUBLIC cxx_std_17)
