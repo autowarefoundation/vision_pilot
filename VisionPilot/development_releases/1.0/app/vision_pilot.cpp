@@ -283,7 +283,8 @@ static std::vector<std::string> build_overlay(const FrameOutputs& r, const std::
 
     // ── AutoSpeed CIPO raw distance (homography, no tracking state) ─────────
     if (r.cipo.cipo_raw_found)
-        L.push_back("CIPO raw    d=" + fmtd(r.cipo.cipo_raw_dist_m, 1) + " m");
+        L.push_back("CIPO raw    d=" + fmtd(r.cipo.cipo_raw_dist_m, 1) + " m"
+                    + (r.cipo.cut_in_detected ? "  [CUT-IN]" : ""));
     else
         L.push_back("CIPO raw    (none)");
 
