@@ -1,0 +1,32 @@
+{
+  "mazda_rx8": {
+    "steering_angle":   {"name": "SteeringAngle",     "msg_id": 129,  "start_bit": 23, "bit_size": 16, "is_intel": 0, "sign": "-", "factor": 1.0,  "offset": 0.0},
+    "vehicle_speed":    {"name": "VehicleSpeed",      "msg_id": 513,  "start_bit": 39, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0},
+    "accelerator_pos":  {"name": "AcceleratorPos",    "msg_id": 513,  "start_bit": 55, "bit_size": 8,  "is_intel": 0, "sign": "+", "factor": 0.5,  "offset": 0.0},
+    "brake":            {"name": "BrakePedalSwitch",  "msg_id": 658,  "start_bit": 43, "bit_size": 1,  "is_intel": 1, "sign": "+", "factor": 1.0,  "offset": 0.0},
+    "wheel_speed_fl":   {"name": "WheelSpeedFL",      "msg_id": 1200, "start_bit": 7,  "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0},
+    "wheel_speed_fr":   {"name": "WheelSpeedFR",      "msg_id": 1200, "start_bit": 23, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0},
+    "wheel_speed_rl":   {"name": "WheelSpeedRL",      "msg_id": 1200, "start_bit": 39, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0},
+    "wheel_speed_rr":   {"name": "WheelSpeedRR",      "msg_id": 1200, "start_bit": 55, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0}
+  },
+  "mazda_3_2019": {
+    "steering_angle":   {"name": "STEER_ANGLE",          "msg_id": 18, "start_bit": 25, "bit_size": 14, "is_intel": 0, "sign": "-", "factor": 1.375, "offset": 0.0},
+    "accelerator_pos":  {"name": "PEDAL_GAS",            "msg_id": 26, "start_bit": 39, "bit_size": 10, "is_intel": 0, "sign": "+", "factor": 1.0,   "offset": 0.0},
+    "brake":            {"name": "BRAKE_PEDAL_PRESSED",  "msg_id": 24, "start_bit": 7,  "bit_size": 1,  "is_intel": 0, "sign": "+", "factor": 1.0,   "offset": 0.0},
+    "wheel_speed_fl":   {"name": "FL",                   "msg_id": 28, "start_bit": 7,  "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01,  "offset": -100.0},
+    "wheel_speed_fr":   {"name": "FR",                   "msg_id": 28, "start_bit": 23, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01,  "offset": -100.0},
+    "wheel_speed_rl":   {"name": "RL",                   "msg_id": 28, "start_bit": 39, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01,  "offset": -102.0},
+    "wheel_speed_rr":   {"name": "RR",                   "msg_id": 28, "start_bit": 55, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01,  "offset": -100.0},
+    "vehicle_speed":    {"name": "SPEED",                "msg_id": 29, "start_bit": 39, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 1.0,   "offset": 0.0}
+  },
+  "mazda_2017": {
+    "steering_angle":   {"name": "STEER_ANGLE", "msg_id": 134, "start_bit": 7,  "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.1,  "offset": -1600.0},
+    "vehicle_speed":    {"name": "SPEED",       "msg_id": 514, "start_bit": 23, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": 0.0},
+    "accelerator_pos":  {"name": "PEDAL_GAS",   "msg_id": 514, "start_bit": 39, "bit_size": 12, "is_intel": 0, "sign": "+", "factor": 1.0,  "offset": 0.0},
+    "brake":            {"name": "BRAKE_ON",    "msg_id": 357, "start_bit": 4,  "bit_size": 1,  "is_intel": 0, "sign": "+", "factor": 1.0,  "offset": 0.0},
+    "wheel_speed_fl":   {"name": "FL",          "msg_id": 533, "start_bit": 7,  "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0},
+    "wheel_speed_fr":   {"name": "FR",          "msg_id": 533, "start_bit": 23, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0},
+    "wheel_speed_rl":   {"name": "RL",          "msg_id": 533, "start_bit": 39, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0},
+    "wheel_speed_rr":   {"name": "RR",          "msg_id": 533, "start_bit": 55, "bit_size": 16, "is_intel": 0, "sign": "+", "factor": 0.01, "offset": -100.0}
+  }
+}
