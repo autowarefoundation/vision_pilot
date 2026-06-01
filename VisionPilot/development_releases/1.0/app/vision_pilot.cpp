@@ -10,10 +10,13 @@
 #include <visualization/visualization.hpp>
 
 // Drive by wire
-#include "sensing/can_interface/include/can_config.hpp"
-#include "sensing/can_interface/include/can_reader.hpp"
-#include "sensing/can_interface/include/can_writer.hpp"
+#include <sensing/can_interface/include/can_config.hpp>
+#include <sensing/can_interface/include/can_reader.hpp>
+#include <sensing/can_interface/include/can_writer.hpp>
 
+#ifdef ENABLE_ROS2_INTERFACE
+#include <camera_subscriber/ros2_to_opencv.hpp>
+#endif
 
 int main(int argc, char** argv) {
 
@@ -91,7 +94,7 @@ int main(int argc, char** argv) {
                                              state.accelerator_pos,
                                              state.brake,
                                              state.vehicle_speed,
-                                             state.avg_wheel_speed,
+                                             state.avg_wheel_speed
                                             )) {
                         std::cerr << "Failed to send command" << std::endl;
                         return 1;

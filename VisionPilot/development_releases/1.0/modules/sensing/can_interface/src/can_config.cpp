@@ -2,7 +2,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <nlohmann/json.hpp>
-#include "../include/can_config.hpp"
+
+#include <sensing/can_interface/include/can_config.hpp>
 
 using json = nlohmann::json;
 
@@ -13,6 +14,8 @@ namespace DBWConfig {
         const std::string json_path = DBWConfig::DBC_CONF_JSON_PATH; 
         std::ifstream file(json_path);
         
+        std::cout << "Parsing CAN data for car model: " << car_model << std::endl;
+
         if (!file.is_open()) {
             throw std::runtime_error("DBWConfig Error: Cannot open config file: " + json_path);
         }

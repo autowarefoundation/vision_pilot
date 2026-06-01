@@ -5,8 +5,8 @@
 #include <cstring>
 #include <algorithm>
 
-#include "../include/can_writer.hpp"
-#include "../include/can_config.hpp"
+#include <sensing/can_interface/include/can_config.hpp>
+#include <sensing/can_interface/include/can_writer.hpp>
 
 
 namespace can_writer {
@@ -18,9 +18,10 @@ namespace can_writer {
         : car_model(car_model.empty() ? DBWConfig::DEFAULT_MODEL : car_model),
           is_active(true), command_count(0), command_errors(0)
     
-    {
+    {   
+        std::cout << " CAN Writer Starts Parsing CAN data for car model: " << car_model << std::endl;
         if (!_init_signal_mapping()) {
-            throw std::runtime_error("CanWriter Error: Failed to initialize CAN signal profiles for " + this->car_model);
+            throw std::runtime_error("CAN Writer DBC Init Failure: check configurations for car model.");
         }
         
         // Init Panda Hardware

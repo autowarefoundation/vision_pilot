@@ -2,9 +2,10 @@
 #include <cmath>
 #include <chrono>
 #include <thread>
-#include "../include/can_reader.hpp"
-#include "can_config.hpp"
- 
+
+#include <sensing/can_interface/include/can_config.hpp>
+#include <sensing/can_interface/include/can_reader.hpp>
+
 namespace can_reader {
     /**
      * @brief Constructor: Initializes vehicle profile, maps signals, 
@@ -14,9 +15,9 @@ namespace can_reader {
         : car_model(car_model.empty() ? DBWConfig::DEFAULT_MODEL : car_model),
           read_count(0), read_errors(0)
     {
-        std::cout << "Init DBC for car model: " << car_model << std::endl;
+        std::cout << " CAN Reader Starts Parsing CAN data for car model: " << car_model << std::endl;
         if (!_init_signal_mapping()) {
-            throw std::runtime_error("DBC Init Failure: check configurations for car model.");
+            throw std::runtime_error("CAN Reader DBC Init Failure: check configurations for car model.");
         }else{
             std::cout << "CanReader Init successful for car model: " << car_model << std::endl;
         }

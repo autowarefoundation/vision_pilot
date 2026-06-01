@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(libpandadbw LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -28,7 +28,8 @@ target_include_directories(pandabw PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/libpanda/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/libpanda/NMEAParser/Software/NMEAParserLib/include"
-) 
+    "${CMAKE_CURRENT_SOURCE_DIR}/../.."
+)
 
 if(TARGET pandac)
     target_link_libraries(pandabw PUBLIC pandac NMEAParserLib)
@@ -66,6 +67,7 @@ endif()
 target_include_directories(dbw_main PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../.."
 )
 # ===============================================================
 

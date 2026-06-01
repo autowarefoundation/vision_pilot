@@ -25,9 +25,6 @@ namespace DBWConfig {
     CarProfile init_can_signal(const std::string& car_model);
     
     static constexpr const char* DEFAULT_MODEL    = "mazda_rx8";
-    static constexpr const char* DBC_CONF_JSON_PATH = "../../../../../config/vehicle_dbc.json"; 
-
-    // static constexpr unsigned int DEFAULT_COMMAND_MESSAGE_ID = 0x123;
-
+    static constexpr const char* DBC_CONF_JSON_PATH = "../../../../config/vehicle_dbc.json";
 
 }
