@@ -42,9 +42,11 @@ inline const cv::Scalar kPanelBackgroundColor(245, 245, 245);
 inline const int kThickBold = 2;
 inline const int kThickNormal = 1;
 inline const double kFontSize = 0.58;
+inline const double kFontSizeRuler = 0.42;
 
 // Drawing params
 inline const int kThickPolyline = 2;
+inline const int kThickRulerLine = 1;
 
 // BEV max render distance (m)
 inline constexpr float kPathPreviewMaxDistanceMeters = 50.0F;

@@ -692,7 +692,81 @@ namespace visualization {
 			}
 
 			return points.back();
-			
+
+		};
+
+
+		/**
+		* @brief Utility func to draw path preview ruler on right side of frame,
+				 indicating distance scale for drivable path
+		*
+		* @param canvas cv::Mat representing image on which to draw (modified in-place)
+		* @param area cv::Rect representing bounding box within which to draw ruler (typically rightmost portion of frame)
+		* @param max_distance_m float representing maximum distance in meters to be indicated by ruler (used for labeling tick marks)
+		*/
+		void draw_path_preview_ruler(
+			cv::Mat &canvas, 
+			const cv::Rect &area, 
+			float max_distance_m
+		) {
+
+			const int ruler_width = 62;
+			const cv::Rect ruler_rect(
+				area.x + area.width - ruler_width, 
+				area.y, 
+				ruler_width, 
+				area.height
+			);
+			cv::rectangle(
+				canvas, 
+				ruler_rect,
+				kPanelBackgroundColor, 
+				cv::FILLED
+			);
+			cv::line(
+				canvas, 
+				cv::Point(
+					ruler_rect.x, 
+					ruler_rect.y
+				), 
+				cv::Point(
+					ruler_rect.x, 
+					ruler_rect.y + ruler_rect.height
+				), 
+				cv::Scalar(170, 170, 170),
+				kThickRulerLine
+			);
+
+			for (int tick = 0; tick <= 10; ++tick) {
+				const float ratio = static_cast<float>(tick) / 10.0F;
+				const int y = ruler_rect.y + ruler_rect.height - static_cast<int>(std::lround(ratio * static_cast<float>(ruler_rect.height)));
+				const int tick_length = (tick % 5 == 0) ? 16 : 9;
+				cv::line(
+					canvas, 
+					cv::Point(ruler_rect.x, y), 
+					cv::Point(ruler_rect.x + tick_length, y), 
+					cv::Scalar(120, 120, 120), 
+					kThickNormal
+				);
+
+				if (tick % 2 == 0) {
+					const int distance = static_cast<int>(std::lround(ratio * max_distance_m));
+					cv::putText(
+						canvas, 
+						std::to_string(distance) + "m", 
+						cv::Point(
+							ruler_rect.x + tick_length + 4, 
+							y + 5
+						), 
+						cv::FONT_HERSHEY_SIMPLEX, 
+						kFontSizeRuler, 
+						kPanelTextColor, 
+						kThickNormal, 
+						cv::LINE_AA
+					);
+				}
+			}
+
 		};
 
 	}  // namespace
