@@ -428,6 +428,37 @@ namespace visualization {
 
 		};
 
+
+		/**
+		* @brief Utility func to convert YOLOX formatted bbox to OpenCV Rect, 
+		* 		 with clamping to ensure it fits within image bounds.
+		*
+		* @param box YoloBoundingBox representing detected object in YOLOX format
+		* @param size cv::Size representing dimensions of image (used for scaling and clamping)
+		* 
+		* @return cv::Rect representing bbox in OpenCV format, clamped to image bounds
+		*/
+		cv::Rect yolo_to_rect(
+			const YoloBoundingBox &box, 
+			const cv::Size &size
+		) {
+
+			const float cx = box.center_x * static_cast<float>(size.width);
+			const float cy = box.center_y * static_cast<float>(size.height);
+			const float width = box.width * static_cast<float>(size.width);
+			const float height = box.height * static_cast<float>(size.height);
+			
+			const cv::Rect rect(
+				static_cast<int>(std::lround(cx - width * 0.5F)),
+				static_cast<int>(std::lround(cy - height * 0.5F)),
+				std::max(1, static_cast<int>(std::lround(width))),
+				std::max(1, static_cast<int>(std::lround(height)))
+			);
+
+			return make_clamped_rect(rect, size);
+			
+		};
+
 	}  // namespace
 
 
