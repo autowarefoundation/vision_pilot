@@ -312,6 +312,44 @@ namespace visualization {
 
 		};
 
+
+		/**
+		* @brief Utility func to create a translucent panel of specified size, used for right-side info panel
+		*
+		* @param width int width of panel
+		* @param height int height of panel
+		*
+		* @return cv::Mat containing translucent panel
+		*/
+		cv::Mat make_translucent_panel(
+			int width, 
+			int height
+		) {
+
+			cv::Mat base(
+				height, 
+				width, 
+				CV_8UC3, 
+				kPanelBackgroundColor
+			);
+			cv::Mat overlay(
+				height, 
+				width, 
+				CV_8UC3, 
+				kWhiteColor
+			);
+
+			return blend_overlay(
+				base, 
+				overlay, 
+				kRightPanelAlpha
+			);
+
+		};
+
+		
+		
+
 	}  // namespace
 
 

@@ -36,6 +36,7 @@ inline const cv::Scalar kWhiteColor(0, 0, 0);
 inline const cv::Scalar kYellowColor(0, 255, 255);
 inline const cv::Scalar kGrayColor(180, 180, 180);
 inline const cv::Scalar kPanelTextColor(35, 35, 35);
+inline const cv::Scalar kPanelBackgroundColor(245, 245, 245);
 
 // Font sizes and thickness
 inline const int kThickBold = 2;
