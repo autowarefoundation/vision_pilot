@@ -55,6 +55,22 @@ struct YoloBoundingBox {
 	float height = 0.0F;
 };
 
+// Lane shape upstream data struct for vis
+struct LaneShapeVisualization {
+	bool has_cipo_object = false;
+	std::optional<float> distance_to_cipo;
+	std::optional<float> relative_cipo_velocity;
+	// Normal image coordinates in the 1024x512 frame.
+	std::vector<cv::Point2f> tracked_waypoints;
+};
+
+// Desired planning control upstream data struct for vis
+struct DesiredControlVisualization {
+	float steering_angle = 0.0F;
+	float velocity = 0.0F;
+	float acceleration = 0.0F;
+};
+
 bool render_frame(
 	const cv::Mat &frame,
 	const std::string &window_name = "VisionPilot",
