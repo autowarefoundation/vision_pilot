@@ -125,6 +125,103 @@ namespace visualization {
 
 		};
 
+
+		/**
+		* @brief Utility func to overlay an icon (with optional alpha channel) onto a canvas at a specified position
+		*
+		* @param canvas cv::Mat representing the background image onto which the icon will be overlaid (modified in-place)
+		* @param icon cv::Mat containing the icon to overlay (can have alpha channel for transparency)
+		* @param top_left cv::Point specifying the top-left corner where the icon should be placed on the canvas
+		*
+		* This func should handle boundary conditions to ensure icon is fully visible within the canvas.
+		*/
+		void overlay_icon(
+			cv::Mat &canvas, 
+			const cv::Mat &icon, 
+			const cv::Point &top_left
+		) {
+
+			if (icon.empty()) {
+				return;
+			}
+
+			// Calculate ROI on canva and icon, ensuring we aint go out of bounds
+			const int x = std::clamp(
+				top_left.x, 
+				0, 
+				std::max(0, canvas.cols - 1)
+			);
+			const int y = std::clamp(
+				top_left.y, 
+				0, 
+				std::max(0, canvas.rows - 1)
+			);
+			const int width = std::min(
+				icon.cols, 
+				canvas.cols - x
+			);
+			const int height = std::min(
+				icon.rows, 
+				canvas.rows - y
+			);
+			if (width <= 0 || height <= 0) {
+				return;
+			}
+
+			const cv::Rect dst_rect(x, y, width, height);
+			const cv::Rect src_rect(0, 0, width, height);
+			cv::Mat dst_roi = canvas(dst_rect);
+			const cv::Mat src_roi = icon(src_rect);
+
+			// If icon has alpha channel, do alpha blending. 
+			// Otherwise, just copy itself onto canvas.
+			if (src_roi.channels() == 4) {
+
+				std::vector<cv::Mat> channels;
+				cv::split(src_roi, channels);
+				const cv::Mat alpha = channels[3];
+				cv::Mat src_bgr;
+				cv::merge(
+					std::vector<cv::Mat>{
+						channels[0], 
+						channels[1], 
+						channels[2]
+					}, 
+					src_bgr
+				);
+
+				cv::Mat src_float;
+				cv::Mat dst_float;
+				src_bgr.convertTo(src_float, CV_32FC3);
+				dst_roi.convertTo(dst_float, CV_32FC3);
+
+				cv::Mat alpha_float;
+				alpha.convertTo(
+					alpha_float, 
+					CV_32FC1, 
+					1.0 / 255.0
+				);
+				std::vector<cv::Mat> alpha_channels{
+					alpha_float, 
+					alpha_float, 
+					alpha_float
+				};
+				cv::Mat alpha_3;
+				cv::merge(alpha_channels, alpha_3);
+
+				const cv::Mat ones(alpha_3.size(), alpha_3.type(), cv::Scalar::all(1.0));
+				const cv::Mat blended = src_float.mul(alpha_3) + dst_float.mul(ones - alpha_3);
+				blended.convertTo(dst_roi, dst_roi.type());
+			
+			} else {
+				src_roi.copyTo(dst_roi);
+			}
+
+		};
+
+
+		
+
 	}  // namespace
 
 
