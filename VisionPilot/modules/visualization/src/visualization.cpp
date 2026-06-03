@@ -57,18 +57,71 @@ namespace visualization {
 		cv::Mat load_wheel_icon() {
 
 			const std::vector<std::filesystem::path> candidates = {
+				// The one I added in src/assets
 				std::filesystem::path(__FILE__).parent_path() / "assets" / "wheel.png",
+				// Fallback to the one in Media (that Atanasko or Pranav added wayyyy back in Dec 2025)
 				std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".." / ".." / ".." / ".." / "Media" / "wheel.png"
 			};
 
 			for (const auto &candidate : candidates) {
-				cv::Mat icon = cv::imread(candidate.string(), cv::IMREAD_UNCHANGED);
+				cv::Mat icon = cv::imread(
+					candidate.string(), 
+					cv::IMREAD_UNCHANGED
+				);
 				if (!icon.empty()) {
 					return icon;
 				}
 			}
 
 			return cv::Mat();
+
+		};
+
+
+		/**
+		* @brief Utility func to rotate the steering wheel assset by a specified angle.
+		*
+		* @param icon cv::Mat containing the steering wheel icon (with alpha channel)
+		* @param angle_degrees float angle in degrees to rotate the icon (positive = clockwise)
+		*
+		* @return cv::Mat containing the rotated icon, or an empty Mat if input icon is empty
+		*/
+		cv::Mat rotate_icon(
+			const cv::Mat &icon, 
+			float angle_degrees
+		) {
+
+			if (icon.empty()) {
+				return cv::Mat();
+			}
+
+			// Define frame of rotation
+			const cv::Point2f center(icon.cols * 0.5F, icon.rows * 0.5F);
+			const cv::Mat rotation = cv::getRotationMatrix2D(center, angle_degrees, 1.0);
+
+			const cv::Rect2f bounds = cv::RotatedRect(
+				cv::Point2f(), 
+				icon.size(), 
+				angle_degrees
+			).boundingRect2f();
+			cv::Mat adjusted_rotation = rotation.clone();
+			adjusted_rotation.at<double>(0, 2) += bounds.width * 0.5 - center.x;
+			adjusted_rotation.at<double>(1, 2) += bounds.height * 0.5 - center.y;
+
+			// Perform rotation
+			cv::Mat rotated;
+			const cv::Scalar border_color = icon.channels() == 4 ? cv::Scalar(0, 0, 0, 0) : cv::Scalar(255, 255, 255);
+			cv::warpAffine(
+				icon,
+				rotated,
+				adjusted_rotation,
+				bounds.size(),
+				cv::INTER_LINEAR,
+				cv::BORDER_CONSTANT,
+				border_color
+			);
+
+			return rotated;
 
 		};
 
