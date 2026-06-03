@@ -480,6 +480,149 @@ namespace visualization {
 
 		};
 
+
+		/**
+		* @brief Utility func to build a polygon representing drivable path body
+		*		 based on the centerline waypoints.
+		*
+		* @param centerline vector of cv::Point2f representing centerline waypoints of the path
+		* @param size cv::Size representing dimensions of the frame (used to determine path width based on distance from bottom)
+		*
+		* @return vector of cv::Point representing vertices of the path polygon to be drawn
+		*/
+		std::vector<cv::Point> build_path_polygon(
+			const std::vector<cv::Point2f> &centerline, 
+			const cv::Size &size
+		) {
+
+			std::vector<cv::Point> left_side;
+			std::vector<cv::Point> right_side;
+			left_side.reserve(centerline.size());
+			right_side.reserve(centerline.size());
+
+			for (const auto &current : centerline) {
+				const float y_ratio = std::clamp(
+					current.y / std::max(
+						1.0F, 
+						static_cast<float>(size.height - 1)
+					), 
+					0.0F, 
+					1.0F
+				);
+				const float half_width = size.width * 0.125F * y_ratio;
+
+				// Expand purely horizontally (parallel to the bottom edge)
+				left_side.emplace_back(
+					cv::Point(
+						static_cast<int>(std::lround(current.x - half_width)),
+						static_cast<int>(std::lround(current.y))
+					)
+				);
+				right_side.emplace_back(
+					cv::Point(
+						static_cast<int>(std::lround(current.x + half_width)),
+						static_cast<int>(std::lround(current.y))
+					)
+				);
+			}
+
+			std::vector<cv::Point> polygon;
+			polygon.reserve(left_side.size() + right_side.size());
+			polygon.insert(polygon.end(), left_side.begin(), left_side.end());
+			for (auto it = right_side.rbegin(); it != right_side.rend(); ++it) {
+				polygon.push_back(*it);
+			}
+
+			return polygon;
+
+		};
+
+
+		/**
+		* @brief Utility func to draw drivable path polygon and centerline
+				 based on tracked waypoints and acceleration.
+		*
+		* @param frame cv::Mat representing image on which to draw (modified in-place)
+		* @param tracked_waypoints vector of cv::Point2f representing tracked waypoints of path in image coordinates
+		* @param acceleration float representing desired acceleration, used to determine path color: 
+		* 					  - green for positive/zero acceleration
+		*					  - red for negative acceleration
+		*/
+		void draw_main_drivable_path(
+			cv::Mat &frame, 
+			const std::vector<cv::Point2f> &tracked_waypoints, 
+			float acceleration
+		) {
+			
+			if (tracked_waypoints.size() < 2) {
+				return;
+			}
+
+			std::vector<cv::Point2f> projected_points;
+			projected_points.reserve(tracked_waypoints.size());
+			for (const auto &waypoint : tracked_waypoints) {
+				projected_points.emplace_back(
+					std::clamp(
+						waypoint.x, 
+						0.0F, 
+						static_cast<float>(frame.cols - 1)
+					),
+					std::clamp(
+						waypoint.y, 
+						0.0F, 
+						static_cast<float>(frame.rows - 1)
+					)
+				);
+			}
+
+			if (projected_points.size() < 2) {
+				return;
+			}
+
+			const cv::Scalar path_color = acceleration >= 0.0F ? kPositiveAccelerationColor : kNegativeAccelerationColor;
+			const std::vector<cv::Point> polygon = build_path_polygon(
+				projected_points, 
+				frame.size()
+			);
+			if (polygon.size() < 3) {
+				return;
+			}
+
+			cv::Mat overlay = frame.clone();
+			std::vector<std::vector<cv::Point>> polygons{polygon};
+			cv::fillPoly(
+				overlay, 
+				polygons, 
+				path_color
+			);
+			cv::addWeighted(
+				overlay, 
+				kDrivablePathAlpha, 
+				frame, 
+				1.0F - kDrivablePathAlpha, 
+				0.0, 
+				frame
+			);
+			
+			std::vector<cv::Point> centerline_points;
+			centerline_points.reserve(projected_points.size());
+			for (const auto &point : projected_points) {
+				centerline_points.emplace_back(cv::Point(
+					static_cast<int>(std::lround(point.x)),
+					static_cast<int>(std::lround(point.y))
+				));
+			}
+			cv::polylines(
+				frame, 
+				std::vector<std::vector<cv::Point>>{centerline_points}, 
+				false, 
+				kWhiteColor, 
+				kThickPolyline,
+				cv::LINE_AA
+			);
+
+		};
+
 	}  // namespace
 
 

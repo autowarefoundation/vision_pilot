@@ -43,6 +43,9 @@ inline const int kThickBold = 2;
 inline const int kThickNormal = 1;
 inline const double kFontSize = 0.58;
 
+// Drawing params
+inline const int kThickPolyline = 2;
+
 // BEV max render distance (m)
 inline constexpr float kPathPreviewMaxDistanceMeters = 50.0F;
 
