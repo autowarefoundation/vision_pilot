@@ -82,6 +82,10 @@ cv::Mat visualize_frame(
 	const DesiredControlVisualization &desired_control
 );
 
+
+// ====================================================================
+
+
 bool render_frame(
 	const cv::Mat &frame,
 	const std::string &window_name = "VisionPilot",
