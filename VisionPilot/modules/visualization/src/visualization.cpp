@@ -42,7 +42,7 @@ namespace visualization {
 				case 3:
 					return kOtherCarsColor;
 				default:
-					return cv::Scalar(180, 180, 180);
+					return kGrayColor;
 			}
 
 		};
@@ -220,7 +220,97 @@ namespace visualization {
 		};
 
 
-		
+		/**
+		* @brief Utility wrapper func to draw centered text within a specified rectangle on the canvas
+		*
+		* @param canvas cv::Mat representing the image on which to draw (modified in-place)
+		* @param text std::string containing the text to draw
+		* @param rect cv::Rect specifying the bounding box within which the text should be centered
+		* @param scale double specifying the font scale for the text
+		* @param color cv::Scalar specifying the color of the text
+		* @param thickness int specifying the thickness of the text (default = 1)
+		*
+		*/
+		void draw_text_centered(
+			cv::Mat &canvas, 
+			const std::string &text, 
+			const cv::Rect &rect, 
+			double scale, 
+			const cv::Scalar &color, 
+			int thickness = 1
+		) {
+			
+			int baseline = 0;
+			const cv::Size text_size = cv::getTextSize(
+				text, 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				scale, 
+				thickness, 
+				&baseline
+			);
+
+			// div-center text within rect
+			const int x = rect.x + std::max(0, (rect.width - text_size.width) / 2);
+			const int y = rect.y + std::max(text_size.height, (rect.height + text_size.height) / 2);
+			cv::putText(
+				canvas, 
+				text, 
+				cv::Point(x, y), 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				scale, 
+				color, 
+				thickness, 
+				cv::LINE_AA
+			);
+
+		};
+
+		void draw_inline_value(
+			cv::Mat &canvas, 
+			const cv::Point &origin, 
+			const std::string &title, 
+			const std::string &value, 
+			const cv::Scalar &value_color
+		) {
+
+			// Draw title (bold thickness 2)
+			cv::putText(
+				canvas, 
+				title + ": ", 
+				origin, 
+				cv::FONT_HERSHEY_SIMPLEX,
+				kFontSize, 
+				kYellowColor, 
+				kThickBold, 
+				cv::LINE_AA
+			);
+
+			// Calculate title width to place value exactly inline
+			int baseline = 0;
+			const cv::Size title_size = cv::getTextSize(
+				title + ": ", 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSize, 
+				kThickBold, 
+				&baseline
+			);
+
+			// Draw value (normal thickness 1)
+			cv::putText(
+				canvas, 
+				value, 
+				cv::Point(
+					origin.x + title_size.width, 
+					origin.y
+				), 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSize, 
+				value_color, 
+				kThickNormal, 
+				cv::LINE_AA
+			);
+
+		};
 
 	}  // namespace
 

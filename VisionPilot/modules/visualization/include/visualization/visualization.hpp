@@ -33,7 +33,14 @@ inline const cv::Scalar kPositiveAccelerationColor(0, 200, 0);
 inline const cv::Scalar kNegativeAccelerationColor(0, 0, 255);
 // 3. Others
 inline const cv::Scalar kWhiteColor(0, 0, 0);
+inline const cv::Scalar kYellowColor(0, 255, 255);
+inline const cv::Scalar kGrayColor(180, 180, 180);
 inline const cv::Scalar kPanelTextColor(35, 35, 35);
+
+// Font sizes and thickness
+inline const int kThickBold = 2;
+inline const int kThickNormal = 1;
+inline const double kFontSize = 0.58;
 
 // BEV max render distance (m)
 inline constexpr float kPathPreviewMaxDistanceMeters = 50.0F;
