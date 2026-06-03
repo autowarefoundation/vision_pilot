@@ -17,6 +17,7 @@ namespace visualization {
 inline constexpr int kFrameWidth = 1024;
 inline constexpr int kFrameHeight = 512;
 inline constexpr int kVisualizationPanelWidth = 360;
+inline constexpr int kRulerWidth = 62;
 
 // Background alphas
 inline constexpr float kDetectionOverlayAlpha = 0.30F;
@@ -37,6 +38,7 @@ inline const cv::Scalar kYellowColor(0, 255, 255);
 inline const cv::Scalar kGrayColor(180, 180, 180);
 inline const cv::Scalar kPanelTextColor(35, 35, 35);
 inline const cv::Scalar kPanelBackgroundColor(245, 245, 245);
+inline const cv::Scalar kBEVDrivablePathColor(40, 180, 90);
 
 // Font sizes and thickness
 inline const int kThickBold = 2;
