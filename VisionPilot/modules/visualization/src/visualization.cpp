@@ -623,6 +623,78 @@ namespace visualization {
 
 		};
 
+
+		/**
+		* @brief Utility func to calculate total length of a polyline defined by a sequence of points
+		*
+		* @param points vector of cv::Point2f representing vertices of polyline
+		*
+		* @return float representing total length of polyline
+		*/
+		float polyline_length(
+			const std::vector<cv::Point2f> &points
+		) {
+
+			float total = 0.0F;
+
+			for (std::size_t index = 1; index < points.size(); ++index) {
+				const cv::Point2f delta = points[index] - points[index - 1];
+				total += std::sqrt(delta.x * delta.x + delta.y * delta.y);
+			}
+
+			return total;
+
+		};
+
+		/**
+		* @brief Utility func to find a point along a polyline at a specified ratio of total length
+		*
+		* @param points vector of cv::Point2f representing vertices of polyline
+		* @param target_ratio float in [0, 1] representing desired position along polyline (0 = start, 1 = end)
+		*
+		* @return cv::Point2f representing coordinates of point along polyline corresponding to target_ratio
+		*/
+		cv::Point2f point_along_polyline(
+			const std::vector<cv::Point2f> &points, 
+			float target_ratio
+		) {
+
+			if (points.empty()) {
+				return cv::Point2f();
+			}
+
+			if (points.size() == 1) {
+				return points.front();
+			}
+
+			const float clamped_ratio = std::clamp(
+				target_ratio, 
+				0.0F, 
+				1.0F
+			);
+			const float total_length = polyline_length(points);
+			if (total_length <= 1e-4F) {
+				return points.front();
+			}
+
+			const float target_length = total_length * clamped_ratio;
+			float accumulated = 0.0F;
+			
+			for (std::size_t index = 1; index < points.size(); ++index) {
+				const cv::Point2f delta = points[index] - points[index - 1];
+				const float segment_length = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+				if (accumulated + segment_length >= target_length) {
+					const float segment_ratio = (target_length - accumulated) / std::max(segment_length, 1e-4F);
+					
+					return points[index - 1] + delta * segment_ratio;
+				}
+				accumulated += segment_length;
+			}
+
+			return points.back();
+			
+		};
+
 	}  // namespace
 
 
