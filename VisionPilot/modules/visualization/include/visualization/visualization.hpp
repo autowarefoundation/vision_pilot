@@ -10,7 +10,7 @@
 
 namespace visualization {
 
-// Dimensions of major compartments
+// Dimensions of major compartments (all in pixels)
 inline constexpr int kFrameWidth = 1024;
 inline constexpr int kFrameHeight = 512;
 inline constexpr int kVisualizationPanelWidth = 360;
@@ -28,6 +28,9 @@ inline const cv::Scalar kPositiveAccelerationColor(0, 200, 0);
 inline const cv::Scalar kNegativeAccelerationColor(0, 0, 255);
 inline const cv::Scalar kWhiteColor(0, 0, 0);
 inline const cv::Scalar kPanelTextColor(35, 35, 35);
+
+// BEV max render distance (m)
+inline constexpr float kPathPreviewMaxDistanceMeters = 50.0F;
 
 bool render_frame(
 	const cv::Mat &frame,
