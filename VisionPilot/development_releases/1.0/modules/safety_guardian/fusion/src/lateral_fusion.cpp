@@ -112,6 +112,8 @@ LateralFusionEstimate LateralFusion::update(
         est.path_a             = path.a;
         est.path_b             = path.b;
         est.path_c             = path.c;
+        est.path_x_min_m       = path.x_min_m;
+        est.path_x_max_m       = path.x_max_m;
 
     // ── Step 3: AutoDrive curvature ───────────────────────────────────────────
     float ad_curv = 0.f;
@@ -287,7 +289,7 @@ LateralFusion::fit_ransac(const std::vector<WorldPt>& pts) const
             do { ic = pick(const_cast<std::mt19937&>(rng_)); } while (ic == ia || ic == ib);
 
             const std::vector<WorldPt> sample = {pts[ia], pts[ib], pts[ic]};
-            const PathParams model = fit_quadratic(sample, cfg_.curv_sample_count);
+            const PathParams model = fit_quadratic(sample, cfg_.curv_x_min_m, cfg_.curv_x_max_m);
             if (!model.valid) continue;
 
             // Count inliers
@@ -306,7 +308,7 @@ LateralFusion::fit_ransac(const std::vector<WorldPt>& pts) const
 
     // Final refit on inlier set
     if (static_cast<int>(best_inliers_pts.size()) >= 3) {
-        PathParams final_fit = fit_quadratic(best_inliers_pts, cfg_.curv_sample_count);
+        PathParams final_fit = fit_quadratic(best_inliers_pts, cfg_.curv_x_min_m, cfg_.curv_x_max_m);
         final_fit.inliers    = static_cast<int>(best_inliers_pts.size());
         if (final_fit.inliers < cfg_.ransac_min_inliers) return {};
         if (std::abs(final_fit.cte_m) > cfg_.max_abs_cte_m) return {};
@@ -324,28 +326,23 @@ float LateralFusion::curvature_at_x(float a, float b, float x)
     return (2.f * a) / denom;
 }
 
+// Median κ(x) on the fitted curve at each waypoint x inside the lookahead window.
 float LateralFusion::sample_path_curvature(const std::vector<WorldPt>& pts,
-                                           float a, float b, int n_samples)
+                                           float a, float b,
+                                           float x_min_m, float x_max_m)
 {
-    if (n_samples < 1) return curvature_at_x(a, b, 0.f);
-
-    float x_lo = pts.empty() ? 0.f : pts[0].x;
-    float x_hi = x_lo;
-    for (const auto& p : pts) {
-        x_lo = std::min(x_lo, p.x);
-        x_hi = std::max(x_hi, p.x);
-    }
-    x_lo = std::max(0.f, x_lo);
-    if (x_hi <= x_lo + 0.5f)
-        return curvature_at_x(a, b, x_lo);
+    if (x_min_m > x_max_m) std::swap(x_min_m, x_max_m);
 
     std::vector<float> kappas;
-    kappas.reserve(static_cast<std::size_t>(n_samples));
-    for (int i = 0; i < n_samples; ++i) {
-        const float t = static_cast<float>(i) / static_cast<float>(n_samples - 1);
-        const float x = x_lo + t * (x_hi - x_lo);
-        kappas.push_back(curvature_at_x(a, b, x));
+    kappas.reserve(pts.size());
+    for (const auto& p : pts) {
+        if (p.x < x_min_m || p.x > x_max_m) continue;
+        kappas.push_back(curvature_at_x(a, b, p.x));
     }
+
+    if (kappas.empty())
+        return curvature_at_x(a, b, x_min_m);
+
     const auto mid = kappas.begin() + kappas.size() / 2;
     std::nth_element(kappas.begin(), mid, kappas.end());
     return *mid;
@@ -353,7 +350,8 @@ float LateralFusion::sample_path_curvature(const std::vector<WorldPt>& pts,
 
 // Least-squares quadratic fit: y = a·x² + b·x + c
 LateralFusion::PathParams
-LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts, int curv_samples)
+LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts,
+                             float curv_x_min_m, float curv_x_max_m)
 {
     const int n = static_cast<int>(pts.size());
     if (n < 3) return {};
@@ -379,7 +377,14 @@ LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts, int curv_samples)
 
     p.cte_m   = p.c;
     p.yaw_rad = std::atan(p.b);
-    p.curvature = sample_path_curvature(pts, p.a, p.b, curv_samples);
+    p.curvature = sample_path_curvature(pts, p.a, p.b, curv_x_min_m, curv_x_max_m);
+
+    p.x_min_m = pts[0].x;
+    p.x_max_m = pts[0].x;
+    for (const auto& pt : pts) {
+        p.x_min_m = std::min(p.x_min_m, pt.x);
+        p.x_max_m = std::max(p.x_max_m, pt.x);
+    }
     return p;
 }
 
