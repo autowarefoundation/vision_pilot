@@ -10,6 +10,9 @@
 
 namespace visualization {
 
+
+// ================== HARD-CODED VISUALIZATION PARAMS ==================
+
 // Dimensions of major compartments (all in pixels)
 inline constexpr int kFrameWidth = 1024;
 inline constexpr int kFrameHeight = 512;
@@ -31,6 +34,19 @@ inline const cv::Scalar kPanelTextColor(35, 35, 35);
 
 // BEV max render distance (m)
 inline constexpr float kPathPreviewMaxDistanceMeters = 50.0F;
+
+
+// ======================= VISUALIZATION UTILS =======================
+
+// Homomatrix - normal => BEV (thanks Atanasko)
+const cv::Mat homography_matrix = (
+	cv::Mat_<float>(3, 3) <<
+		0.00209514907F, -0.000941721466F, -9.24906396F,
+		0.00662758637F, -0.000352940531F, -3.33396502F,
+		0.000120077371F, -0.00411343505F, 1.0F
+);
+
+
 
 bool render_frame(
 	const cv::Mat &frame,
