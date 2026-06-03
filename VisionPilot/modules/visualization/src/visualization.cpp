@@ -456,7 +456,28 @@ namespace visualization {
 			);
 
 			return make_clamped_rect(rect, size);
+
+		};
+
+
+		/**
+		* @brief Utility func to format float value to string (used for right panel info display)
+		*
+		* @param value float value to format
+		* @param precision int number of decimal places to include
+		*
+		* @return std::string representing formatted float value
+		*/
+		std::string format_float(
+			float value, 
+			int precision
+		) {
+
+			std::ostringstream stream;
+			stream << std::fixed << std::setprecision(precision) << value;
 			
+			return stream.str();
+
 		};
 
 	}  // namespace
