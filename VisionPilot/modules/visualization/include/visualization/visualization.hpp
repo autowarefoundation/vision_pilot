@@ -46,7 +46,14 @@ const cv::Mat homography_matrix = (
 		0.000120077371F, -0.00411343505F, 1.0F
 );
 
-
+// YOLOX formatted boundinb box struct
+struct YoloBoundingBox {
+	int class_id = 0;
+	float center_x = 0.0F;
+	float center_y = 0.0F;
+	float width = 0.0F;
+	float height = 0.0F;
+};
 
 bool render_frame(
 	const cv::Mat &frame,
