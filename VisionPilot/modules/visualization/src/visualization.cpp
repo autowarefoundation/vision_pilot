@@ -18,11 +18,20 @@ namespace visualization {
 	namespace {
 
 
-		// Utility function to get class color based on class ID
-		// Current AutoSpeed class IDs:
-		// - `1` : CIPO
-		// - `2` : cutting-in vehicles
-		// - `3` : other vehicles
+		/**
+		* @brief Utility func to get class color based on class ID
+		*
+		* @param class_id class ID of the detected object, as per AutoSpeed:
+		*	- `1` : CIPO
+		*	- `2` : cutting-in vehicles
+		*	- `3` : other vehicles
+		*
+		* @return cv::Scalar color corresponding to the class ID :
+		*	- CIPO : red (0, 0, 255)
+		*	- Cutting-in vehicles : yellow (0, 255, 255)
+		*	- Other vehicles : blue (255, 0, 0)
+		*	- Default/Unknown : gray (180, 180, 180)
+		*/
 		cv::Scalar class_color(int class_id) {
 
 			switch (class_id) {
@@ -35,10 +44,36 @@ namespace visualization {
 				default:
 					return cv::Scalar(180, 180, 180);
 			}
-			
+
+		};
+
+
+		/**
+		* @brief Utility func to load wheel icon with fallback paths
+		*
+		* @return cv::Mat containing the loaded wheel icon,
+		* 		  or an empty Mat if loading somehow fails
+		*/
+		cv::Mat load_wheel_icon() {
+
+			const std::vector<std::filesystem::path> candidates = {
+				std::filesystem::path(__FILE__).parent_path() / "assets" / "wheel.png",
+				std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".." / ".." / ".." / ".." / "Media" / "wheel.png"
+			};
+
+			for (const auto &candidate : candidates) {
+				cv::Mat icon = cv::imread(candidate.string(), cv::IMREAD_UNCHANGED);
+				if (!icon.empty()) {
+					return icon;
+				}
+			}
+
+			return cv::Mat();
+
 		};
 
 	}  // namespace
+
 
 	// Legacy render_frame implementation
 	
