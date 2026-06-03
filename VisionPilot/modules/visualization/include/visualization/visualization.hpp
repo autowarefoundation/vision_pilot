@@ -10,9 +10,15 @@
 
 namespace visualization {
 
+// Dimensions of major compartments
 inline constexpr int kFrameWidth = 1024;
 inline constexpr int kFrameHeight = 512;
 inline constexpr int kVisualizationPanelWidth = 360;
+
+// Background alphas
+inline constexpr float kDetectionOverlayAlpha = 0.30F;
+inline constexpr float kRightPanelAlpha = 0.30F;
+inline constexpr float kDrivablePathAlpha = 0.30F;
 
 bool render_frame(
 	const cv::Mat &frame,
