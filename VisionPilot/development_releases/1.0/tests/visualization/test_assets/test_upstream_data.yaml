@@ -21,3 +21,7 @@ lane_shape:
     - [523.000000, 301.222222]
     - [524.000000, 271.111111]
     - [525.000000, 241.000000]
+desired_planning:
+  steering_angle: -30.00
+  velocity: 40.00
+  acceleration: -2.00
