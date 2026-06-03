@@ -37,18 +37,17 @@ struct DebugView {
     fusion::LateralFusionEstimate   lateral;
 
     VehicleParams vehicle;
-    // Directory with wheel_white.png / wheel_green.png (0.9/images by default)
     std::string wheel_dir;
+    // Homography YAML (image → world); used to back-project fused path onto the frame
+    std::string homography_path;
 };
 
-// Load wheel PNGs once (idempotent). Call from main after config is known.
 void init_wheel_assets(const std::string& wheel_dir);
+void init_homography(const std::string& yaml_path);
 
-// Draws onto 1024×512 BGR frame:
-//   • AutoSpeed boxes (L1 red, L2 yellow, L3 cyan)
-//   • AutoSteer ego path — 64 waypoints × h_vector mask (green dots + polyline)
-//   • Steering wheels: green = fused κ, white = AutoDrive κ
-//   • 3-column HUD
+// Draws onto 1024×512 BGR frame with fixed layout zones:
+//   • Green = AutoSteer waypoints; yellow = fused path (image + BEV inset)
+//   • Top-left legend; bottom-right BEV; bottom strip = 3-column telemetry
 void annotate_frame(cv::Mat& frame, const DebugView& view);
 
 }  // namespace visionpilot::debug
