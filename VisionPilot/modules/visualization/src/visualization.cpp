@@ -348,7 +348,85 @@ namespace visualization {
 		};
 
 		
-		
+		/**
+		* @brief Utility func to clamp a rectangle within the bounds of a given size (used for bounding box drawing)
+		*
+		* @param rect cv::Rect representing rectangle to clamp
+		* @param size cv::Size representing bounds within which to clamp rectangle
+		*
+		* @return cv::Rect representing clamped rectangle
+		*/
+		cv::Rect make_clamped_rect(
+			const cv::Rect &rect, 
+			const cv::Size &size
+		) {
+
+			const int x = std::clamp(
+				rect.x, 
+				0, 
+				std::max(0, size.width - 1)
+			);
+			const int y = std::clamp(
+				rect.y, 
+				0, 
+				std::max(0, size.height - 1)
+			);
+			const int right = std::clamp(
+				rect.x + rect.width, 
+				0, 
+				size.width
+			);
+			const int bottom = std::clamp(
+				rect.y + rect.height, 
+				0, 
+				size.height
+			);
+
+			return cv::Rect(
+				x, 
+				y, 
+				std::max(0, right - x), 
+				std::max(0, bottom - y)
+			);
+			
+		};
+
+
+		/**
+		* @brief Utility func to draw vehicle bboxes
+		*
+		* @param frame cv::Mat representing image on which to draw (modified in-place)
+		* @param bounding_boxes vector of YoloBoundingBox representing detected objects to draw
+		*/
+		void draw_detection_boxes(
+			cv::Mat &frame, 
+			const std::vector<YoloBoundingBox> &bounding_boxes
+		) {
+			
+			if (bounding_boxes.empty()) return;
+
+			cv::Mat overlay = frame.clone();
+			for (const auto &box : bounding_boxes) {
+				const cv::Rect rect = yolo_to_rect(box, frame.size());
+				if (rect.width <= 0 || rect.height <= 0) continue;
+				cv::rectangle(
+					overlay, 
+					rect, 
+					class_color(box.class_id), 
+					cv::FILLED
+				);
+			}
+			
+			cv::addWeighted(
+				overlay, 
+				kDetectionOverlayAlpha, 
+				frame, 
+				1.0F - kDetectionOverlayAlpha, 
+				0.0, 
+				frame
+			);
+
+		};
 
 	}  // namespace
 
