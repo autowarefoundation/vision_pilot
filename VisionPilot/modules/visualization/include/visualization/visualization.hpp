@@ -24,11 +24,14 @@ inline constexpr float kRightPanelAlpha = 0.30F;
 inline constexpr float kDrivablePathAlpha = 0.30F;
 
 // Colors
+// 1. Bounding boxes
 inline const cv::Scalar kCipoColor(0, 0, 255);
 inline const cv::Scalar kCuttingInColor(0, 255, 255);
 inline const cv::Scalar kOtherCarsColor(255, 0, 0);
+// 2. Drivable path body (accel & decel)
 inline const cv::Scalar kPositiveAccelerationColor(0, 200, 0);
 inline const cv::Scalar kNegativeAccelerationColor(0, 0, 255);
+// 3. Others
 inline const cv::Scalar kWhiteColor(0, 0, 0);
 inline const cv::Scalar kPanelTextColor(35, 35, 35);
 
@@ -70,6 +73,14 @@ struct DesiredControlVisualization {
 	float velocity = 0.0F;
 	float acceleration = 0.0F;
 };
+
+// Main vis drawing function
+cv::Mat visualize_frame(
+	const cv::Mat &frame,
+	const std::vector<YoloBoundingBox> &bounding_boxes,
+	const LaneShapeVisualization &lane_shape,
+	const DesiredControlVisualization &desired_control
+);
 
 bool render_frame(
 	const cv::Mat &frame,
