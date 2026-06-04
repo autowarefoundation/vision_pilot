@@ -314,6 +314,35 @@ namespace visualization {
 
 
 		/**
+		* @brief Utility func to blend two images with specified alpha for overlay (used for drawing translucent panels and overlays)
+		*
+		* @param base cv::Mat representing the background image (unmodified)
+		* @param overlay cv::Mat representing the foreground image to blend on top of the base
+		* @param alpha float in [0, 1] representing the opacity of the overlay (0 = fully transparent, 1 = fully opaque)
+		*
+		* @return cv::Mat containing the blended result
+		*/
+		cv::Mat blend_overlay(
+			const cv::Mat &base, 
+			const cv::Mat &overlay, 
+			float alpha
+		) {
+			
+			cv::Mat result;
+			cv::addWeighted(
+				overlay, 
+				alpha, 
+				base, 
+				1.0F - alpha, 
+				0.0, 
+				result
+			);
+			return result;
+
+		}
+		
+		
+		/**
 		* @brief Utility func to create a translucent panel of specified size, used for right-side info panel
 		*
 		* @param width int width of panel
@@ -393,6 +422,37 @@ namespace visualization {
 
 
 		/**
+		* @brief Utility func to convert YOLOX formatted bbox to OpenCV Rect, 
+		* 		 with clamping to ensure it fits within image bounds.
+		*
+		* @param box YoloBoundingBox representing detected object in YOLOX format
+		* @param size cv::Size representing dimensions of image (used for scaling and clamping)
+		* 
+		* @return cv::Rect representing bbox in OpenCV format, clamped to image bounds
+		*/
+		cv::Rect yolo_to_rect(
+			const YoloBoundingBox &box, 
+			const cv::Size &size
+		) {
+
+			const float cx = box.center_x * static_cast<float>(size.width);
+			const float cy = box.center_y * static_cast<float>(size.height);
+			const float width = box.width * static_cast<float>(size.width);
+			const float height = box.height * static_cast<float>(size.height);
+			
+			const cv::Rect rect(
+				static_cast<int>(std::lround(cx - width * 0.5F)),
+				static_cast<int>(std::lround(cy - height * 0.5F)),
+				std::max(1, static_cast<int>(std::lround(width))),
+				std::max(1, static_cast<int>(std::lround(height)))
+			);
+
+			return make_clamped_rect(rect, size);
+
+		};
+		
+		
+		/**
 		* @brief Utility func to draw vehicle bboxes
 		*
 		* @param frame cv::Mat representing image on which to draw (modified in-place)
@@ -425,37 +485,6 @@ namespace visualization {
 				0.0, 
 				frame
 			);
-
-		};
-
-
-		/**
-		* @brief Utility func to convert YOLOX formatted bbox to OpenCV Rect, 
-		* 		 with clamping to ensure it fits within image bounds.
-		*
-		* @param box YoloBoundingBox representing detected object in YOLOX format
-		* @param size cv::Size representing dimensions of image (used for scaling and clamping)
-		* 
-		* @return cv::Rect representing bbox in OpenCV format, clamped to image bounds
-		*/
-		cv::Rect yolo_to_rect(
-			const YoloBoundingBox &box, 
-			const cv::Size &size
-		) {
-
-			const float cx = box.center_x * static_cast<float>(size.width);
-			const float cy = box.center_y * static_cast<float>(size.height);
-			const float width = box.width * static_cast<float>(size.width);
-			const float height = box.height * static_cast<float>(size.height);
-			
-			const cv::Rect rect(
-				static_cast<int>(std::lround(cx - width * 0.5F)),
-				static_cast<int>(std::lround(cy - height * 0.5F)),
-				std::max(1, static_cast<int>(std::lround(width))),
-				std::max(1, static_cast<int>(std::lround(height)))
-			);
-
-			return make_clamped_rect(rect, size);
 
 		};
 
@@ -1296,7 +1325,7 @@ namespace visualization {
 		);
 
 		return output;
-		
+
 	};
 
 
