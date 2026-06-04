@@ -108,8 +108,67 @@ namespace {
         node["acceleration"] >> desired_control.acceleration;
 
         return desired_control;
-        
+
     };
 
 
 } // namespace
+
+
+// ====================== MAIN VIS TESTING IMPLEMENTATION ======================
+
+
+int main(int argc, char **argv) {
+
+	// Test asset paths and args
+    const std::filesystem::path asset_dir = argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::path(VISUALIZATION_TEST_ASSET_DIR);
+	const std::filesystem::path frame_path = argc > 2 ? std::filesystem::path(argv[2]) : asset_dir / "test_frame.png";
+	const std::filesystem::path yaml_path = argc > 3 ? std::filesystem::path(argv[3]) : asset_dir / "test_upstream_data.yaml";
+	const std::filesystem::path output_path = argc > 4 ? std::filesystem::path(argv[4]) : std::filesystem::path(VISUALIZATION_TEST_OUTPUT_PATH);
+
+	// Load test frame
+    const cv::Mat frame = cv::imread(frame_path.string(), cv::IMREAD_COLOR);
+	if (frame.empty()) {
+		std::cerr << "Failed to load frame: " << frame_path << '\n';
+		return 1;
+	}
+
+	// Load test upstream data from YAML
+    const cv::FileStorage file_storage(
+        yaml_path.string(), 
+        cv::FileStorage::READ
+    );
+	if (!file_storage.isOpened()) {
+		std::cerr << "Failed to open upstream YAML: " << yaml_path << '\n';
+		return 1;
+	}
+
+	const cv::FileNode autospeed = file_storage["autospeed"];
+	const cv::FileNode lane_shape_node = file_storage["lane_shape"];
+	const cv::FileNode desired_planning_node = file_storage["desired_planning"];
+
+	const std::vector<visualization::YoloBoundingBox> bounding_boxes = load_bounding_boxes(autospeed);
+	const visualization::LaneShapeVisualization lane_shape = load_lane_shape(lane_shape_node);
+	const visualization::DesiredControlVisualization desired_control = load_desired_control(desired_planning_node);
+
+	// Render visualization and save output
+    const cv::Mat rendered = visualization::visualize_frame(
+        frame, 
+        bounding_boxes, 
+        lane_shape, 
+        desired_control
+    );
+	if (rendered.empty()) {
+		std::cerr << "Visualization produced an empty frame.\n";
+		return 1;
+	}
+
+	if (!cv::imwrite(output_path.string(), rendered)) {
+		std::cerr << "Failed to write output image: " << output_path << '\n';
+		return 1;
+	}
+
+	std::cout << "Saved rendered visualization to: " << output_path << '\n';
+
+	return 0;
+}
