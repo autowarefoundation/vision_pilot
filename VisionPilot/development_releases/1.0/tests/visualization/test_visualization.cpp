@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
 
 	// Test asset paths and args
     const std::filesystem::path asset_dir = argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::path(VISUALIZATION_TEST_ASSET_DIR);
-	const std::filesystem::path frame_path = argc > 2 ? std::filesystem::path(argv[2]) : asset_dir / "test_frame.png";
+	const std::filesystem::path frame_path = argc > 2 ? std::filesystem::path(argv[2]) : asset_dir / "test_frame.jpg";
 	const std::filesystem::path yaml_path = argc > 3 ? std::filesystem::path(argv[3]) : asset_dir / "test_upstream_data.yaml";
 	const std::filesystem::path output_path = argc > 4 ? std::filesystem::path(argv[4]) : std::filesystem::path(VISUALIZATION_TEST_OUTPUT_PATH);
 
