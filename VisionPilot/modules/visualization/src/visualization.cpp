@@ -531,28 +531,25 @@ namespace visualization {
 
 			for (const auto &current : centerline) {
 				const float y_ratio = std::clamp(
-					current.y / std::max(
-						1.0F, 
-						static_cast<float>(size.height - 1)
-					), 
+					current.y / std::max(1.0F, static_cast<float>(size.height - 1)), 
 					0.0F, 
 					1.0F
 				);
-				const float half_width = size.width * 0.125F * y_ratio;
+				
+				// Total width is 1/4 at y=1.0 and 1/16 at y=0.5
+				// std::max ensures path converges to a point at horizon without inverting
+				const float half_width_ratio = std::max(0.0F, 0.1875F * y_ratio - 0.0625F);
+				const float half_width = size.width * half_width_ratio;
 
 				// Expand purely horizontally (parallel to the bottom edge)
-				left_side.emplace_back(
-					cv::Point(
-						static_cast<int>(std::lround(current.x - half_width)),
-						static_cast<int>(std::lround(current.y))
-					)
-				);
-				right_side.emplace_back(
-					cv::Point(
-						static_cast<int>(std::lround(current.x + half_width)),
-						static_cast<int>(std::lround(current.y))
-					)
-				);
+				left_side.emplace_back(cv::Point(
+					static_cast<int>(std::lround(current.x - half_width)),
+					static_cast<int>(std::lround(current.y))
+				));
+				right_side.emplace_back(cv::Point(
+					static_cast<int>(std::lround(current.x + half_width)),
+					static_cast<int>(std::lround(current.y))
+				));
 			}
 
 			std::vector<cv::Point> polygon;
