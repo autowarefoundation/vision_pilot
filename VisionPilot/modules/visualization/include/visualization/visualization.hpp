@@ -19,6 +19,19 @@ inline constexpr int kFrameHeight = 512;
 inline constexpr int kVisualizationPanelWidth = 360;
 inline constexpr int kRulerWidth = 62;
 
+// Sizes
+inline const int kSizeWheelNonAva = 34;
+
+// Texts
+inline constexpr std::string kTitleDesiredPlanningValue = "Desired planning values";
+inline constexpr std::string kTitlePathPreview = "Path preview";
+inline constexpr std::string kTelemetryLabelVelocity = "Velocity";
+inline constexpr std::string kTelemetryLabelSteering = "Steering";
+inline constexpr std::string kTelemetryLabelAcceleration = "Acceleration";
+inline constexpr std::string kTelemetryUnitVelocity = "km/h";
+inline constexpr std::string kTelemetryUnitSteering = "deg";
+inline constexpr std::string kTelemetryUnitAcceleration = "m/s2";
+
 // Background alphas
 inline constexpr float kDetectionOverlayAlpha = 0.30F;
 inline constexpr float kRightPanelAlpha = 0.30F;
@@ -33,7 +46,8 @@ inline const cv::Scalar kOtherCarsColor(255, 0, 0);
 inline const cv::Scalar kPositiveAccelerationColor(0, 200, 0);
 inline const cv::Scalar kNegativeAccelerationColor(0, 0, 255);
 // 3. Others
-inline const cv::Scalar kWhiteColor(0, 0, 0);
+inline const cv::Scalar kWhiteColor(255, 255, 255);
+inline const cv::Scalar kBlackColor(0, 0, 0);
 inline const cv::Scalar kYellowColor(0, 255, 255);
 inline const cv::Scalar kGrayColor(180, 180, 180);
 inline const cv::Scalar kPanelTextColor(35, 35, 35);
@@ -41,6 +55,8 @@ inline const cv::Scalar kPanelBackgroundColor(245, 245, 245);
 inline const cv::Scalar kBEVDrivablePathColor(40, 180, 90);
 inline const cv::Scalar kRulerLineColor(170, 170, 170);
 inline const cv::Scalar kRulerTickColor(120, 120, 120);
+inline const cv::Scalar kAcceleratingColor(0, 252, 124);
+inline const cv::Scalar kDeceleratingColor(114, 128, 250);
 
 // Font sizes and thickness
 inline const int kThickBold = 2;
@@ -49,6 +65,7 @@ inline const double kFontSize = 0.58;
 inline const double kFontSizeRuler = 0.42;
 
 // Drawing params
+inline const int kThickSuper = 3;
 inline const int kThickPolyline = 2;
 inline const int kThickRulerLine = 1;
 

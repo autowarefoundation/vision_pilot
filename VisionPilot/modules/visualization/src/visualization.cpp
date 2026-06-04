@@ -987,6 +987,182 @@ namespace visualization {
 			);
 		};
 
+
+		/**
+		* @brief Main func to draw right-side info panel, including desired control values and path preview
+		*
+		* @param canvas cv::Mat representing image on which to draw (modified in-place)
+		* @param tracked_waypoints vector of cv::Point2f representing tracked waypoints of path in image coordinates
+		* @param lane_shape LaneShapeVisualization containing CIPO distance and relative velocity info (used for CIPO marker in path preview)
+		* @param desired_control DesiredControlVisualization containing desired velocity, steering angle, and acceleration (used for text and steering wheel icon in panel)
+		*/
+		void draw_right_panel(
+			cv::Mat &canvas, 
+			const std::vector<cv::Point2f> &tracked_waypoints, 
+			const LaneShapeVisualization &lane_shape, 
+			const DesiredControlVisualization &desired_control
+		) {
+			
+			const int panel_width = kVisualizationPanelWidth;
+			const cv::Rect panel_rect(
+				canvas.cols - panel_width, 
+				0, 
+				panel_width, 
+				canvas.rows
+			);
+			if (panel_rect.x < 0) return;
+
+			cv::Mat panel = canvas(panel_rect);
+			cv::Mat white_bg(
+				panel.size(), 
+				panel.type(), 
+				kWhiteColor
+			);
+			cv::addWeighted(
+				white_bg, 
+				kRightPanelAlpha, 
+				panel, 
+				1.0F - kRightPanelAlpha, 
+				0.0, 
+				panel
+			);
+
+			// Desired planning values title
+			draw_text_centered(
+				panel, 
+				kTitleDesiredPlanningValue, 
+				cv::Rect(
+					12, 
+					20, 
+					panel_rect.width - 24, 
+					30
+				), 
+				kFontSizeRightPanelDesiredControlTexts, 
+				kYellowColor, 
+				kThickBold
+			);
+
+			// Draw steering wheel
+			const cv::Rect wheel_area(24, 60, 96, 96);
+			const cv::Mat wheel_icon = load_wheel_icon();
+
+			if (!wheel_icon.empty()) {
+
+				cv::Mat rotated = rotate_icon(
+					wheel_icon, 
+					desired_control.steering_angle
+				);
+				const float max_width = static_cast<float>(wheel_area.width);
+				const float max_height = static_cast<float>(wheel_area.height);
+				const float scale = std::min(max_width / std::max(1, rotated.cols), max_height / std::max(1, rotated.rows));
+				if (scale < 1.0F) {
+					cv::resize(
+						rotated, 
+						rotated, 
+						cv::Size(), 
+						scale, 
+						scale, 
+						cv::INTER_AREA
+					);
+				}
+				overlay_icon(
+					panel, 
+					rotated, 
+					cv::Point(
+						wheel_area.x + (wheel_area.width - rotated.cols) / 2, 
+						wheel_area.y + (wheel_area.height - rotated.rows) / 2
+					)
+				);
+
+			} else {
+				cv::circle(
+					panel, 
+					cv::Point(
+						wheel_area.x + wheel_area.width / 2, 
+						wheel_area.y + wheel_area.height / 2
+					), 
+					kSizeWheelNonAva, 
+					kBlackColor, 
+					kThickSuper
+				);
+			}
+
+			// Inline telemetry texts
+
+			int text_x = 130;
+			draw_inline_value(
+				panel, 
+				cv::Point(text_x, 86), 
+				kTelemetryLabelVelocity, 
+				format_float(desired_control.velocity, 1) + " " + kTelemetryUnitVelocity, 
+				kYellowColor
+			);
+
+			draw_inline_value(
+				panel, 
+				cv::Point(text_x, 116), 
+				kTelemetryLabelSteering, 
+				format_float(desired_control.steering_angle, 1) + " " + kTelemetryUnitSteering, 
+				kYellowColor
+			); 
+
+			const cv::Scalar accel_color = desired_control.acceleration >= 0.0F ? kAcceleratingColor : kDeceleratingColor;
+			draw_inline_value(
+				panel, 
+				cv::Point(text_x, 146), 
+				kTelemetryLabelAcceleration, 
+				format_float(desired_control.acceleration, 1) + " " + kTelemetryUnitAcceleration, 
+				accel_color
+			);
+
+			// Path preview title
+			const cv::Rect bev_rect(
+				12, 
+				214, 
+				panel_rect.width - 24, 
+				panel_rect.height - 226
+			);
+			cv::putText(
+				panel, 
+				kTitlePathPreview, 
+				cv::Point(
+					bev_rect.x + 10, 
+					bev_rect.y + 22
+				), 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSize, 
+				kYellowColor, 
+				kThickBold, 
+				cv::LINE_AA
+			);
+
+			const cv::Rect path_area(
+				bev_rect.x + 10, 
+				bev_rect.y + 32, 
+				bev_rect.width - 20, 
+				bev_rect.height - 42
+			);
+			draw_path_preview_ruler(
+				panel, 
+				path_area, 
+				kPathPreviewMaxDistanceMeters
+			);
+			draw_path_preview(
+				panel, 
+				tracked_waypoints, 
+				lane_shape, 
+				path_area
+			);
+			draw_cipo_marker(
+				panel, 
+				tracked_waypoints, 
+				lane_shape, 
+				path_area, 
+				kPathPreviewMaxDistanceMeters
+			);
+			
+		};
+
 	}  // namespace
 
 
