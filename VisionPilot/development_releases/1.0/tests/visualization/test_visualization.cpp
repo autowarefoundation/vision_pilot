@@ -55,7 +55,7 @@ namespace {
         }
 
         return bounding_boxes;
-        
+
     };
 
 
@@ -91,6 +91,25 @@ namespace {
 
         return lane_shape;
 
-    }
+    };
+
+
+    // Utility func to load desired control values from a FileNode,
+    // returning a DesiredControlVisualization struct
+    visualization::DesiredControlVisualization load_desired_control(const cv::FileNode &node) {
+        
+        visualization::DesiredControlVisualization desired_control;
+        if (node.empty()) {
+            return desired_control;
+        }
+
+        node["steering_angle"] >> desired_control.steering_angle;
+        node["velocity"] >> desired_control.velocity;
+        node["acceleration"] >> desired_control.acceleration;
+
+        return desired_control;
+        
+    };
+
 
 } // namespace
