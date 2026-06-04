@@ -1165,12 +1165,12 @@ namespace visualization {
 
 
 		/**
-		* @brief Main func to draw all overlay elements on the main frame, including detection boxes, drivable path, and right-side info panel
+		* @brief Main func to draw all overlay elements on the main frame, including detection boxes, drivable path
 		*
 		* @param frame cv::Mat representing image on which to draw (modified in-place)
 		* @param bounding_boxes vector of YoloBoundingBox representing detected objects to draw as bounding boxes
 		* @param lane_shape LaneShapeVisualization containing tracked waypoints and CIPO info for drivable path visualization
-		* @param desired_control DesiredControlVisualization containing desired velocity, steering angle, and acceleration for drivable path color and right panel info display
+		* @param desired_control DesiredControlVisualization containing desired velocity, steering angle, and acceleration for drivable path color
 		*/
 		void draw_main_overlay(
 			cv::Mat &frame, 
@@ -1189,7 +1189,7 @@ namespace visualization {
 				desired_control.acceleration
 			);
 
-		}
+		};
 
 	}  // namespace
 
@@ -1256,7 +1256,49 @@ namespace visualization {
 		cv::imshow(window_name, display);
 		cv::waitKey(1);
 		return true;
-	}
+	};
+
+
+	/**
+	* @brief Master func to draw the whole visualization thing
+	*
+	* @param frame cv::Mat representing input image frame from camera
+	* @param bounding_boxes vector of YoloBoundingBox representing detected objects to draw as bounding boxes
+	* @param lane_shape LaneShapeVisualization containing tracked waypoints and CIPO info for drivable path visualization
+	* @param desired_control DesiredControlVisualization containing desired velocity, steering angle, and acceleration
+	*
+	* @return cv::Mat containing the final visualization with all overlays drawn, ready for display
+	*/
+	cv::Mat visualize_frame(
+		const cv::Mat &frame,
+		const std::vector<YoloBoundingBox> &bounding_boxes,
+		const LaneShapeVisualization &lane_shape,
+		const DesiredControlVisualization &desired_control
+	) {
+		
+		if (frame.empty()) return cv::Mat();
+
+		// Don't expand the frame, overlay directly on top
+		cv::Mat output = frame.clone();
+
+		draw_main_overlay(
+			output, 
+			bounding_boxes, 
+			lane_shape, 
+			desired_control
+		);
+
+		draw_right_panel(
+			output, 
+			lane_shape.tracked_waypoints, 
+			lane_shape, 
+			desired_control
+		);
+
+		return output;
+		
+	};
+
 
 	void close_windows() {
 		cv::destroyAllWindows();
