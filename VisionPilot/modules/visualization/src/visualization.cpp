@@ -1160,8 +1160,36 @@ namespace visualization {
 				path_area, 
 				kPathPreviewMaxDistanceMeters
 			);
-			
+
 		};
+
+
+		/**
+		* @brief Main func to draw all overlay elements on the main frame, including detection boxes, drivable path, and right-side info panel
+		*
+		* @param frame cv::Mat representing image on which to draw (modified in-place)
+		* @param bounding_boxes vector of YoloBoundingBox representing detected objects to draw as bounding boxes
+		* @param lane_shape LaneShapeVisualization containing tracked waypoints and CIPO info for drivable path visualization
+		* @param desired_control DesiredControlVisualization containing desired velocity, steering angle, and acceleration for drivable path color and right panel info display
+		*/
+		void draw_main_overlay(
+			cv::Mat &frame, 
+			const std::vector<YoloBoundingBox> &bounding_boxes, 
+			const LaneShapeVisualization &lane_shape, 
+			const DesiredControlVisualization &desired_control
+		) {
+
+			draw_detection_boxes(
+				frame, 
+				bounding_boxes
+			);
+			draw_main_drivable_path(
+				frame, 
+				lane_shape.tracked_waypoints, 
+				desired_control.acceleration
+			);
+
+		}
 
 	}  // namespace
 
