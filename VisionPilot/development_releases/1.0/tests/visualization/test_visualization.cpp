@@ -31,7 +31,8 @@ namespace {
     };
 
 
-    // Utility func to load bounding boxes from a FileNode, returning a vector of YoloBoundingBox structs
+    // Utility func to load bounding boxes from a FileNode,
+    // returning a vector of YoloBoundingBox structs
     std::vector<visualization::YoloBoundingBox> load_bounding_boxes(const cv::FileNode &node) {
         std::vector<visualization::YoloBoundingBox> bounding_boxes;
         if (node.empty() || !node.isSeq()) {
@@ -54,6 +55,42 @@ namespace {
         }
 
         return bounding_boxes;
+        
+    };
+
+
+    // Utility func to convert YOLOX format bbox to OpenCV Rect, 
+    // with clamping to ensure it fits within the frame
+    visualization::LaneShapeVisualization load_lane_shape(const cv::FileNode &node) {
+        
+        visualization::LaneShapeVisualization lane_shape;
+        if (node.empty()) {
+            return lane_shape;
+        }
+
+        node["has_cipo_object"] >> lane_shape.has_cipo_object;
+
+        double distance_to_cipo = 0.0;
+        node["distance_to_cipo"] >> distance_to_cipo;
+        lane_shape.distance_to_cipo = static_cast<float>(distance_to_cipo);
+
+        double relative_velocity = 0.0;
+        node["relative_cipo_velocity"] >> relative_velocity;
+        lane_shape.relative_cipo_velocity = static_cast<float>(relative_velocity);
+
+        const cv::FileNode waypoints = node["tracked_waypoints"];
+        if (!waypoints.empty() && waypoints.isSeq()) {
+            for (auto it = waypoints.begin(); it != waypoints.end(); ++it) {
+                const std::vector<float> values = read_scalar_sequence<float>(*it);
+                if (values.size() < 2) {
+                    continue;
+                }
+                lane_shape.tracked_waypoints.emplace_back(values[0], values[1]);
+            }
+        }
+
+        return lane_shape;
+
     }
 
 } // namespace
