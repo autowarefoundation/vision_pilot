@@ -852,7 +852,7 @@ namespace visualization {
 			const cv::Rect path_rect(
 				area.x + 8, 
 				area.y + 8, 
-				std::max(1, area.width - ruler_width - 16), 
+				std::max(1, area.width - kRulerWidth - 16), 
 				std::max(1, area.height - 16)
 			);
 
@@ -871,7 +871,7 @@ namespace visualization {
 						const float ratio = (clip_distance_m - prev_pt.x) / std::max(1e-4F, bev_pt.x - prev_pt.x);
 						const float interp_y = prev_pt.y + ratio * (bev_pt.y - prev_pt.y);
 						
-						const float y_ratio = std::clamp((max_lateral - interp_y) / (2.0F * max_lateral), 0.0F, 1.0F);
+						const float y_ratio = std::clamp((kBEVMaxLateralMeters - interp_y) / (2.0F * kBEVMaxLateralMeters), 0.0F, 1.0F);
 						const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
 						
 						const float x_ratio = std::clamp(clip_distance_m / kPathPreviewMaxDistanceMeters, 0.0F, 1.0F);
@@ -882,7 +882,7 @@ namespace visualization {
 				}
 
 				const float x_ratio = std::clamp(bev_pt.x / kPathPreviewMaxDistanceMeters, 0.0F, 1.0F);
-				const float y_ratio = std::clamp((max_lateral - bev_pt.y) / (2.0F * max_lateral), 0.0F, 1.0F);
+				const float y_ratio = std::clamp((kBEVMaxLateralMeters - bev_pt.y) / (2.0F * kBEVMaxLateralMeters), 0.0F, 1.0F);
 
 				const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
 				const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
@@ -963,7 +963,7 @@ namespace visualization {
 				std::max(1, area.width - kRulerWidth - 16), 
 				std::max(1, area.height - 16)
 			);
-			const float max_lateral = 15.0F;
+			const float kBEVMaxLateralMeters = 15.0F;
 
 			const float x_ratio = std::clamp(
 				distance_m / max_distance_m, 
@@ -971,7 +971,7 @@ namespace visualization {
 				1.0F
 			);
 			const float y_ratio = std::clamp(
-				(lateral_y + max_lateral) / (2.0F * max_lateral), 
+				(lateral_y + kBEVMaxLateralMeters) / (2.0F * kBEVMaxLateralMeters), 
 				0.0F, 
 				1.0F
 			);
