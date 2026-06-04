@@ -1,3 +1,7 @@
+//
+// Created by atanasko on 27.4.26.
+//
+
 #ifndef VISIONPILOT_VISUALIZATION_HPP
 #define VISIONPILOT_VISUALIZATION_HPP
 
@@ -5,7 +9,7 @@
 
 #include <optional>
 
-#include <string>
+#include <string_view>
 #include <vector>
 
 namespace visualization {
@@ -23,14 +27,14 @@ inline constexpr int kRulerWidth = 62;
 inline const int kSizeWheelNonAva = 34;
 
 // Texts
-inline constexpr std::string kTitleDesiredPlanningValue = "Desired planning values";
-inline constexpr std::string kTitlePathPreview = "Path preview";
-inline constexpr std::string kTelemetryLabelVelocity = "Velocity";
-inline constexpr std::string kTelemetryLabelSteering = "Steering";
-inline constexpr std::string kTelemetryLabelAcceleration = "Acceleration";
-inline constexpr std::string kTelemetryUnitVelocity = "km/h";
-inline constexpr std::string kTelemetryUnitSteering = "deg";
-inline constexpr std::string kTelemetryUnitAcceleration = "m/s2";
+inline const std::string kTitleDesiredPlanningValue = "Desired planning values";
+inline const std::string kTitlePathPreview = "Path preview";
+inline const std::string kTelemetryLabelVelocity = "Velocity";
+inline const std::string kTelemetryLabelSteering = "Steering";
+inline const std::string kTelemetryLabelAcceleration = "Acceleration";
+inline const std::string kTelemetryUnitVelocity = "km/h";
+inline const std::string kTelemetryUnitSteering = "deg";
+inline const std::string kTelemetryUnitAcceleration = "m/s2";
 
 // Background alphas
 inline constexpr float kDetectionOverlayAlpha = 0.30F;
@@ -62,15 +66,18 @@ inline const cv::Scalar kDeceleratingColor(114, 128, 250);
 inline const int kThickBold = 2;
 inline const int kThickNormal = 1;
 inline const double kFontSize = 0.58;
+inline const double kFontSizeRightPanelDesired = 0.50;
 inline const double kFontSizeRuler = 0.42;
 
 // Drawing params
+inline const int kThickUltra = 4;
 inline const int kThickSuper = 3;
 inline const int kThickPolyline = 2;
 inline const int kThickRulerLine = 1;
 
 // BEV max render distance (m)
 inline constexpr float kPathPreviewMaxDistanceMeters = 50.0F;
+inline constexpr float kBEVMaxLateralMeters = 15.0F;
 
 
 // ======================= VISUALIZATION UTILS =======================

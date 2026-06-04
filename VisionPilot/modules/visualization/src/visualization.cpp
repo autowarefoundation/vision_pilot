@@ -295,7 +295,7 @@ namespace visualization {
 				&baseline
 			);
 
-			// Draw value (normal thickness 1)
+			// Draw value
 			cv::putText(
 				canvas, 
 				value, 
@@ -810,73 +810,110 @@ namespace visualization {
 		*
 		* @param canvas cv::Mat representing image on which to draw (modified in-place)
 		* @param tracked_waypoints vector of cv::Point2f representing tracked waypoints of path in image coordinates
+		* @param lane_shape LaneShapeVisualization containing CIPO distance info for clipping path preview
 		* @param area cv::Rect representing bounding box within which to draw path preview (typically rightmost portion of frame, excluding ruler area)
 		*/
 		void draw_path_preview(
 			cv::Mat &canvas, 
 			const std::vector<cv::Point2f> &tracked_waypoints, 
+			const LaneShapeVisualization &lane_shape, 
 			const cv::Rect &area
 		) {
+			
+			if (tracked_waypoints.empty()) return;
 
-			if (tracked_waypoints.size() < 2) return;
-
-			std::vector<cv::Point2f> bev_waypoints;
+			std::vector<cv::Point2f> raw_bev_waypoints;
 			cv::perspectiveTransform(
 				tracked_waypoints, 
-				bev_waypoints, 
+				raw_bev_waypoints, 
 				homography_matrix
 			);
+
+			// 1. Determine exactly where the path should end (CIPO distance or max distance)
+			float clip_distance_m = kPathPreviewMaxDistanceMeters;
+			if (lane_shape.has_cipo_object && lane_shape.distance_to_cipo.has_value()) {
+				clip_distance_m = std::min(clip_distance_m, *lane_shape.distance_to_cipo);
+			}
+
+			// 2. Filter out negative values and aggressively anchor start to 0m
+			std::vector<cv::Point2f> bev_waypoints;
+			for (const auto& pt : raw_bev_waypoints) {
+				if (pt.x >= 0.0F) bev_waypoints.push_back(pt);
+			}
+			
+			if (!bev_waypoints.empty() && bev_waypoints.front().x > 0.0F) {
+				// Drop a point straight down to 0m at same lateral offset
+				bev_waypoints.insert(
+					bev_waypoints.begin(), 
+					cv::Point2f(
+						0.0F, 
+						bev_waypoints.front().y
+					)
+				);
+			}
 
 			const cv::Rect path_rect(
 				area.x + 8, 
 				area.y + 8, 
-				std::max(1, area.width - kRulerWidth - 16), 
+				std::max(1, area.width - ruler_width - 16), 
 				std::max(1, area.height - 16)
 			);
 
 			std::vector<cv::Point> polyline_points;
 			polyline_points.reserve(bev_waypoints.size());
 
-			const float max_lateral = 15.0F; // Assume 15m left/right for the BEV view
+			cv::Point2f prev_pt(0, 0);
+			bool first = true;
 
 			for (const auto &bev_pt : bev_waypoints) {
-				// bev_pt.x is longitudinal (0 to 100m)
-				// bev_pt.y is lateral (+Y is left, -Y is right)
-				const float x_ratio = std::clamp(
-					bev_pt.x / kPathPreviewMaxDistanceMeters, 
-					0.0F, 
-					1.0F
-				);
-				const float y_ratio = std::clamp(
-					(bev_pt.y + max_lateral) / (2.0F * max_lateral), 
-					0.0F, 
-					1.0F
-				);
+				if (!first && bev_pt.x < prev_pt.x) break; // Prevent projective "hooks"
 
-				// Flip y_ratio because pixel 0 is left edge, matching +Y
-				const int px = path_rect.x + static_cast<int>(std::lround((1.0F - y_ratio) * static_cast<float>(path_rect.width)));
+				// 3. If a waypoint exceeds our target distance, strictly interpolate and stop
+				if (bev_pt.x > clip_distance_m) {
+					if (!first) {
+						const float ratio = (clip_distance_m - prev_pt.x) / std::max(1e-4F, bev_pt.x - prev_pt.x);
+						const float interp_y = prev_pt.y + ratio * (bev_pt.y - prev_pt.y);
+						
+						const float y_ratio = std::clamp((max_lateral - interp_y) / (2.0F * max_lateral), 0.0F, 1.0F);
+						const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
+						
+						const float x_ratio = std::clamp(clip_distance_m / kPathPreviewMaxDistanceMeters, 0.0F, 1.0F);
+						const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
+						polyline_points.emplace_back(px, py);
+					}
+					break; // Stop drawing beyond the CIPO
+				}
+
+				const float x_ratio = std::clamp(bev_pt.x / kPathPreviewMaxDistanceMeters, 0.0F, 1.0F);
+				const float y_ratio = std::clamp((max_lateral - bev_pt.y) / (2.0F * max_lateral), 0.0F, 1.0F);
+
+				const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
 				const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
 				polyline_points.emplace_back(px, py);
+
+				prev_pt = bev_pt;
+				first = false;
 			}
+
+			if (polyline_points.size() < 2) return;
 
 			cv::Mat overlay = canvas.clone();
 			cv::polylines(
 				overlay, 
 				std::vector<std::vector<cv::Point>>{polyline_points}, 
 				false, 
-				kBEVDrivablePathColor,
-				4,
+				kPositiveAccelerationColor, 
+				kThickUltra, 
 				cv::LINE_AA
 			);
 			cv::addWeighted(
 				overlay, 
-				0.8F, 
+				1 - kRightPanelAlpha, 
 				canvas, 
-				0.2F, 
+				kRightPanelAlpha, 
 				0.0, 
 				canvas
 			);
-		
 		};
 
 		
@@ -942,7 +979,7 @@ namespace visualization {
 				1.0F
 			);
 
-			const int px = path_rect.x + static_cast<int>(std::lround((1.0F - y_ratio) * static_cast<float>(path_rect.width)));
+			const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
 			const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
 
 			const cv::Rect marker_rect(
@@ -1066,7 +1103,7 @@ namespace visualization {
 					panel_rect.width - 24, 
 					30
 				), 
-				kFontSizeRightPanelDesiredControlTexts, 
+				kFontSizeRightPanelDesired, 
 				kYellowColor, 
 				kThickBold
 			);
