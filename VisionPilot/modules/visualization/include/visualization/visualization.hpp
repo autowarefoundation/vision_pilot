@@ -39,6 +39,8 @@ inline const cv::Scalar kGrayColor(180, 180, 180);
 inline const cv::Scalar kPanelTextColor(35, 35, 35);
 inline const cv::Scalar kPanelBackgroundColor(245, 245, 245);
 inline const cv::Scalar kBEVDrivablePathColor(40, 180, 90);
+inline const cv::Scalar kRulerLineColor(170, 170, 170);
+inline const cv::Scalar kRulerTickColor(120, 120, 120);
 
 // Font sizes and thickness
 inline const int kThickBold = 2;

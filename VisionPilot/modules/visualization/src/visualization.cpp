@@ -710,11 +710,11 @@ namespace visualization {
 			float max_distance_m
 		) {
 
-			const int ruler_width = 62;
+			const int kRulerWidth = 62;
 			const cv::Rect ruler_rect(
-				area.x + area.width - ruler_width, 
+				area.x + area.width - kRulerWidth, 
 				area.y, 
-				ruler_width, 
+				kRulerWidth, 
 				area.height
 			);
 			cv::rectangle(
@@ -733,19 +733,23 @@ namespace visualization {
 					ruler_rect.x, 
 					ruler_rect.y + ruler_rect.height
 				), 
-				cv::Scalar(170, 170, 170),
+				kRulerLineColor,
 				kThickRulerLine
 			);
 
 			for (int tick = 0; tick <= 10; ++tick) {
+
+				// Calculate tick position
 				const float ratio = static_cast<float>(tick) / 10.0F;
 				const int y = ruler_rect.y + ruler_rect.height - static_cast<int>(std::lround(ratio * static_cast<float>(ruler_rect.height)));
 				const int tick_length = (tick % 5 == 0) ? 16 : 9;
+
+				// Draw tick mark
 				cv::line(
 					canvas, 
 					cv::Point(ruler_rect.x, y), 
 					cv::Point(ruler_rect.x + tick_length, y), 
-					cv::Scalar(120, 120, 120), 
+					kRulerTickColor, 
 					kThickNormal
 				);
 
@@ -797,7 +801,7 @@ namespace visualization {
 			const cv::Rect path_rect(
 				area.x + 8, 
 				area.y + 8, 
-				std::max(1, area.width - ruler_width - 16), 
+				std::max(1, area.width - kRulerWidth - 16), 
 				std::max(1, area.height - 16)
 			);
 
@@ -848,14 +852,36 @@ namespace visualization {
 
 		
 		/**
+		* @brief Utility func to draw CIPO marker on path preview, indicating CIPO's relative position and distance
+		*
+		* @param canvas cv::Mat representing image on which to draw (modified in-place)
+		* @param tracked_waypoints vector of cv::Point2f representing tracked waypoints
+		* @param lane_shape LaneShapeVisualization containing CIPO distance and relative velocity info
+		* @param area cv::Rect representing bounding box within which to draw CIPO marker (typically rightmost portion of frame, excluding ruler area)
+		* @param max_distance_m float representing maximum distance in meters for CIPO marker scaling (should match max distance used for path preview)
 		*/
-		void draw_cipo_marker(cv::Mat &canvas, const std::vector<cv::Point2f> &tracked_waypoints, const LaneShapeVisualization &lane_shape, const cv::Rect &area, float max_distance_m) {
+		void draw_cipo_marker(
+			cv::Mat &canvas, 
+			const std::vector<cv::Point2f> &tracked_waypoints, 
+			const LaneShapeVisualization &lane_shape, 
+			const cv::Rect &area, 
+			float max_distance_m
+		) {
+			
 			if (!lane_shape.has_cipo_object || !lane_shape.distance_to_cipo.has_value() || tracked_waypoints.empty()) return;
 
 			std::vector<cv::Point2f> bev_waypoints;
-			cv::perspectiveTransform(tracked_waypoints, bev_waypoints, homography_matrix);
+			cv::perspectiveTransform(
+				tracked_waypoints, 
+				bev_waypoints, 
+				homography_matrix
+			);
 
-			const float distance_m = std::clamp(*lane_shape.distance_to_cipo, 0.0F, max_distance_m);
+			const float distance_m = std::clamp(
+				*lane_shape.distance_to_cipo, 
+				0.0F, 
+				max_distance_m
+			);
 
 			// Interpolate lateral (Y) position at the given longitudinal (X) distance
 			float lateral_y = bev_waypoints.front().y;
@@ -868,35 +894,98 @@ namespace visualization {
 				lateral_y = bev_waypoints.back().y;
 			}
 
-			const int ruler_width = 62;
-			const cv::Rect path_rect(area.x + 8, area.y + 8, std::max(1, area.width - ruler_width - 16), std::max(1, area.height - 16));
+			const cv::Rect path_rect(
+				area.x + 8, 
+				area.y + 8, 
+				std::max(1, area.width - kRulerWidth - 16), 
+				std::max(1, area.height - 16)
+			);
 			const float max_lateral = 15.0F;
 
-			const float x_ratio = std::clamp(distance_m / max_distance_m, 0.0F, 1.0F);
-			const float y_ratio = std::clamp((lateral_y + max_lateral) / (2.0F * max_lateral), 0.0F, 1.0F);
+			const float x_ratio = std::clamp(
+				distance_m / max_distance_m, 
+				0.0F, 
+				1.0F
+			);
+			const float y_ratio = std::clamp(
+				(lateral_y + max_lateral) / (2.0F * max_lateral), 
+				0.0F, 
+				1.0F
+			);
 
 			const int px = path_rect.x + static_cast<int>(std::lround((1.0F - y_ratio) * static_cast<float>(path_rect.width)));
 			const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
 
-			const cv::Rect marker_rect(px - 12, py - 16, 24, 20);
-			cv::rectangle(canvas, marker_rect, cv::Scalar(60, 60, 230), cv::FILLED);
-			cv::rectangle(canvas, marker_rect, cv::Scalar(255, 255, 255), 1);
+			const cv::Rect marker_rect(
+				px - 12, 
+				py - 16, 
+				24, 
+				20
+			);
+			cv::rectangle(
+				canvas, 
+				marker_rect, 
+				kCipoColor, 
+				cv::FILLED
+			);
+			cv::rectangle(
+				canvas, 
+				marker_rect, 
+				kWhiteColor, 
+				kThickPolyline
+			);
 
 			const std::string distance_text = format_float(*lane_shape.distance_to_cipo, 1) + " m";
 			const std::string velocity_text = lane_shape.relative_cipo_velocity.has_value() ? format_float(*lane_shape.relative_cipo_velocity, 1) + " km/h" : "-- km/h";
 
 			// Calculate text bounds to left-align correctly
 			int baseline = 0;
-			const cv::Size dist_size = cv::getTextSize(distance_text, cv::FONT_HERSHEY_SIMPLEX, 0.42, 1, &baseline);
-			const cv::Size vel_size = cv::getTextSize(velocity_text, cv::FONT_HERSHEY_SIMPLEX, 0.42, 1, &baseline);
+			const cv::Size dist_size = cv::getTextSize(
+				distance_text, 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kThickNormal, 
+				&baseline
+			);
+			const cv::Size vel_size = cv::getTextSize(
+				velocity_text, 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kThickNormal, 
+				&baseline
+			);
 
 			// 8 pixels padding from the left edge of the box
 			const int text_x_dist = marker_rect.x - 8 - dist_size.width;
 			const int text_x_vel = marker_rect.x - 8 - vel_size.width;
 
-			cv::putText(canvas, distance_text, cv::Point(text_x_dist, marker_rect.y + 6), cv::FONT_HERSHEY_SIMPLEX, 0.42, kPanelTextColor, 1, cv::LINE_AA);
-			cv::putText(canvas, velocity_text, cv::Point(text_x_vel, marker_rect.y + 20), cv::FONT_HERSHEY_SIMPLEX, 0.42, kPanelTextColor, 1, cv::LINE_AA);
-		}
+			cv::putText(
+				canvas, 
+				distance_text, 
+				cv::Point(
+					text_x_dist, 
+					marker_rect.y + 6
+				), 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kPanelTextColor, 
+				kThickNormal, 
+				cv::LINE_AA
+			);
+			cv::putText(
+				canvas, 
+				velocity_text, 
+				cv::Point(
+					text_x_vel, 
+					marker_rect.y + 20
+				), 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kPanelTextColor, 
+				kThickNormal, 
+				cv::LINE_AA
+			);
+		};
 
 	}  // namespace
 
