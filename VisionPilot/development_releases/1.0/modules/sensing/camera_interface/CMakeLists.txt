@@ -5,9 +5,10 @@ project(camera_interface LANGUAGES CXX)
 # Find required packages
 find_package(OpenCV REQUIRED COMPONENTS core videoio)
 
-# Create the v4l2_interface library
 add_library(camera_interface
         src/v4l2_camera_interface.cpp
+        src/video_file_interface.cpp
+        src/frame_source.cpp
 )
 
 # Set C++ standard
@@ -25,9 +26,16 @@ target_include_directories(camera_interface
 # Link OpenCV libraries
 target_link_libraries(camera_interface
         PUBLIC
+        config
+        logging
         opencv_core
         opencv_videoio
 )
+
+if(ENABLE_ROS2_INTERFACE)
+    target_compile_definitions(camera_interface PRIVATE ENABLE_ROS2_INTERFACE)
+    target_link_libraries(camera_interface PRIVATE camera_subscriber)
+endif()
 
 # Link threading support for std::mutex
 find_package(Threads REQUIRED)
