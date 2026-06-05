@@ -4,15 +4,6 @@ add_executable(VisionPilot
 
 add_dependencies(VisionPilot generate_config)
 
-if (ENABLE_ROS2_INTERFACE)
-    target_link_libraries(VisionPilot
-            PRIVATE
-            camera_subscriber
-    )
-
-    target_compile_definitions(VisionPilot PRIVATE ENABLE_ROS2_INTERFACE)
-endif ()
-
 target_link_libraries(VisionPilot
     PRIVATE
     config           # VisionPilotConfig, load_vision_pilot_config
