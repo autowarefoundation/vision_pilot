@@ -109,6 +109,7 @@ namespace camera_interface {
             bool is_stream_active() const;
 
             std::vector<std::string> get_overlay() const;
+            std::string source_label() const override;
 
 
             /**

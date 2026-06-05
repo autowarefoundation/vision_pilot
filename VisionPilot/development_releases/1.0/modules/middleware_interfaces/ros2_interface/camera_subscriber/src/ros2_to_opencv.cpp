@@ -196,6 +196,11 @@ namespace camera_interface {
         return overlay;
     }
 
+    std::string ROS2ImageSubscriber::source_label() const
+    {
+        return topic_name;
+    }
+
     void ROS2ImageSubscriber::reset_stats() {
 
         std::lock_guard<std::mutex> lock(stats_mutex);
