@@ -1,5 +1,7 @@
 #include "models/auto_steer.hpp"
 
+#include <onnxruntime_run_options_config_keys.h>
+
 #include <cstdio>
 #include <cstring>
 
@@ -7,7 +9,7 @@ namespace visionpilot::models {
 
 AutoSteer::AutoSteer(engine::OnnxEngine& engine, const std::string& model_path)
     : session_(engine.create_session(model_path, "autosteer_"))
-    , mem_info_(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault))
+    , mem_info_(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault))
     , input_shape_{1, 3, NET_H, NET_W}
 {
     Ort::AllocatorWithDefaultOptions alloc;
@@ -46,8 +48,10 @@ AutoSteerOutput AutoSteer::infer(const float* image_chw)
 
     std::vector<Ort::Value> results;
     try {
+        Ort::RunOptions run_options;
+        run_options.AddConfigEntry(kOrtRunOptionsConfigEnableMemoryArenaShrinkage, "gpu:0");
         results = session_->Run(
-            Ort::RunOptions{nullptr},
+            run_options,
             in_names_.data(),  &input_tensor, 1,
             out_names_.data(), out_names_.size());
     } catch (const Ort::Exception& e) {

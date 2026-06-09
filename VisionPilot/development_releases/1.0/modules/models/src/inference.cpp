@@ -4,7 +4,6 @@
 
 #include <opencv2/imgproc.hpp>
 
-#include <array>
 #include <chrono>
 #include <cstring>
 #include <future>
@@ -23,15 +22,14 @@ constexpr float STD[3]  = {0.229f, 0.224f, 0.225f};
 
 std::vector<float> chw_imagenet(const cv::Mat& bgr)
 {
-    cv::Mat rgb;
+    cv::Mat rgb, f32;
     cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
-    cv::Mat f32;
     rgb.convertTo(f32, CV_32FC3, 1.0 / 255.0);
     std::vector<cv::Mat> ch(3);
     cv::split(f32, ch);
-    std::vector<float> out(static_cast<std::size_t>(CHW_SIZE));
+    std::vector<float> out(CHW_SIZE);
     for (int c = 0; c < 3; ++c) {
-        float*       dst = out.data() + c * NET_H * NET_W;
+        float* dst = out.data() + c * NET_H * NET_W;
         const float* src = reinterpret_cast<const float*>(ch[c].data);
         for (int i = 0; i < NET_H * NET_W; ++i)
             dst[i] = (src[i] - MEAN[c]) / STD[c];
@@ -41,13 +39,12 @@ std::vector<float> chw_imagenet(const cv::Mat& bgr)
 
 std::vector<float> chw_01(const cv::Mat& bgr)
 {
-    cv::Mat rgb;
+    cv::Mat rgb, f32;
     cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
-    cv::Mat f32;
     rgb.convertTo(f32, CV_32FC3, 1.0 / 255.0);
     std::vector<cv::Mat> ch(3);
     cv::split(f32, ch);
-    std::vector<float> out(static_cast<std::size_t>(CHW_SIZE));
+    std::vector<float> out(CHW_SIZE);
     for (int c = 0; c < 3; ++c)
         std::memcpy(out.data() + c * NET_H * NET_W, ch[c].data,
                     static_cast<std::size_t>(NET_H * NET_W) * sizeof(float));
@@ -58,20 +55,15 @@ std::vector<float> chw_01(const cv::Mat& bgr)
 
 void LatencyStats::update(double pre_, double ad_, double as_, double asp_, double wall_)
 {
-    auto ema = [this](double& e, double v) { e = ok ? e * 0.9 + v * 0.1 : v; };
-    ema(pre, pre_);
-    ema(ad, ad_);
-    ema(as, as_);
-    ema(asp, asp_);
-    ema(wall, wall_);
-    ok = true;
+    pre = pre_; ad = ad_; as = as_; asp = asp_; wall = wall_;
 }
 
 void LatencyStats::print() const
 {
-    if (!ok) return;
-    VP_INFO("Latency[EMA]  pre=%.1f  AD=%.1f  AS=%.1f  ASp=%.1f  wall=%.1f ms  (%.0f fps)",
-            pre, ad, as, asp, wall, 1000.0 / wall);
+    // AD/AS/ASp run concurrently on separate CUDA streams — individual CPU-side
+    // timers are meaningless. wall captures the real end-to-end latency.
+    VP_INFO("pre=%.1f ms  inference(parallel)=%.1f ms  wall=%.1f ms  %.0f fps",
+            pre, wall - pre, wall, wall > 0 ? 1000.0 / wall : 0.0);
 }
 
 void LatencyStats::reset() { *this = {}; }
@@ -99,16 +91,13 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& pr
 
     prev_frame_ = curr_frame_.empty() ? preprocessed.clone() : curr_frame_;
     curr_frame_ = preprocessed.clone();
-    if (frame_buf_count_ < 1)
-        frame_buf_count_ = 1;
-    else
-        frame_buf_count_ = 2;
+    if (frame_buf_count_ < 1) frame_buf_count_ = 1;
+    else                       frame_buf_count_ = 2;
 
     ++frame_count_;
-    if (frame_buf_count_ < 2)
-        return std::nullopt;
+    if (frame_buf_count_ < 2) return std::nullopt;
 
-    auto t0 = Clock::now();
+    auto t0       = Clock::now();
     auto prev_imn = chw_imagenet(prev_frame_);
     auto curr_imn = chw_imagenet(curr_frame_);
     auto curr_01  = chw_01(curr_frame_);
@@ -136,11 +125,11 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& pr
 
     InferenceFrameResult out;
     out.frame_id   = frame_count_;
-    out.wall_ms  = ms_wall;
-    out.pre_ms   = ms_pre;
-    out.ad_ms    = ms_drive;
-    out.as_ms    = ms_steer;
-    out.asp_ms   = ms_speed;
+    out.wall_ms    = ms_wall;
+    out.pre_ms     = ms_pre;
+    out.ad_ms      = ms_drive;
+    out.as_ms      = ms_steer;
+    out.asp_ms     = ms_speed;
     out.auto_drive = res_drive;
     out.auto_steer = res_steer;
     out.auto_speed = res_speed;

@@ -80,7 +80,7 @@ int main(int argc, char** argv)
         preprocessor.preprocess(frame, warped, resized, net_size);
 
         if (const auto r = pipeline.process(warped)) {
-            if (r->frame_id % 30 == 0) pipeline.latency().print();
+            pipeline.latency().print();
             vd::annotate_frame(warped, vd::debug_view_from(
                 *r, label, cfg.wheel_dir, cfg.homography_path));
         }

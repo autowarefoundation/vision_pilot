@@ -27,7 +27,6 @@ struct InferenceConfig {
 
 struct LatencyStats {
     double pre{0}, ad{0}, as{0}, asp{0}, wall{0};
-    bool   ok{false};
 
     void update(double pre_, double ad_, double as_, double asp_, double wall_);
     void print() const;
