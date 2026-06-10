@@ -32,6 +32,7 @@ inline const std::string kTitlePathPreview = "Path preview";
 inline const std::string kTelemetryLabelVelocity = "Velocity";
 inline const std::string kTelemetryLabelSteering = "Steering";
 inline const std::string kTelemetryLabelAcceleration = "Acceleration";
+inline const std::string kTelemetryUnitDistance = "m";
 inline const std::string kTelemetryUnitVelocity = "km/h";
 inline const std::string kTelemetryUnitSteering = "deg";
 inline const std::string kTelemetryUnitAcceleration = "m/s2";

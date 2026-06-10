@@ -806,78 +806,122 @@ namespace visualization {
 		*		 based on tracked waypoints.
 		*
 		* @param canvas cv::Mat representing image on which to draw (modified in-place)
-		* @param lane_shape LaneShapeVisualization containing CIPO distance info for clipping path preview
+		* @param lane_shape LaneShapeVisualization containing fused polynomial coefficients and CIPO info
 		* @param area cv::Rect representing bounding box within which to draw path preview (typically rightmost portion of frame, excluding ruler area)
+		* @param max_distance_m float representing maximum distance in meters for CIPO marker scaling
 		*/
 		void draw_path_preview(
 			cv::Mat &canvas, 
-			const std::vector<cv::Point2f> &tracked_waypoints, 
 			const LaneShapeVisualization &lane_shape, 
-			const cv::Rect &area
+			const cv::Rect &area,
+			float max_distance_m
 		) {
 
-			// 1. Determine exactly where the path should end (CIPO distance or max distance)
-			float clip_distance_m = kPathPreviewMaxDistanceMeters;
-            if (lane_shape.has_cipo_object && lane_shape.distance_to_cipo.has_value()) {
-                clip_distance_m = std::min(clip_distance_m, *lane_shape.distance_to_cipo);
-            }
+			if (!lane_shape.has_cipo_object || !lane_shape.distance_to_cipo.has_value()) return;
+			const float distance_m = std::clamp(
+                *lane_shape.distance_to_cipo, 
+                0.0F, 
+                max_distance_m
+            );
 
-			const cv::Rect path_rect(
+			// 1. Determine exactly lateral position from polynomial y = ax^2 + bx + c
+			const float lateral_y = lane_shape.path_a * distance_m * distance_m + 
+                                    lane_shape.path_b * distance_m + 
+                                    lane_shape.path_c;
+
+            const cv::Rect path_rect(
                 area.x + 8, 
                 area.y + 8, 
                 std::max(1, area.width - kRulerWidth - 16), 
                 std::max(1, area.height - 16)
             );
 
-			std::vector<cv::Point> polyline_points;
+			const float x_ratio = std::clamp(
+				distance_m / max_distance_m, 
+				0.0F, 
+				1.0F
+			);
+            const float y_ratio = std::clamp(
+				(max_lateral - lateral_y) / (2.0F * max_lateral), 
+				0.0F, 
+				1.0F
+			);
 
-			// 2. Generate BEV points directly from Pranav's lane shape polynomial coefficients
-            // Step forward by 1.0 meter intervals from 0m to our clip distance
+            const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
+            const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
 
-			for (float x = 0.0F; x <= clip_distance_m; x += 1.0F) {
-                
-				// y = ax^2 + bx + c
-                float y = lane_shape.path_a * x * x + lane_shape.path_b * x + lane_shape.path_c;
+			// 2. Draw CIPO marker at calculated position, with distance and velocity text
+			
+			const cv::Rect marker_rect(
+				px - 12, 
+				py - 16, 
+				24, 
+				20
+			);
+            cv::rectangle(
+				canvas, 
+				marker_rect, 
+				kCipoColor, 
+				cv::FILLED
+			);
+            cv::rectangle(
+				canvas, 
+				marker_rect, 
+				kWhiteColor, 
+				kThickPolyline
+			);
 
-                const float x_ratio = std::clamp(
-					x / kPathPreviewMaxDistanceMeters, 
-					0.0F, 
-					1.0F
-				);
+            const std::string distance_text = format_float(*lane_shape.distance_to_cipo, 1) + " " + kTelemetryUnitDistance;
+            const std::string velocity_text = (lane_shape.relative_cipo_velocity.has_value()) 
+											  ? format_float(*lane_shape.relative_cipo_velocity, 1) + " " + kTelemetryUnitVelocity 
+											  : "--" + kTelemetryUnitVelocity;
 
-                // +Y is left from fusion module. Map +Y toward 0.0 (left edge of panel area)
-                const float y_ratio = std::clamp(
-					(max_lateral - y) / (2.0F * max_lateral), 
-					0.0F, 
-					1.0F
-				);
+            int baseline = 0;
+            const cv::Size dist_size = cv::getTextSize(
+				distance_text, 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kThickNormal, 
+				&baseline
+			);
+            const cv::Size vel_size = cv::getTextSize(
+				velocity_text, 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kThickNormal, 
+				&baseline
+			);
 
-                const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
-                const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
+            const int text_x_dist = marker_rect.x - 8 - dist_size.width;
+            const int text_x_vel = marker_rect.x - 8 - vel_size.width;
 
-                polyline_points.emplace_back(px, py);
-
-            }
-
-			if (polyline_points.size() < 2) return;
-
-			cv::Mat overlay = canvas.clone();
-			cv::polylines(
-				overlay, 
-				std::vector<std::vector<cv::Point>>{polyline_points}, 
-				false, 
-				kPositiveAccelerationColor, 
-				kThickUltra, 
+            cv::putText(
+				canvas, 
+				distance_text, 
+				cv::Point(
+					text_x_dist, 
+					marker_rect.y + 6
+				), 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kPanelTextColor, 
+				kThickNormal, 
 				cv::LINE_AA
 			);
-			cv::addWeighted(
-				overlay, 
-				1 - kRightPanelAlpha, 
+            cv::putText(
 				canvas, 
-				kRightPanelAlpha, 
-				0.0, 
-				canvas
+				velocity_text, 
+				cv::Point(
+					text_x_vel, 
+					marker_rect.y + 20
+				), 
+				cv::FONT_HERSHEY_SIMPLEX, 
+				kFontSizeRuler, 
+				kPanelTextColor, 
+				kThickNormal, 
+				cv::LINE_AA
 			);
+			
 		};
 
 		
@@ -885,8 +929,7 @@ namespace visualization {
 		* @brief Utility func to draw CIPO marker on path preview, indicating CIPO's relative position and distance
 		*
 		* @param canvas cv::Mat representing image on which to draw (modified in-place)
-		* @param tracked_waypoints vector of cv::Point2f representing tracked waypoints
-		* @param lane_shape LaneShapeVisualization containing CIPO distance and relative velocity info
+		* @param lane_shape LaneShapeVisualization containing CIPO distance, velocity, and polynomial info
 		* @param area cv::Rect representing bounding box within which to draw CIPO marker (typically rightmost portion of frame, excluding ruler area)
 		* @param max_distance_m float representing maximum distance in meters for CIPO marker scaling (should match max distance used for path preview)
 		*/
