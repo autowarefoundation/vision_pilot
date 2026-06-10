@@ -1,19 +1,17 @@
 //
 // Created by atanasko on 27.4.26.
+// Developed by TranHuuNhatHuy on 10.6.26.
 //
 
 #ifndef VISIONPILOT_VISUALIZATION_HPP
 #define VISIONPILOT_VISUALIZATION_HPP
 
 #include <opencv2/opencv.hpp>
-
 #include <optional>
-
-#include <string_view>
+#include <string>
 #include <vector>
 
 namespace visualization {
-
 
 // ================== HARD-CODED VISUALIZATION PARAMS ==================
 
@@ -83,45 +81,43 @@ inline constexpr float kBEVMaxLateralMeters = 15.0F;
 
 // ======================= VISUALIZATION UTILS =======================
 
-// Homomatrix - normal => BEV (thanks Atanasko)
-const cv::Mat homography_matrix = (
-	cv::Mat_<float>(3, 3) <<
-		0.00209514907F, -0.000941721466F, -9.24906396F,
-		0.00662758637F, -0.000352940531F, -3.33396502F,
-		0.000120077371F, -0.00411343505F, 1.0F
-);
-
-// YOLOX formatted boundinb box struct
+// YOLOX formatted bounding box struct
 struct YoloBoundingBox {
-	int class_id = 0;
-	float center_x = 0.0F;
-	float center_y = 0.0F;
-	float width = 0.0F;
-	float height = 0.0F;
+    int class_id = 0;
+    float center_x = 0.0F;
+    float center_y = 0.0F;
+    float width = 0.0F;
+    float height = 0.0F;
 };
 
 // Lane shape upstream data struct for vis
 struct LaneShapeVisualization {
-	bool has_cipo_object = false;
-	std::optional<float> distance_to_cipo;
-	std::optional<float> relative_cipo_velocity;
-	// Normal image coordinates in the 1024x512 frame.
-	std::vector<cv::Point2f> tracked_waypoints;
+    bool has_cipo_object = false;
+    std::optional<float> distance_to_cipo;
+    std::optional<float> relative_cipo_velocity;
+    
+    // Normal camera image coordinates used strictly for the front projection overlay
+    std::vector<cv::Point2f> tracked_waypoints;
+
+    // Fused polynomial coefficients (y = ax^2 + bx + c) provided directly by LateralFusion
+    float path_a = 0.0F;
+    float path_b = 0.0F;
+    float path_c = 0.0F;
 };
 
 // Desired planning control upstream data struct for vis
 struct DesiredControlVisualization {
-	float steering_angle = 0.0F;
-	float velocity = 0.0F;
-	float acceleration = 0.0F;
+    float steering_angle = 0.0F;
+    float velocity = 0.0F;
+    float acceleration = 0.0F;
 };
 
 // Main vis drawing function
 cv::Mat visualize_frame(
-	const cv::Mat &frame,
-	const std::vector<YoloBoundingBox> &bounding_boxes,
-	const LaneShapeVisualization &lane_shape,
-	const DesiredControlVisualization &desired_control
+    const cv::Mat &frame,
+    const std::vector<YoloBoundingBox> &bounding_boxes,
+    const LaneShapeVisualization &lane_shape,
+    const DesiredControlVisualization &desired_control
 );
 
 
@@ -129,9 +125,9 @@ cv::Mat visualize_frame(
 
 
 bool render_frame(
-	const cv::Mat &frame,
-	const std::string &window_name = "VisionPilot",
-	const std::vector<std::string> &overlay_lines = {}
+    const cv::Mat &frame,
+    const std::string &window_name = "VisionPilot",
+    const std::vector<std::string> &overlay_lines = {}
 );
 
 void close_windows();
