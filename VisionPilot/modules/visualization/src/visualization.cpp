@@ -842,7 +842,7 @@ namespace visualization {
 				1.0F
 			);
             const float y_ratio = std::clamp(
-				(max_lateral - lateral_y) / (2.0F * max_lateral), 
+				(kBEVMaxLateralMeters - lateral_y) / (2.0F * kBEVMaxLateralMeters), 
 				0.0F, 
 				1.0F
 			);
@@ -921,7 +921,7 @@ namespace visualization {
 				kThickNormal, 
 				cv::LINE_AA
 			);
-			
+
 		};
 
 		
@@ -935,7 +935,6 @@ namespace visualization {
 		*/
 		void draw_cipo_marker(
 			cv::Mat &canvas, 
-			const std::vector<cv::Point2f> &tracked_waypoints, 
 			const LaneShapeVisualization &lane_shape, 
 			const cv::Rect &area, 
 			float max_distance_m
@@ -1221,18 +1220,16 @@ namespace visualization {
 				kPathPreviewMaxDistanceMeters
 			);
 			draw_path_preview(
-				panel, 
-				tracked_waypoints, 
+                panel, 
+                lane_shape, 
+                path_area
+            );
+            draw_cipo_marker(
+                panel, 
 				lane_shape, 
-				path_area
-			);
-			draw_cipo_marker(
-				panel, 
-				tracked_waypoints, 
-				lane_shape, 
-				path_area, 
-				kPathPreviewMaxDistanceMeters
-			);
+                path_area, 
+                kPathPreviewMaxDistanceMeters
+            );
 
 		};
 
