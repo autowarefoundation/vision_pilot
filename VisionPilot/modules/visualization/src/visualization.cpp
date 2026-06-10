@@ -1360,7 +1360,6 @@ namespace visualization {
 
 		draw_right_panel(
 			output, 
-			lane_shape.tracked_waypoints, 
 			lane_shape, 
 			desired_control
 		);
