@@ -46,6 +46,7 @@ int main(int argc, char** argv)
 
     // ── 3. Display output ─────────────────────────────────────────────────────
     bool show_window = true;
+
 #ifdef ENABLE_WEBRTC
     std::unique_ptr<visualization::WebRTCStreamer> webrtc;
     for (int i = 1; i < argc; ++i) {
@@ -81,14 +82,40 @@ int main(int argc, char** argv)
 
         if (const auto r = pipeline.process(warped)) {
             pipeline.latency().print();
-            vd::annotate_frame(warped, vd::debug_view_from(
-                *r, label, cfg.wheel_dir, cfg.homography_path));
+            // vd::annotate_frame(warped, vd::debug_view_from(
+            //     *r, label, cfg.wheel_dir, cfg.homography_path));
+
+            // ====================== VISUALIZATION CALL ======================
+
+            // --- 1. AutoSpeed detections => YOLOX bbox mapping
+            std::vector<visualization::YoloBoundingBox> bboxes;
+            for (const auto& det : r->auto_speed.detections) {
+
+                visualization::YoloBoundingBox bbox;
+                bbox.class_id = det.class_id;
+
+                // Convert absolute pixel coords back to normalized
+                bbox.center_x = (det.x1 + det.x2) / (2.0f * 1024.0f);
+                bbox.center_y = (det.y1 + det.y2) / (2.0f * 512.0f);
+                bbox.width    = (det.x2 - det.x1) / 1024.0f;
+                bbox.height   = (det.y2 - det.y1) / 512.0f;
+
+                bboxes.push_back(bbox);
+
+            }
+
+            
+
         }
 
+        // Visualization is called here
+
         if (show_window) visualization::render_frame(warped, "VisionPilot", {});
+
 #ifdef ENABLE_WEBRTC
         if (webrtc) webrtc->push_frame(warped);
 #endif
+
     }
 
     visualization::close_windows();
