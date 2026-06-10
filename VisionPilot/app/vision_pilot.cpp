@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 
             // ====================== VISUALIZATION CALL ======================
 
-            // --- 1. AutoSpeed detections => YOLOX bbox mapping
+            // 1. AutoSpeed detections => YOLO bbox mapping
             std::vector<visualization::YoloBoundingBox> bboxes;
             for (const auto& det : r->auto_speed.detections) {
 
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
 
             }
 
-            
+            // 2. Map lane shape 
 
         }
 
