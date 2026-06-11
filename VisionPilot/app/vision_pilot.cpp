@@ -87,30 +87,37 @@ int main(int argc, char** argv)
         preprocessor.preprocess(frame, warped, resized, net_size);
 
         if (const auto r = pipeline.process(warped)) {
+
             pipeline.latency().print();
-            // vd::annotate_frame(warped, vd::debug_view_from(
-            //     *r, label, cfg.wheel_dir, cfg.homography_path));
+            
+            if (debug_ui) {
+                // If developer mode is toggled, generate the teammate's HUD annotations
+                vd::annotate_frame(display_frame, vd::debug_view_from(
+                    *r, label, cfg.wheel_dir, cfg.homography_path));
+            } else {
 
-            // ====================== VISUALIZATION CALL ======================
+                // ====================== VISUALIZATION CALL ======================
 
-            // 1. AutoSpeed detections => YOLO bbox mapping
-            std::vector<visualization::YoloBoundingBox> bboxes;
-            for (const auto& det : r->auto_speed.detections) {
+                // 1. AutoSpeed detections => YOLO bbox mapping
+                std::vector<visualization::YoloBoundingBox> bboxes;
+                for (const auto& det : r->auto_speed.detections) {
 
-                visualization::YoloBoundingBox bbox;
-                bbox.class_id = det.class_id;
+                    visualization::YoloBoundingBox bbox;
+                    bbox.class_id = det.class_id;
 
-                // Convert absolute pixel coords back to normalized
-                bbox.center_x = (det.x1 + det.x2) / (2.0f * 1024.0f);
-                bbox.center_y = (det.y1 + det.y2) / (2.0f * 512.0f);
-                bbox.width    = (det.x2 - det.x1) / 1024.0f;
-                bbox.height   = (det.y2 - det.y1) / 512.0f;
+                    // Convert absolute pixel coords back to normalized
+                    bbox.center_x = (det.x1 + det.x2) / (2.0f * 1024.0f);
+                    bbox.center_y = (det.y1 + det.y2) / (2.0f * 512.0f);
+                    bbox.width    = (det.x2 - det.x1) / 1024.0f;
+                    bbox.height   = (det.y2 - det.y1) / 512.0f;
 
-                bboxes.push_back(bbox);
+                    bboxes.push_back(bbox);
+
+                }
+
+                // 2. Map lane shape 
 
             }
-
-            // 2. Map lane shape 
 
         }
 
