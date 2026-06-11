@@ -99,6 +99,7 @@ int main(int argc, char** argv)
                 // ====================== VISUALIZATION CALL ======================
 
                 // 1. AutoSpeed detections => YOLO bbox mapping
+
                 std::vector<visualization::YoloBoundingBox> bboxes;
                 for (const auto& det : r->auto_speed.detections) {
 
@@ -106,16 +107,43 @@ int main(int argc, char** argv)
                     bbox.class_id = det.class_id;
 
                     // Convert absolute pixel coords back to normalized
-                    bbox.center_x = (det.x1 + det.x2) / (2.0f * 1024.0f);
-                    bbox.center_y = (det.y1 + det.y2) / (2.0f * 512.0f);
-                    bbox.width    = (det.x2 - det.x1) / 1024.0f;
-                    bbox.height   = (det.y2 - det.y1) / 512.0f;
+                    bbox.center_x = (det.x1 + det.x2) / (2.0f * kFrameWidth);
+                    bbox.center_y = (det.y1 + det.y2) / (2.0f * kFrameHeight);
+                    bbox.width    = (det.x2 - det.x1) / kFrameWidth;
+                    bbox.height   = (det.y2 - det.y1) / kFrameHeight;
 
                     bboxes.push_back(bbox);
 
                 }
 
-                // 2. Map lane shape 
+                // 2. Map lane shape, filter tracking params
+
+                visualization::LaneShapeVisualization lane_shape;
+                lane_shape.has_cipo_object = r->cipo.valid;
+                if (r->cipo.valid) {
+                    lane_shape.distance_to_cipo = r->cipo.distance_m;
+                    lane_shape.relative_cipo_velocity = r->cipo.velocity_ms * 3.6f; // m/s to km/h
+                }
+
+                // Inject lateral fusion tracking polynomial params for BEV rendering
+                lane_shape.path_a = r->lateral.path_a;
+                lane_shape.path_b = r->lateral.path_b;
+                lane_shape.path_c = r->lateral.path_c;
+
+                // Extract perspective image centerline points from AutoSteer flattened array
+                for (int i = 0; i < 64; ++i) {
+                    float h_left = r->auto_steer.h_vector[i];
+                    float h_right = r->auto_steer.h_vector[64 + i];
+
+                    if (h_left >= 0.5f && h_right >= 0.5f) {
+                        float left_x = r->auto_steer.xp[i] * kFrameWidth;
+                        float right_x = r->auto_steer.xp[64 + i] * kFrameWidth;
+                        float center_x = (left_x + right_x) / 2.0f;
+                        float v = i * (511.0f / 63.0f); // Map 64 intervals to 512px height
+
+                        lane_shape.tracked_waypoints.emplace_back(center_x, v);
+                    }
+                }
 
             }
 
