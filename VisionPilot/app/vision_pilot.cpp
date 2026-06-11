@@ -145,6 +145,23 @@ int main(int argc, char** argv)
                     }
                 }
 
+                // 3. Map Desired Control Parameters
+
+                visualization::DesiredControlVisualization desired_control;
+
+                // Deriving mock controls from lateral curvature for UI visualization
+                desired_control.steering_angle = r->lateral.curvature * -300.0f; 
+                desired_control.velocity = 45.0f;    // Mock placeholder state
+                desired_control.acceleration = 0.5f; // Mock placeholder state
+
+                // 4. Full UI vis render call
+                display_frame = visualization::visualize_frame(
+                    warped, 
+                    bboxes, 
+                    lane_shape, 
+                    desired_control
+                );
+
             }
 
         }
