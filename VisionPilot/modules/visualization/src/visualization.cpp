@@ -813,21 +813,17 @@ namespace visualization {
 		void draw_path_preview(
 			cv::Mat &canvas, 
 			const LaneShapeVisualization &lane_shape, 
-			const cv::Rect &area,
-			float max_distance_m
+			const cv::Rect &area
 		) {
 
-			if (!lane_shape.has_cipo_object || !lane_shape.distance_to_cipo.has_value()) return;
-			const float distance_m = std::clamp(
-                *lane_shape.distance_to_cipo, 
-                0.0F, 
-                max_distance_m
-            );
-
-			// 1. Determine exactly lateral position from polynomial y = ax^2 + bx + c
-			const float lateral_y = lane_shape.path_a * distance_m * distance_m + 
-                                    lane_shape.path_b * distance_m + 
-                                    lane_shape.path_c;
+			// 1. Determine exactly where path should end (CIPO distance or max distance)
+            float clip_distance_m = kPathPreviewMaxDistanceMeters;
+            if (lane_shape.has_cipo_object && lane_shape.distance_to_cipo.has_value()) {
+                clip_distance_m = std::min(
+					clip_distance_m, 
+					*lane_shape.distance_to_cipo
+				);
+            }
 
             const cv::Rect path_rect(
                 area.x + 8, 
@@ -836,91 +832,56 @@ namespace visualization {
                 std::max(1, area.height - 16)
             );
 
-			const float x_ratio = std::clamp(
-				distance_m / max_distance_m, 
-				0.0F, 
-				1.0F
-			);
-            const float y_ratio = std::clamp(
-				(kBEVMaxLateralMeters - lateral_y) / (2.0F * kBEVMaxLateralMeters), 
-				0.0F, 
-				1.0F
-			);
+			std::vector<cv::Point> polyline_points;
 
-            const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
-            const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
+            // 2. Generate BEV points directly from lane shape polynomial coefficients
+            // Step forward by 1.0 meter intervals from 0m to clip distance
+            for (float x = 0.0F; x <= clip_distance_m; x += 1.0F) {
+                
+				// y = ax^2 + bx + c
+                float y = lane_shape.path_a * x * x + lane_shape.path_b * x + lane_shape.path_c;
 
-			// 2. Draw CIPO marker at calculated position, with distance and velocity text
+                const float x_ratio = std::clamp(
+					x / kPathPreviewMaxDistanceMeters, 
+					0.0F, 
+					1.0F
+				);
+                // +Y is Left from fusion module. Map +Y toward 0.0 (left edge of the panel area)
+                const float y_ratio = std::clamp(
+					(kBEVMaxLateralMeters - y) / (2.0F * kBEVMaxLateralMeters), 
+					0.0F, 
+					1.0F
+				);
+
+                const int px = path_rect.x + static_cast<int>(std::lround(y_ratio * static_cast<float>(path_rect.width)));
+                const int py = path_rect.y + static_cast<int>(std::lround((1.0F - x_ratio) * static_cast<float>(path_rect.height)));
+                
+				polyline_points.emplace_back(px, py);
+
+            }
+
+            if (polyline_points.size() < 2) return;
+
+			// 3. Draw path preview polygon with translucent overlay
 			
-			const cv::Rect marker_rect(
-				px - 12, 
-				py - 16, 
-				24, 
-				20
-			);
-            cv::rectangle(
-				canvas, 
-				marker_rect, 
-				kCipoColor, 
-				cv::FILLED
-			);
-            cv::rectangle(
-				canvas, 
-				marker_rect, 
-				kWhiteColor, 
-				kThickPolyline
-			);
+			cv::Mat overlay = canvas.clone();
 
-            const std::string distance_text = format_float(*lane_shape.distance_to_cipo, 1) + " " + kTelemetryUnitDistance;
-            const std::string velocity_text = (lane_shape.relative_cipo_velocity.has_value()) 
-											  ? format_float(*lane_shape.relative_cipo_velocity, 1) + " " + kTelemetryUnitVelocity 
-											  : "--" + kTelemetryUnitVelocity;
-
-            int baseline = 0;
-            const cv::Size dist_size = cv::getTextSize(
-				distance_text, 
-				cv::FONT_HERSHEY_SIMPLEX, 
-				kFontSizeRuler, 
-				kThickNormal, 
-				&baseline
-			);
-            const cv::Size vel_size = cv::getTextSize(
-				velocity_text, 
-				cv::FONT_HERSHEY_SIMPLEX, 
-				kFontSizeRuler, 
-				kThickNormal, 
-				&baseline
-			);
-
-            const int text_x_dist = marker_rect.x - 8 - dist_size.width;
-            const int text_x_vel = marker_rect.x - 8 - vel_size.width;
-
-            cv::putText(
-				canvas, 
-				distance_text, 
-				cv::Point(
-					text_x_dist, 
-					marker_rect.y + 6
-				), 
-				cv::FONT_HERSHEY_SIMPLEX, 
-				kFontSizeRuler, 
-				kPanelTextColor, 
-				kThickNormal, 
-				cv::LINE_AA
-			);
-            cv::putText(
-				canvas, 
-				velocity_text, 
-				cv::Point(
-					text_x_vel, 
-					marker_rect.y + 20
-				), 
-				cv::FONT_HERSHEY_SIMPLEX, 
-				kFontSizeRuler, 
-				kPanelTextColor, 
-				kThickNormal, 
-				cv::LINE_AA
-			);
+            cv::polylines(
+                overlay, 
+                std::vector<std::vector<cv::Point>>{polyline_points}, 
+                false, 
+                kPositiveAccelerationColor, 
+                kThickUltra, 
+                cv::LINE_AA
+            );
+            cv::addWeighted(
+                overlay, 
+                1.0F - kRightPanelAlpha, 
+                canvas, 
+                kRightPanelAlpha, 
+                0.0, 
+                canvas
+            );
 
 		};
 
@@ -940,14 +901,7 @@ namespace visualization {
 			float max_distance_m
 		) {
 			
-			if (!lane_shape.has_cipo_object || !lane_shape.distance_to_cipo.has_value() || tracked_waypoints.empty()) return;
-
-			std::vector<cv::Point2f> bev_waypoints;
-			cv::perspectiveTransform(
-				tracked_waypoints, 
-				bev_waypoints, 
-				homography_matrix
-			);
+			if (!lane_shape.has_cipo_object || !lane_shape.distance_to_cipo.has_value()) return;
 
 			const float distance_m = std::clamp(
 				*lane_shape.distance_to_cipo, 
@@ -955,16 +909,9 @@ namespace visualization {
 				max_distance_m
 			);
 
-			// Interpolate lateral (Y) position at the given longitudinal (X) distance
-			float lateral_y = bev_waypoints.front().y;
-			for (size_t i = 1; i < bev_waypoints.size(); ++i) {
-				if (bev_waypoints[i].x >= distance_m) {
-					const float ratio = (distance_m - bev_waypoints[i-1].x) / std::max(1e-4F, bev_waypoints[i].x - bev_waypoints[i-1].x);
-					lateral_y = bev_waypoints[i-1].y + ratio * (bev_waypoints[i].y - bev_waypoints[i-1].y);
-					break;
-				}
-				lateral_y = bev_waypoints.back().y;
-			}
+			const float lateral_y = lane_shape.path_a * distance_m * distance_m + 
+									lane_shape.path_b * distance_m + 
+									lane_shape.path_c;
 
 			const cv::Rect path_rect(
 				area.x + 8, 
@@ -972,7 +919,6 @@ namespace visualization {
 				std::max(1, area.width - kRulerWidth - 16), 
 				std::max(1, area.height - 16)
 			);
-			const float kBEVMaxLateralMeters = 15.0F;
 
 			const float x_ratio = std::clamp(
 				distance_m / max_distance_m, 
@@ -1070,7 +1016,6 @@ namespace visualization {
 		*/
 		void draw_right_panel(
 			cv::Mat &canvas, 
-			const std::vector<cv::Point2f> &tracked_waypoints, 
 			const LaneShapeVisualization &lane_shape, 
 			const DesiredControlVisualization &desired_control
 		) {

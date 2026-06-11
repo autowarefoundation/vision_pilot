@@ -86,6 +86,8 @@ int main(int argc, char** argv)
 
         preprocessor.preprocess(frame, warped, resized, net_size);
 
+        cv::Mat display_frame = warped.clone();
+
         if (const auto r = pipeline.process(warped)) {
 
             pipeline.latency().print();
@@ -107,10 +109,10 @@ int main(int argc, char** argv)
                     bbox.class_id = det.class_id;
 
                     // Convert absolute pixel coords back to normalized
-                    bbox.center_x = (det.x1 + det.x2) / (2.0f * kFrameWidth);
-                    bbox.center_y = (det.y1 + det.y2) / (2.0f * kFrameHeight);
-                    bbox.width    = (det.x2 - det.x1) / kFrameWidth;
-                    bbox.height   = (det.y2 - det.y1) / kFrameHeight;
+                    bbox.center_x = (det.x1 + det.x2) / (2.0f * visualization::kFrameWidth);
+                    bbox.center_y = (det.y1 + det.y2) / (2.0f * visualization::kFrameHeight);
+                    bbox.width    = (det.x2 - det.x1) / visualization::kFrameWidth;
+                    bbox.height   = (det.y2 - det.y1) / visualization::kFrameHeight;
 
                     bboxes.push_back(bbox);
 
@@ -136,8 +138,8 @@ int main(int argc, char** argv)
                     float h_right = r->auto_steer.h_vector[64 + i];
 
                     if (h_left >= 0.5f && h_right >= 0.5f) {
-                        float left_x = r->auto_steer.xp[i] * kFrameWidth;
-                        float right_x = r->auto_steer.xp[64 + i] * kFrameWidth;
+                        float left_x = r->auto_steer.xp[i] * visualization::kFrameWidth;
+                        float right_x = r->auto_steer.xp[64 + i] * visualization::kFrameWidth;
                         float center_x = (left_x + right_x) / 2.0f;
                         float v = i * (511.0f / 63.0f); // Map 64 intervals to 512px height
 
@@ -165,8 +167,6 @@ int main(int argc, char** argv)
             }
 
         }
-
-        // Visualization is called here
 
         if (show_window) visualization::render_frame(warped, "VisionPilot", {});
 
