@@ -46,6 +46,12 @@ int main(int argc, char** argv)
 
     // ── 3. Display output ─────────────────────────────────────────────────────
     bool show_window = true;
+    bool debug_ui = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--debug-ui") {
+            debug_ui = true;
+        }
+    }
 
 #ifdef ENABLE_WEBRTC
     std::unique_ptr<visualization::WebRTCStreamer> webrtc;
