@@ -1,0 +1,2 @@
+# CARLA Python client wheel — too large for git; user-provided via $CARLA_WHL
+*.whl
