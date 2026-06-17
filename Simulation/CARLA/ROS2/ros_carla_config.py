@@ -37,7 +37,6 @@ def _setup_vehicle(world, config):
         waypt = map_.get_waypoint(spawn_points[i].location)
         print ("Spawn Point {}: road {} lane {} section {}".format(i, waypt.road_id, waypt.lane_id, waypt.section_id))
     
-    import os
     _idx = os.environ.get("CARLA_SPAWN_INDEX")
     if _idx is not None:
         spawn_pt = spawn_points[int(_idx)]
