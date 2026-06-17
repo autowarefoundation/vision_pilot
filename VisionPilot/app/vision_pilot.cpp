@@ -96,7 +96,11 @@ int main(int argc, char** argv)
                 const ControlCommand cmd = control_bridge.compute(
                     r->lateral.cte_m, r->lateral.yaw_rad, r->lateral.curvature, r->cipo.valid,
                     r->cipo.velocity_ms, r->cipo.distance_m, ego_v, cfg.control.dt_s);
-                (void)cmd;  // consumed by the ROS2 actuation adapter (PR3)
+                // The app owns the logging cadence; the control library stays silent.
+                VP_INFO(
+                    "[Control] steer=%.4f rad  speed=%.2f m/s  accel=%.2f m/s2",
+                    cmd.steering_angle_rad, cmd.speed_mps, cmd.acceleration_mps2);
+                // cmd is consumed by the ROS2 actuation adapter (PR3).
             }
         }
 

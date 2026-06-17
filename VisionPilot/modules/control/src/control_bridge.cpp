@@ -1,5 +1,4 @@
 #include <control/control_bridge.hpp>
-#include <logging/logger.hpp>
 
 #include <algorithm>
 
@@ -18,10 +17,7 @@ ControlCommand ControlBridge::compute(
   auto [accel, steer_seq] =
     planner_.compute_plan(cte, epsi, kappa, ego_v_mps, has_cipo, cipo_v, cipo_distance);
   const double planner_steer = steer_seq.empty() ? 0.0 : steer_seq.front();
-  const ControlCommand cmd = controller_.compute(planner_steer, accel, ego_v_mps, dt);
-
-  VP_INFO(
-    "[Control] steer=%.4f rad  speed=%.2f m/s  accel=%.2f m/s2", cmd.steering_angle_rad,
-    cmd.speed_mps, cmd.acceleration_mps2);
-  return cmd;
+  // Logging is the caller's decision (this is a reusable per-frame hot-path library): the app
+  // logs the returned command at whatever cadence it wants.
+  return controller_.compute(planner_steer, accel, ego_v_mps, dt);
 }
