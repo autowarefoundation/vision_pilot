@@ -14,9 +14,12 @@ namespace vehicle_state_subscriber {
         // shuts down exactly the context this object owns (avoids killing a co-resident
         // node's context, e.g. the camera subscriber).
         if (!rclcpp::ok()) {
+            // Mutable argv storage: rclcpp::init takes char** and is permitted to rewrite
+            // argv during argument parsing, so the backing memory must not be const.
+            static char arg0[] = "vision_pilot_vehicle_state";
+            static char* argv[] = {arg0, nullptr};
             static int argc = 1;
-            static const char* argv[] = {"vision_pilot_vehicle_state", nullptr};
-            rclcpp::init(argc, const_cast<char**>(argv));
+            rclcpp::init(argc, argv);
             owns_init_ = true;
         }
 

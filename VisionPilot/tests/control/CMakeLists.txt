@@ -16,8 +16,6 @@ target_link_libraries(test_dbw_adapter
         control
 )
 
-find_package(OpenCV REQUIRED)
-
 add_executable(test_closed_loop
         test_closed_loop.cpp
 )
@@ -26,5 +24,4 @@ target_link_libraries(test_closed_loop
         PRIVATE
         control
         planning
-        ${OpenCV_LIBS}
 )
