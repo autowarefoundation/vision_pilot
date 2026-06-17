@@ -1,0 +1,14 @@
+# Scoped ignore for VisionPilot/Docker/Dockerfile.ros2 (BuildKit reads <dockerfile>.dockerignore).
+# Context is the repo root; keep only what the single-binary ROS2 build needs from VisionPilot/.
+**/.git
+**/.gitignore
+VisionPilot/build
+VisionPilot/build_*
+VisionPilot/development_releases
+VisionPilot/production_release
+VisionPilot/simulation
+VisionPilot/Simulation
+VisionPilot/software_defined_vehicle
+VisionPilot/middleware_recipes
+VisionPilot/models
+**/__pycache__

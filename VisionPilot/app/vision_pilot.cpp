@@ -14,6 +14,9 @@
 #include <visualization/visualization.hpp>
 
 #include <camera_interface/frame_source.hpp>
+#ifdef ENABLE_ROS2_INTERFACE
+#include <control_cmd_publisher/cmd_to_ros2.hpp>
+#endif
 #ifdef ENABLE_WEBRTC
 #include <visualization/visualization_to_webrtc.hpp>
 #endif
@@ -78,6 +81,13 @@ int main(int argc, char** argv)
     Planner planner;
     LongitudinalController lon_ctrl;
     LateralController lat_ctrl;
+#ifdef ENABLE_ROS2_INTERFACE
+    std::unique_ptr<control_cmd_publisher::ControlCmdPublisher> control_pub;
+    if (cfg.control.enabled) {
+        control_pub = std::make_unique<control_cmd_publisher::ControlCmdPublisher>(
+            cfg.control.topic, cfg.control.frame_id);
+    }
+#endif
 
     // ── 5. Main loop ────────────────────────────────────────────────────────
     while (true) {
@@ -111,6 +121,9 @@ int main(int argc, char** argv)
                     cfg.control.dt_s);
                 VP_INFO("[Control] steer=%.4f rad  speed=%.2f m/s  accel=%.2f m/s2",
                         cmd.steering_angle_rad, cmd.speed_mps, cmd.acceleration_mps2);
+#ifdef ENABLE_ROS2_INTERFACE
+                if (control_pub) control_pub->publish(cmd);
+#endif
             }
         }
 

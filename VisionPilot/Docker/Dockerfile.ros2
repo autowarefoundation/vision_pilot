@@ -1,0 +1,74 @@
+# Self-contained ROS2 build image for the VisionPilot single-binary app.
+#
+# Builds the perception -> planning -> control tree with the ROS2 interface ON
+# (ENABLE_ROS2_INTERFACE), so the ControlCommand is published as
+# ackermann_msgs/AckermannDriveStamped (issue #288). EVERY dependency lives inside the
+# image (ROS2 Jazzy, ackermann_msgs, ONNX Runtime, ipopt/cppad/opencv) — the host needs
+# only Docker. Use Docker/build.sh and Docker/run.sh; don't call docker by hand.
+#
+# ros:jazzy-ros-base is Ubuntu 24.04, matching the non-ROS2 Docker/Dockerfile distro.
+
+ARG ARCH=x64
+ARG ONNXRUNTIME_VERSION=1.22.0
+
+FROM ros:jazzy-ros-base AS build
+ARG ARCH
+ARG ONNXRUNTIME_VERSION
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Toolchain + the app's C++ deps (same set as Docker/Dockerfile) + the ROS2 message and
+# bridge packages the ENABLE_ROS2_INTERFACE modules need (ackermann_msgs for the control
+# publisher; cv_bridge + image_transport for the camera subscriber).
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        pkg-config \
+        git \
+        wget \
+        ca-certificates \
+        libopencv-dev \
+        libyaml-cpp-dev \
+        libeigen3-dev \
+        coinor-libipopt-dev \
+        libcppad-dev \
+        liblapack-dev \
+        libblas-dev \
+        libmumps-seq-dev \
+        gfortran \
+        python3 \
+        python3-numpy \
+        python3-opencv \
+        ros-jazzy-ackermann-msgs \
+        ros-jazzy-cv-bridge \
+        ros-jazzy-image-transport \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bridge the legacy /usr/include/coin prefix to coin-or/ for CppAD's ipopt binding
+# (distro packaging lag, see Docker/Dockerfile).
+RUN ln -sfn /usr/include/coin /usr/include/coin-or
+
+# ONNX Runtime SDK baked in (CPU provider is enough to build + run the engine).
+RUN wget -q "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ARCH}-${ONNXRUNTIME_VERSION}.tgz" \
+    && tar -xzf "onnxruntime-linux-${ARCH}-${ONNXRUNTIME_VERSION}.tgz" \
+    && mv "onnxruntime-linux-${ARCH}-${ONNXRUNTIME_VERSION}" /opt/onnxruntime \
+    && rm "onnxruntime-linux-${ARCH}-${ONNXRUNTIME_VERSION}.tgz"
+ENV ONNXRUNTIME_ROOT=/opt/onnxruntime
+
+WORKDIR /autoware
+COPY VisionPilot /autoware/VisionPilot
+
+# Configure + build with the ROS2 interface ON. ROS2 must be sourced so CMake's
+# find_package(rclcpp / ackermann_msgs) resolves. Build into the in-tree build/ the app
+# expects (the homography codegen writes build/config/, read relative to the cwd).
+WORKDIR /autoware/VisionPilot
+# hadolint ignore=SC1091
+RUN . /opt/ros/jazzy/setup.sh \
+    && cmake -B build \
+        -DENABLE_ROS2_INTERFACE=ON \
+        -DONNXRUNTIME_ROOT=/opt/onnxruntime \
+        -DVISIONPILOT_GROUND_HOMOGRAPHY=/autoware/VisionPilot/config/H.yaml \
+    && cmake --build build -j"$(nproc)"
+
+CMD ["bash"]

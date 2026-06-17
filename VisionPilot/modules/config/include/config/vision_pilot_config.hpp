@@ -28,6 +28,10 @@ struct ControlConfig {
     bool        enabled       = false;
     double      ego_speed_mps = 10.0;
     double      dt_s          = 0.10;
+    // ROS2 actuation output (ENABLE_ROS2_INTERFACE only): the ControlCommand is published
+    // as ackermann_msgs/AckermannDriveStamped on `topic`, stamped with `frame_id`.
+    std::string topic         = "/control/ackermann_cmd";
+    std::string frame_id      = "base_link";
 };
 
 struct VisionPilotConfig {

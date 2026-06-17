@@ -31,3 +31,7 @@ pipeline.initial_inference_check = true
 control.enabled       = false
 control.ego_speed_mps = 10.0
 control.dt_s          = 0.1
+# ROS2 actuation output (only when built with -DENABLE_ROS2_INTERFACE=ON): the
+# ControlCommand is published as ackermann_msgs/AckermannDriveStamped.
+control.topic         = /control/ackermann_cmd
+control.frame_id      = base_link
