@@ -3,7 +3,13 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+// cv_bridge moved its C++ header from .h to .hpp in newer ROS2 (Humble+/Jazzy);
+// the old .h was removed. Support both so the build works across distros.
+#if __has_include(<cv_bridge/cv_bridge.hpp>)
+#include <cv_bridge/cv_bridge.hpp>
+#else
 #include <cv_bridge/cv_bridge.h>
+#endif
 #include <opencv2/opencv.hpp>
 #include <cstdint>
 #include <memory>
