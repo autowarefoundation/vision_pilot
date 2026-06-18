@@ -28,8 +28,6 @@ struct VisionPilotConfig {
     vpe::EngineConfig engine_cfg;
     SourceConfig      source;
     PipelineConfig    pipeline;
-    // Path to homography YAML — enables ObjectFinder tracker when non-empty.
-    std::string       homography_path;
     // Print per-frame fusion debug logs
     bool              fusion_debug   = false;
     // Directory with wheel_white.png / wheel_green.png for steering HUD

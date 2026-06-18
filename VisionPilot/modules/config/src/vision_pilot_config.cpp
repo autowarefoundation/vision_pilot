@@ -134,9 +134,6 @@ VisionPilotConfig load_vision_pilot_config(const std::string& path)
         optional(kv, "pipeline.initial_inference_check", "true"),
         "pipeline.initial_inference_check");
 
-    { const std::string raw = optional(kv, "tracker.homography_path", "");
-      cfg.homography_path = raw.empty() ? "" : expand_home(raw); }
-
     cfg.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
 
     { const std::string raw = optional(kv, "debug.wheel_dir", "");

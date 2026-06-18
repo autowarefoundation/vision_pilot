@@ -202,44 +202,24 @@ static fs::path resolve_wheel_dir(const std::string& requested)
     return {};
 }
 
-static cv::Mat load_homography_inv(const std::string& yaml_path)
+static cv::Mat load_homography_inv()
 {
-    if (yaml_path.empty()) return {};
-    std::ifstream f(yaml_path);
-    if (!f.is_open()) return {};
-    std::vector<double> data;
-    std::string line;
-    while (std::getline(f, line) && data.size() < 9) {
-        if (line.find("data:") != std::string::npos) {
-            const auto lb = line.find('[');
-            if (lb != std::string::npos) {
-                const auto rb = line.find(']', lb);
-                std::string seq = line.substr(lb + 1, rb - lb - 1);
-                std::replace(seq.begin(), seq.end(), ',', ' ');
-                std::istringstream ss(seq);
-                double v;
-                while (ss >> v) data.push_back(v);
-                break;
-            }
-        } else if (!data.empty() || line.find('-') != std::string::npos) {
-            const auto dash = line.find('-');
-            if (dash == std::string::npos) continue;
-            try { data.push_back(std::stod(line.substr(dash + 1))); } catch (...) {}
-        }
-    }
-    if (data.size() != 9) return {};
-    cv::Mat H64(3, 3, CV_64F, data.data());
+    cv::Mat H64 = (cv::Mat_<double>(3, 3) <<
+                      0.00209514907, -0.000941721466, -9.24906396,
+                      0.00662758637, -0.000352940531, -3.33396502,
+                      0.000120077371, -0.00411343505, 1.0
+        );
     cv::Mat H32;
     H64.convertTo(H32, CV_32F);
     return H32.inv();
 }
 
-void init_homography(const std::string& yaml_path)
+void init_homography()
 {
     std::lock_guard<std::mutex> lock(g_homo_mu);
     if (g_homo_tried) return;
     g_homo_tried = true;
-    g_H_world_to_img = load_homography_inv(yaml_path);
+    g_H_world_to_img = load_homography_inv();
 }
 
 void init_wheel_assets(const std::string& wheel_dir)
@@ -585,7 +565,7 @@ void annotate_frame(cv::Mat& frame, const DebugView& view)
         std::lock_guard<std::mutex> lock(g_homo_mu);
         if (!g_homo_tried) {
             g_homo_tried     = true;
-            g_H_world_to_img = load_homography_inv(view.homography_path);
+            g_H_world_to_img = load_homography_inv();
         }
     }
 

@@ -68,12 +68,10 @@ int main(int argc, char** argv)
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine_cfg);
     vm::InferencePipeline pipeline(engine, {
-        cfg.autodrive_model, cfg.autosteer_model, cfg.autospeed_model,
-        cfg.homography_path, cfg.fusion_debug,
-    });
+        cfg.autodrive_model, cfg.autosteer_model, cfg.autospeed_model, cfg.fusion_debug, });
 
     vd::init_wheel_assets(cfg.wheel_dir);
-    vd::init_homography(cfg.homography_path);
+    vd::init_homography();
 
     // ── 3. Display output ─────────────────────────────────────────────────────
     bool show_window = true;
@@ -116,7 +114,7 @@ int main(int argc, char** argv)
         if (const auto r = pipeline.process(warped)) {
             pipeline.latency().print();
             vd::annotate_frame(warped, vd::debug_view_from(
-                *r, label, cfg.wheel_dir, cfg.homography_path));
+                *r, label, cfg.wheel_dir));
 
             double cte = r->lateral.cte_m;
             double epsi = r->lateral.yaw_rad;

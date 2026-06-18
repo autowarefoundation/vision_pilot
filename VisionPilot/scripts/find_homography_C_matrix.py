@@ -10,8 +10,8 @@ CANONICAL_WORLD_PTS = np.array(
     [[15, 5, 1], [150, 5, 1], [15, -5, 1], [150, -5, 1]], dtype=np.float32
 )
 
-# DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world).
-VISIONPILOT_MODEL_H = np.array(
+# DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
+V = np.array(
     [
         [0.00209514907, -0.000941721466, -9.24906396],
         [0.00662758637, -0.000352940531, -3.33396502],
@@ -21,53 +21,15 @@ VISIONPILOT_MODEL_H = np.array(
 )
 
 
-def load_homography_yaml(path: Path) -> np.ndarray:
-    """Load 3x3 H from OpenCV or list-style YAML (same formats as fusion loader)."""
-    if not path.is_file():
-        raise FileNotFoundError(f"Cannot open homography YAML: {path}")
-
-    text = path.read_text()
-    data: list[float] = []
-    in_data = False
-    bracket_buf = ""
-
-    def flush_bracket(buf: str) -> None:
-        for part in buf.replace(",", " ").split():
-            if part.strip():
-                data.append(float(part))
-
-    for line in text.splitlines():
-        if "data:" in line and "[" in line:
-            bracket_buf = line[line.find("[") + 1 :]
-            if "]" in bracket_buf:
-                flush_bracket(bracket_buf[: bracket_buf.find("]")])
-                break
-            in_data = True
-            continue
-        if bracket_buf:
-            if "]" in line:
-                flush_bracket(bracket_buf + line[: line.find("]")])
-                break
-            bracket_buf += " " + line
-            continue
-        if in_data:
-            dash = line.find("-")
-            if dash == -1:
-                continue
-            try:
-                data.append(float(line[dash + 1 :].strip()))
-            except ValueError:
-                continue
-        elif line.strip().startswith("data:"):
-            in_data = True
-
-    if len(data) != 9:
-        raise ValueError(f"Expected 9 values under H/data in {path}, got {len(data)}")
-    return np.array(data, dtype=np.float32).reshape(3, 3)
+def load_homography_H_matrix(path: Path) -> np.ndarray:
+    # Load the homography matrix from the YAML file
+    fs = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
+    H = fs.getNode("H").mat()
+    fs.release()
+    return H
 
 
 def find_homography_C_matrix(H: np.ndarray) -> np.ndarray:
-    V = VISIONPILOT_MODEL_H
     H_inv = np.linalg.inv(H)
     V_inv = np.linalg.inv(V)
 
@@ -87,7 +49,7 @@ def main() -> None:
     args = parser.parse_args()
 
     ground_path = args.ground_h.resolve()
-    H = load_homography_yaml(ground_path)
+    H = load_homography_H_matrix(ground_path)
     C = find_homography_C_matrix(H)
 
     out = args.output or (Path(__file__).resolve().parents[1] / "build/config/homography_C_matrix.yaml")
@@ -95,7 +57,7 @@ def main() -> None:
     fs = cv2.FileStorage(str(out.resolve()), cv2.FILE_STORAGE_WRITE)
     fs.write("C", C.astype(np.float32))
     fs.release()
-    print(f"Wrote C from ground={ground_path} -> {out.resolve()}")
+    print(f"Transformation C matrix saved to {out.resolve()}")
 
 
 if __name__ == "__main__":

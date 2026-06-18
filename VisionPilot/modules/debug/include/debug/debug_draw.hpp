@@ -39,27 +39,24 @@ struct DebugView {
 
     VehicleParams vehicle;
     std::string wheel_dir;
-    // Homography YAML (image → world); used to back-project fused path onto the frame
-    std::string homography_path;
 };
 
 inline DebugView debug_view_from(
     const models::InferenceFrameResult& r,
     const std::string& src_label,
-    const std::string& wheel_dir,
-    const std::string& homography_path)
+    const std::string& wheel_dir)
 {
     return {
         r.frame_id, r.wall_ms, r.pre_ms, r.ad_ms, r.as_ms, r.asp_ms,
         src_label,
         r.auto_drive, r.auto_steer, r.auto_speed,
         r.cipo, r.lateral,
-        {}, wheel_dir, homography_path,
+        {}, wheel_dir,
     };
 }
 
 void init_wheel_assets(const std::string& wheel_dir);
-void init_homography(const std::string& yaml_path);
+void init_homography();
 
 // Draws onto 1024×512 BGR frame with fixed layout zones:
 //   • Green = AutoSteer waypoints; yellow = fused path (image + BEV inset)

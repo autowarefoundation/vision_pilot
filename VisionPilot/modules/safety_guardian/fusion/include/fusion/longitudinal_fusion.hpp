@@ -47,7 +47,6 @@ public:
         // Reinitialise filter when a reliable measurement jumps this far from
         // the particle cloud — handles genuine cut-in / cut-out events.
         float reset_gate_m         = 25.f;
-        std::string homography_path = "";
         bool debug = false;
     };
 
@@ -83,9 +82,12 @@ private:
     std::vector<Particle> particles_;
     bool   initialised_ = false;
     std::mt19937 rng_;
-
-    cv::Mat H_;
-    bool    H_loaded_ = false;
+    // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
+    cv::Mat H_ = (cv::Mat_<double>(3, 3) <<
+                       0.00209514907, -0.000941721466, -9.24906396,
+                       0.00662758637, -0.000352940531, -3.33396502,
+                       0.000120077371, -0.00411343505, 1.0
+         );
 };
 
 }  // namespace visionpilot::fusion

@@ -1,8 +1,0 @@
-%YAML:1.0
----
-# DO NOT MODIFY!!! VisionPilot homography transform matrix 1024×512 pixel space to BEV space
-V: !!opencv-matrix
-   rows: 3
-   cols: 3
-   dt: f
-   data: [ 0.00209514907, -0.000941721466, -9.24906396, 0.00662758637, -0.000352940531, -3.33396502, 0.000120077371, -0.00411343505, 1.0 ]
