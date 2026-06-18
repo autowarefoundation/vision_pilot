@@ -52,7 +52,8 @@ def main() -> None:
     H = load_homography_H_matrix(ground_path)
     C = find_homography_C_matrix(H)
 
-    out = args.output or (Path(__file__).resolve().parents[1] / "build/config/homography_C_matrix.yaml")
+    # out = args.output or (Path(__file__).resolve().parents[1] / "build/config/homography_C_matrix.yaml")
+    out = args.output
     out.parent.mkdir(parents=True, exist_ok=True)
     fs = cv2.FileStorage(str(out.resolve()), cv2.FILE_STORAGE_WRITE)
     fs.write("C", C.astype(np.float32))

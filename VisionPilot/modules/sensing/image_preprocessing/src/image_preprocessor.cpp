@@ -1,6 +1,6 @@
 #include <image_preprocessing/image_preprocessor.hpp>
 
-ImagePreprocessor::ImagePreprocessor() : homography_C_matrix_path("build/config/homography_C_matrix.yaml") {
+ImagePreprocessor::ImagePreprocessor() : homography_C_matrix_path("config/homography_C_matrix.yaml") {
     const cv::FileStorage fs(homography_C_matrix_path, cv::FileStorage::READ);
 
     if (!fs.isOpened()) {

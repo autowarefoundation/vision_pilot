@@ -24,4 +24,7 @@ target_link_libraries(models
         opencv_imgproc
 )
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/weights
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 target_compile_features(models PUBLIC cxx_std_17)
