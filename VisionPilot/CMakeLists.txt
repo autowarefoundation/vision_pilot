@@ -34,6 +34,7 @@ add_custom_target(generate_config ALL
         COMMAND Python3::Interpreter
         ${CMAKE_SOURCE_DIR}/scripts/find_homography_C_matrix.py
         --ground-h ${VISIONPILOT_GROUND_HOMOGRAPHY}
+        --output ${CMAKE_BINARY_DIR}/config/homography_C_matrix.yaml
 )
 
 # Modules

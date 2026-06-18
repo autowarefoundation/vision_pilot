@@ -11,39 +11,34 @@
 Only the **ground** homography is per dataset / camera. **V** is fixed for all VisionPilot builds.
 
 ```bash
-cd VisionPilot/development_releases/1.0
-cmake -B build -DVISIONPILOT_GROUND_HOMOGRAPHY=/path/to/your_full_frame_homography.yaml
+cd VisionPilot
+cmake -B build -DONNXRUNTIME_ROOT=/path/to/onnxruntime -DVISIONPILOT_GROUND_HOMOGRAPHY=/path/to/H.yaml
 cmake --build build --target VisionPilot -j$(nproc)
 ```
 
 Regenerate **C** only:
 
 ```bash
-python3 scripts/find_homography_C_matrix.py --ground-h /path/to/your_full_frame_homography.yaml
+python3 scripts/find_homography_C_matrix.py --ground-h /path/to/H.yaml
 ```
-
-OpenLane example ground file: `../../middleware_recipes/Standalone/AutoSpeed/homography.yaml`
 
 ## Build (video / v4l2 — no ROS2 required)
 
 ```bash
-cmake -B build -DVISIONPILOT_GROUND_HOMOGRAPHY=... 
+cmake -B build -DONNXRUNTIME_ROOT=... -DVISIONPILOT_GROUND_HOMOGRAPHY=... 
 cmake --build build --target VisionPilot -j$(nproc)
 ```
 
 ## Build (with ROS2 camera input)
 
 ```bash
-cmake -B build -DENABLE_ROS2_INTERFACE=ON -DVISIONPILOT_GROUND_HOMOGRAPHY=...
+cmake -B build -DENABLE_ROS2_INTERFACE=ON -DONNXRUNTIME_ROOT=... -DVISIONPILOT_GROUND_HOMOGRAPHY=...
 cmake --build build --target VisionPilot -j$(nproc)
 ```
 
 ## Run
 
-Edit `config/vision_pilot.conf` — set `tracker.homography_path` to your model-view YAML (must match VP **V** in the script). Then:
-
+Edit `config/vision_pilot.conf`
 ```bash
-./run_vision_pilot.sh
+./VisionPilot -c /path/to/config/vision_pilot.conf
 ```
-
-Or `./build/VisionPilot` from this directory.
