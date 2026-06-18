@@ -19,21 +19,12 @@ option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
 #find_package(cv_bridge REQUIRED)
 
 
-set(Python3_EXECUTABLE /usr/bin/python3.10 CACHE FILEPATH "" FORCE)
+set(Python3_EXECUTABLE /usr/bin/python3 CACHE FILEPATH "" FORCE)
 find_package(Python3 REQUIRED)
-
-# Preprocess C: your full-frame ground H (YAML) + fixed VisionPilot model V in script
-set(VISIONPILOT_GROUND_HOMOGRAPHY "" CACHE FILEPATH "Full-frame ground H YAML (pixel -> world)")
-
-if(VISIONPILOT_GROUND_HOMOGRAPHY STREQUAL "")
-    message(FATAL_ERROR
-        "Set -DVISIONPILOT_GROUND_HOMOGRAPHY=<your_full_frame_H.yaml> when configuring.")
-endif()
 
 add_custom_target(generate_config ALL
         COMMAND Python3::Interpreter
         ${CMAKE_SOURCE_DIR}/scripts/find_homography_C_matrix.py
-        --ground-h ${VISIONPILOT_GROUND_HOMOGRAPHY}
         --output ${CMAKE_BINARY_DIR}/config/homography_C_matrix.yaml
 )
 
@@ -68,6 +59,10 @@ add_subdirectory(modules/debug)
 
 # Tests
 add_subdirectory(tests)
+
+# config
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # App
 add_subdirectory(app)
