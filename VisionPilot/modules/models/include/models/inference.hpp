@@ -21,7 +21,6 @@ struct InferenceConfig {
     std::string autodrive_model;
     std::string autosteer_model;
     std::string autospeed_model;
-    std::string homography_path;
     bool        fusion_debug = false;
 };
 

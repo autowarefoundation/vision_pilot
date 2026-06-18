@@ -10,51 +10,6 @@
 
 namespace visionpilot::fusion {
 
-// ─── Homography loader ────────────────────────────────────────────────────────
-// Parses the YAML produced by OpenCV FileStorage or the manual calibration tool:
-//   H:
-//     rows: 3
-//     cols: 3
-//     data: [v0, v1, ..., v8]   (or one value per line with leading '-')
-static cv::Mat load_homography_yaml(const std::string& path)
-{
-    std::ifstream f(path);
-    if (!f.is_open())
-        throw std::runtime_error("LongitudinalFusion: cannot open homography: " + path);
-
-    std::vector<double> data;
-    bool in_data = false;
-    std::string line;
-    while (std::getline(f, line) && data.size() < 9) {
-        if (line.find("data:") != std::string::npos) {
-            in_data = true;
-            auto lb = line.find('[');
-            if (lb != std::string::npos) {
-                auto rb = line.find(']', lb);
-                std::string seq = line.substr(lb + 1, rb - lb - 1);
-                std::replace(seq.begin(), seq.end(), ',', ' ');
-                std::istringstream ss(seq);
-                double v;
-                while (ss >> v) data.push_back(v);
-                break;
-            }
-            continue;
-        }
-        if (in_data) {
-            auto dash = line.find('-');
-            if (dash == std::string::npos) continue;
-            try { data.push_back(std::stod(line.substr(dash + 1))); } catch (...) {}
-        }
-    }
-    if (data.size() != 9)
-        throw std::runtime_error("LongitudinalFusion: expected 9 homography values, got " +
-                                 std::to_string(data.size()));
-    cv::Mat H64(3, 3, CV_64F, data.data());
-    cv::Mat H32;
-    H64.convertTo(H32, CV_32F);
-    return H32.clone();
-}
-
 // ─── Construction ─────────────────────────────────────────────────────────────
 
 LongitudinalFusion::LongitudinalFusion()
@@ -76,8 +31,6 @@ void LongitudinalFusion::reset()
 {
     particles_.clear();
     initialised_ = false;
-    H_loaded_    = false;
-    H_           = cv::Mat();
 }
 
 CIPOFusionEstimate LongitudinalFusion::update(
@@ -86,22 +39,10 @@ CIPOFusionEstimate LongitudinalFusion::update(
     const cv::Mat& /*preprocessed_frame*/,
     float dt_s)
 {
-    // ── Step 1: Lazy-load homography ──────────────────────────────────────────
-    if (!H_loaded_ && !cfg_.homography_path.empty()) {
-        try {
-            H_          = load_homography_yaml(cfg_.homography_path);
-            H_loaded_ = true;
-            VP_INFO("[Fusion] Homography loaded: %s", cfg_.homography_path.c_str());
-        } catch (const std::exception& e) {
-            VP_WARN("[Fusion] %s — running without homography", e.what());
-            cfg_.homography_path.clear();
-        }
-    }
-
     // ── Step 2: AutoSpeed → world distance via homography ────────────────────
     CIPOFusionEstimate est;
     Meas cipo_raw;
-    if (H_loaded_ && autospeed.valid) {
+    if (autospeed.valid) {
         const auto sel = select_cipo(autospeed.detections);
         cipo_raw            = sel.meas;
         est.cut_in_detected = sel.cut_in;

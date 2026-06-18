@@ -75,12 +75,10 @@ InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Inference
     , auto_speed_(engine, cfg.autospeed_model)
 {
     fusion::LongitudinalFusion::Config lc;
-    lc.homography_path = cfg.homography_path;
     lc.debug           = cfg.fusion_debug;
     long_fusion_ = fusion::LongitudinalFusion{lc};
 
     fusion::LateralFusion::Config latc;
-    latc.homography_path = cfg.homography_path;
     latc.debug           = cfg.fusion_debug;
     lat_fusion_ = fusion::LateralFusion{latc};
 }

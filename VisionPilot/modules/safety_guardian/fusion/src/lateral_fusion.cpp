@@ -10,45 +10,6 @@
 
 namespace visionpilot::fusion {
 
-// ─── Homography loader (shared format with LongitudinalFusion) ────────────────
-static cv::Mat load_homography_yaml(const std::string& path)
-{
-    std::ifstream f(path);
-    if (!f.is_open())
-        throw std::runtime_error("LateralFusion: cannot open homography: " + path);
-
-    std::vector<double> data;
-    bool in_data = false;
-    std::string line;
-    while (std::getline(f, line) && data.size() < 9) {
-        if (line.find("data:") != std::string::npos) {
-            in_data = true;
-            auto lb = line.find('[');
-            if (lb != std::string::npos) {
-                auto rb = line.find(']', lb);
-                std::string seq = line.substr(lb + 1, rb - lb - 1);
-                std::replace(seq.begin(), seq.end(), ',', ' ');
-                std::istringstream ss(seq);
-                double v; while (ss >> v) data.push_back(v);
-                break;
-            }
-            continue;
-        }
-        if (in_data) {
-            auto dash = line.find('-');
-            if (dash == std::string::npos) continue;
-            try { data.push_back(std::stod(line.substr(dash + 1))); } catch (...) {}
-        }
-    }
-    if (data.size() != 9)
-        throw std::runtime_error("LateralFusion: expected 9 homography values, got " +
-                                 std::to_string(data.size()));
-    cv::Mat H64(3, 3, CV_64F, data.data());
-    cv::Mat H32;
-    H64.convertTo(H32, CV_32F);
-    return H32.clone();
-}
-
 // ─── Construction / reset ────────────────────────────────────────────────────
 
 LateralFusion::LateralFusion()
@@ -69,8 +30,6 @@ void LateralFusion::reset()
 {
     cy_.clear();  cy_init_ = false;
     k_.clear();   k_init_  = false;
-    H_loaded_ = false;
-    H_        = cv::Mat();
 }
 
 // ─── Public update ────────────────────────────────────────────────────────────
@@ -80,24 +39,12 @@ LateralFusionEstimate LateralFusion::update(
     const models::AutoDriveOutput& drive,
     float dt_s)
 {
-    // ── Step 1: lazy-load homography ──────────────────────────────────────────
-    if (!H_loaded_ && !cfg_.homography_path.empty()) {
-        try {
-            H_        = load_homography_yaml(cfg_.homography_path);
-            H_loaded_ = true;
-            VP_INFO("[Lateral] Homography loaded: %s", cfg_.homography_path.c_str());
-        } catch (const std::exception& e) {
-            VP_WARN("[Lateral] %s — running without homography", e.what());
-            cfg_.homography_path.clear();
-        }
-    }
-
     LateralFusionEstimate est;
     const float dt = (dt_s > 1e-6f) ? dt_s : cfg_.dt_s;
 
     // ── Step 2: project AutoSteer waypoints → world points ───────────────────
     PathParams path;
-    if (H_loaded_ && steer.valid) {
+    if (steer.valid) {
         const auto pts = project_waypoints(steer);
         est.path_points = static_cast<int>(pts.size());
         if (!pts.empty())
