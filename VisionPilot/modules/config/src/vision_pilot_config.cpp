@@ -113,15 +113,13 @@ VisionPilotConfig load_vision_pilot_config(const std::string& path)
     const auto kv = parse_conf(path);
     VisionPilotConfig cfg;
 
-    cfg.autodrive_model = expand_home(require(kv, "models.autodrive_path"));
-    cfg.autosteer_model = expand_home(require(kv, "models.autosteer_path"));
-    cfg.autospeed_model = expand_home(require(kv, "models.autospeed_path"));
+    cfg.engine.provider     = optional(kv, "engine.provider",     "cpu");
+    cfg.engine.precision    = optional(kv, "model.precision",    "fp32");
+    cfg.engine.device_id    = parse_int(optional(kv, "engine.device_id", "0"), "engine.device_id");
+    cfg.engine.cache_dir    = expand_home(optional(kv, "engine.cache_dir", "/tmp/visionpilot_trt_cache"));
+    cfg.engine.workspace_gb = parse_double(optional(kv, "engine.workspace_gb", "1.0"), "engine.workspace_gb");
 
-    cfg.engine_cfg.provider     = optional(kv, "engine.provider",     "cpu");
-    cfg.engine_cfg.precision    = optional(kv, "engine.precision",    "fp32");
-    cfg.engine_cfg.device_id    = parse_int(optional(kv, "engine.device_id", "0"), "engine.device_id");
-    cfg.engine_cfg.cache_dir    = expand_home(optional(kv, "engine.cache_dir", "/tmp/visionpilot_trt_cache"));
-    cfg.engine_cfg.workspace_gb = parse_double(optional(kv, "engine.workspace_gb", "1.0"), "engine.workspace_gb");
+    cfg.inference.precision    = optional(kv, "model.precision",    "fp32");
 
     cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
     cfg.source.video_path    = expand_home(optional(kv, "source.video_path", ""));
@@ -146,12 +144,7 @@ VisionPilotConfig load_vision_pilot_config(const std::string& path)
         if (!file_ok(cfg.source.video_path))
             throw std::runtime_error("source.video_path not found: " + cfg.source.video_path);
     }
-    for (const auto& [label, p] : std::vector<std::pair<const char*, std::string>>{
-            {"autodrive", cfg.autodrive_model},
-            {"autosteer", cfg.autosteer_model},
-            {"autospeed", cfg.autospeed_model}}) {
-        if (!file_ok(p)) throw std::runtime_error(std::string(label) + " model not found: " + p);
-    }
+
     return cfg;
 }
 
