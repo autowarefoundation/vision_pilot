@@ -66,6 +66,9 @@ Two fixed matrices, both in-tree — nothing per-build to configure:
 
 ```bash
 cp config/vision_pilot.conf.example config/vision_pilot.conf   # then edit as needed
+# generate_config writes build/config/homography_C_matrix.yaml; the app reads
+# config/homography_C_matrix.yaml relative to the cwd, so copy it once:
+cp build/config/homography_C_matrix.yaml config/homography_C_matrix.yaml
 ./build/VisionPilot -c config/vision_pilot.conf
 ```
 

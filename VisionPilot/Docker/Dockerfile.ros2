@@ -71,4 +71,9 @@ RUN . /opt/ros/jazzy/setup.sh \
         -DVISIONPILOT_GROUND_HOMOGRAPHY=/autoware/VisionPilot/config/H.yaml \
     && cmake --build build -j"$(nproc)"
 
+# generate_config writes build/config/homography_C_matrix.yaml, but ImagePreprocessor reads
+# config/homography_C_matrix.yaml relative to the cwd, so `./build/VisionPilot` (run from
+# /autoware/VisionPilot via Docker/run.sh) needs it there too.
+RUN cp build/config/homography_C_matrix.yaml config/homography_C_matrix.yaml
+
 CMD ["bash"]

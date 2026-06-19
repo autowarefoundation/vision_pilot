@@ -8,7 +8,8 @@
 #   ./run.sh run      # launch the app (needs a config + model weights, see below)
 #
 # Env overrides: IMAGE, ROS_DOMAIN_ID, CONTROL_TOPIC, CONFIG (host conf to mount),
-# WEIGHTS_DIR (host model-weights dir to mount at /autoware/VisionPilot/models).
+# WEIGHTS_DIR (host model-weights dir to mount at /autoware/VisionPilot/modules/models/weights,
+# where the default config's models.*_path keys expect them).
 set -euo pipefail
 
 IMAGE="${IMAGE:-visionpilot-ros2}"
@@ -37,7 +38,7 @@ if [[ -n "${CONFIG:-}" ]]; then
     DOCKER_ARGS+=(-v "${CONFIG}:/autoware/VisionPilot/config/vision_pilot.conf:ro")
 fi
 if [[ -n "${WEIGHTS_DIR:-}" ]]; then
-    DOCKER_ARGS+=(-v "${WEIGHTS_DIR}:/autoware/VisionPilot/models:ro")
+    DOCKER_ARGS+=(-v "${WEIGHTS_DIR}:/autoware/VisionPilot/modules/models/weights:ro")
 fi
 
 # Everything runs with ROS2 sourced and from the app's working directory.

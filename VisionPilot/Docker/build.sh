@@ -22,7 +22,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 echo "Building ${IMAGE} (ARCH=${ARCH}, ONNX Runtime ${ONNXRUNTIME_VERSION})..."
-docker build \
+# BuildKit so the scoped Dockerfile.ros2.dockerignore is honored (it is ignored by the
+# legacy builder), keeping the build context small.
+DOCKER_BUILDKIT=1 docker build \
     -f "${REPO_ROOT}/VisionPilot/Docker/Dockerfile.ros2" \
     -t "${IMAGE}" \
     --build-arg "ARCH=${ARCH}" \
