@@ -27,6 +27,10 @@ def _setup_vehicle(world, config):
     
     default_idx = 102 if 'Town06' in map_.name else 63  # 63 = verified clean-lane spot (Town10HD)
     idx = int(os.environ.get("SPAWN_INDEX", default_idx))
+    if not 0 <= idx < len(spawn_points):
+        raise IndexError(
+            "SPAWN_INDEX {} out of range: map {} has {} spawn points (valid 0..{})".format(
+                idx, map_.name, len(spawn_points), len(spawn_points) - 1))
     print("Using spawn index {} (override with SPAWN_INDEX)".format(idx))
     spawn_pt = spawn_points[idx]
 

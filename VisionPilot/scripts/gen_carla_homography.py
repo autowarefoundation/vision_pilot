@@ -68,9 +68,15 @@ def build_homography(width, height, fov_deg, cam_x, cam_z, pitch_deg) -> np.ndar
             pix_pts.append([u, v])
             world_pts.append([X, Y])
 
+    if len(pix_pts) < 4:
+        raise ValueError(
+            "only {} ground points project into the image (need >= 4); "
+            "check the camera geometry (fov/pitch/height)".format(len(pix_pts)))
     pix = np.asarray(pix_pts, dtype=np.float64)
     wld = np.asarray(world_pts, dtype=np.float64)
     H, _ = cv2.findHomography(pix, wld, method=0)
+    if H is None:
+        raise RuntimeError("cv2.findHomography failed to fit a homography from the projected grid")
     return H
 
 

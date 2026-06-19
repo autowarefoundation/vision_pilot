@@ -17,7 +17,8 @@ if [[ -z "${CARLA_ROOT}" ]]; then
     echo "ERROR: set CARLA_ROOT to your CARLA install (for the cp312 PythonAPI wheel)." >&2
     exit 1
 fi
-WHEEL=$(ls "${CARLA_ROOT}"/PythonAPI/carla/dist/carla-*-cp312-*.whl 2>/dev/null | head -1)
+# `|| true` so the failing glob does not trip `set -e` before the clear error below.
+WHEEL=$(ls "${CARLA_ROOT}"/PythonAPI/carla/dist/carla-*-cp312-*.whl 2>/dev/null | head -1 || true)
 if [[ -z "${WHEEL}" ]]; then
     echo "ERROR: no carla cp312 wheel under ${CARLA_ROOT}/PythonAPI/carla/dist/." >&2
     exit 1
