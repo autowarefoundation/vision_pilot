@@ -110,12 +110,9 @@ namespace camera_interface {
     ) {
 
         try {
-            // Here I just use cv_bridge to convert ROS2 image message to OpenCV Mat
-            // Ref: https://docs.ros.org/en/diamondback/api/cv_bridge/html/c++/namespacecv__bridge.html
-            // For desired output encoding:
-            //      - "bgr8"  : commonly used for color images
-            //      - "mono8" : for grayscale
-            cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
+            // Force bgr8 (CV_8UC3): cv_bridge converts any source encoding (CARLA's bgra8,
+            // rgb8, mono8) to the 3-channel BGR the preprocessor and models expect.
+            cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
             return cv_ptr->image;
 
         } catch (cv_bridge::Exception &e) {

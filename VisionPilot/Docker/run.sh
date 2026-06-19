@@ -46,10 +46,11 @@ ros_prelude='. /opt/ros/jazzy/setup.sh && cd /autoware/VisionPilot'
 case "${MODE}" in
     smoke)
         # Real runtime proof of the ROS2 adapters in one process, no weights / camera:
+        #  - camera_subscriber: publish a bgra8 Image, read it back as 3-channel BGR.
         #  - control_cmd_publisher: publish a ControlCommand, read it back as Ackermann.
         #  - vehicle_state_subscriber: publish an Odometry, read back the ego speed.
         docker run "${DOCKER_ARGS[@]}" "${IMAGE}" \
-            bash -lc "${ros_prelude} && ./build/test_control_cmd_publisher && ./build/test_vehicle_state_subscriber"
+            bash -lc "${ros_prelude} && ./build/test_camera_subscriber && ./build/test_control_cmd_publisher && ./build/test_vehicle_state_subscriber"
         ;;
     echo)
         docker run -it "${DOCKER_ARGS[@]}" "${IMAGE}" \
