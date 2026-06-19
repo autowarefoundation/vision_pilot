@@ -1,0 +1,93 @@
+# GPU runtime image for driving VisionPilot 1.0 in CARLA UE5 0.10 over ROS2.
+#
+# Self-contained: CUDA + cuDNN runtime, ROS2 Jazzy, ONNX Runtime GPU, and the app's C++
+# deps all live in the image — the host needs only Docker + the NVIDIA container runtime.
+# Built with ENABLE_ROS2_INTERFACE=ON so it subscribes the CARLA camera and publishes
+# ackermann_msgs/AckermannDriveStamped. The CARLA ground homography (H_carla.yaml) is
+# baked in as config/H.yaml before the codegen step, so the preprocess warp matches the
+# CARLA camera. Model weights are NOT baked in — mount them read-only at runtime.
+#
+# Use Docker/build-carla-gpu.sh and Docker/run-carla-gpu.sh; don't call docker by hand.
+#
+# ONNX Runtime GPU 1.23.2: 1.22.0 has no sm_120 (Blackwell, e.g. RTX 50-series) kernels;
+# 1.23.2 ships PTX it JITs to sm_120 at first inference. CUDA 12.8 base matches its ABI.
+
+ARG ARCH=x64
+ARG ONNXRUNTIME_VERSION=1.23.2
+
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04 AS build
+ARG ARCH
+ARG ONNXRUNTIME_VERSION
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Base locale + tooling.
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        locales curl gnupg2 lsb-release software-properties-common ca-certificates \
+    && locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
+ENV LANG=en_US.UTF-8
+
+# ROS2 Jazzy apt repo (Ubuntu 24.04 / noble).
+# hadolint ignore=DL3008,DL4006
+RUN add-apt-repository universe \
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+         -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
+http://packages.ros.org/ros2/ubuntu noble main" > /etc/apt/sources.list.d/ros2.list
+
+# ROS2 + app C++ deps + the message/bridge packages the ROS2 modules need.
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ros-jazzy-ros-base \
+        ros-jazzy-ackermann-msgs \
+        ros-jazzy-cv-bridge \
+        ros-jazzy-image-transport \
+        build-essential cmake pkg-config git wget \
+        libopencv-dev libyaml-cpp-dev libeigen3-dev \
+        coinor-libipopt-dev libcppad-dev \
+        liblapack-dev libblas-dev libmumps-seq-dev gfortran \
+        python3 python3-numpy python3-opencv \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# CppAD's ipopt binding expects coin-or/ (distro packaging lag).
+RUN ln -sfn /usr/include/coin /usr/include/coin-or
+
+# ONNX Runtime GPU SDK baked in.
+RUN wget -q "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ARCH}-gpu-${ONNXRUNTIME_VERSION}.tgz" \
+    && tar -xzf "onnxruntime-linux-${ARCH}-gpu-${ONNXRUNTIME_VERSION}.tgz" \
+    && mv "onnxruntime-linux-${ARCH}-gpu-${ONNXRUNTIME_VERSION}" /opt/onnxruntime \
+    && rm "onnxruntime-linux-${ARCH}-gpu-${ONNXRUNTIME_VERSION}.tgz"
+ENV ONNXRUNTIME_ROOT=/opt/onnxruntime
+
+WORKDIR /autoware
+COPY VisionPilot /autoware/VisionPilot
+
+# Bake the CARLA ground homography as config/H.yaml so the generate_config codegen builds
+# the preprocess C matrix from the CARLA camera geometry (not the default in-tree camera).
+# Build context is the repo root (see Docker/build-carla-gpu.sh).
+COPY Simulation/CARLA/ROS2/config/H_carla.yaml /autoware/VisionPilot/config/H.yaml
+
+# Build with the ROS2 interface ON, in the in-tree build/ the app expects (the homography
+# codegen writes build/config/, read relative to cwd at runtime).
+WORKDIR /autoware/VisionPilot
+# hadolint ignore=SC1091
+RUN . /opt/ros/jazzy/setup.sh \
+    && cmake -B build \
+        -DENABLE_ROS2_INTERFACE=ON \
+        -DONNXRUNTIME_ROOT=/opt/onnxruntime \
+    && cmake --build build -j"$(nproc)"
+
+# The generate_config codegen writes build/config/homography_C_matrix.yaml, but the
+# ImagePreprocessor reads config/homography_C_matrix.yaml relative to the cwd
+# (/autoware/VisionPilot) at runtime. Put the generated matrix where the app looks.
+RUN cp build/config/homography_C_matrix.yaml config/homography_C_matrix.yaml
+
+# Headless (the app calls cv::imshow) + UDPv4 (host<->container Fast-DDS shared memory is
+# unreliable across the boundary).
+ENV QT_QPA_PLATFORM=offscreen
+ENV FASTDDS_BUILTIN_TRANSPORTS=UDPv4
+ENV LD_LIBRARY_PATH=/opt/onnxruntime/lib:${LD_LIBRARY_PATH}
+
+WORKDIR /autoware/VisionPilot
+CMD ["bash"]

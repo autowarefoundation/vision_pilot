@@ -1,0 +1,40 @@
+# VisionPilot configuration — CARLA UE5 0.10.0 (Shipping) overlay
+#   cp config/vision_pilot_carla.conf.example config/vision_pilot.conf
+#
+# Thin overlay over vision_pilot.conf.example for driving the CARLA ego camera-only.
+# Requires a build with -DENABLE_ROS2_INTERFACE=ON. CARLA publishes the camera natively
+# (--ros2); a companion control bridge + odom publisher provide actuation and ego speed.
+# See Simulation/CARLA/ROS2/README.md for the full bring-up.
+
+# ─── Input source ────────────────────────────────────────────────────────────
+# CARLA native ROS2 camera (sensor_msgs/Image, bgra8 1280x720 — normalized to BGR
+# by the camera subscriber).
+source.mode             = ros2
+source.ros2_topic       = /carla/hero/main_cam/image
+
+# ─── ONNX models ───────────────────────────────────────────────────────────────
+models.autodrive_path = modules/models/weights/autodrive_fp32.onnx
+models.autosteer_path = modules/models/weights/autosteer_fp32.onnx
+models.autospeed_path = modules/models/weights/autospeed_fp32.onnx
+
+# GPU inference for a live drive.
+engine.provider     = cuda
+engine.precision    = fp32
+engine.device_id    = 0
+engine.cache_dir    = /tmp/visionpilot_trt_cache
+engine.workspace_gb = 1.0
+
+pipeline.initial_inference_check = true
+
+# ─── Control ───────────────────────────────────────────────────────────────────
+# Drive loop on: perception -> planner -> controller -> Ackermann out.
+control.enabled       = true
+control.dt_s          = 0.1
+# Fallback ego speed until the first odometry message arrives.
+control.ego_speed_mps = 0.0
+# Actuation out: VisionPilot publishes ackermann_msgs/AckermannDriveStamped here; the
+# control bridge translates it to carla_msgs/CarlaEgoVehicleControl for the Shipping ego.
+control.topic         = /carla/hero/ackermann_control_cmd
+control.frame_id      = base_link
+# Live ego speed in: nav_msgs/Odometry from the CARLA odom publisher.
+control.vehicle_state_topic = /carla/hero/odometry

@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+import os
 import signal
 import carla
 
@@ -24,10 +25,10 @@ def _setup_vehicle(world, config):
         waypt = map_.get_waypoint(spawn_points[i].location)
         print ("Spawn Point {}: road {} lane {} section {}".format(i, waypt.road_id, waypt.lane_id, waypt.section_id))
     
-    if 'Town06' in map_.name:
-        spawn_pt = spawn_points[102]
-    else:
-        spawn_pt = spawn_points[5]
+    default_idx = 102 if 'Town06' in map_.name else 63  # 63 = verified clean-lane spot (Town10HD)
+    idx = int(os.environ.get("SPAWN_INDEX", default_idx))
+    print("Using spawn index {} (override with SPAWN_INDEX)".format(idx))
+    spawn_pt = spawn_points[idx]
 
     return  world.spawn_actor(
         bp,

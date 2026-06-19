@@ -1,0 +1,13 @@
+# Scoped ignore for VisionPilot/Docker/Dockerfile.carla-gpu (BuildKit reads
+# <dockerfile>.dockerignore). Context is the repo root. Keep VisionPilot/ (minus build
+# output + weights) AND Simulation/CARLA/ROS2/config/H_carla.yaml, which the image bakes in.
+**/.git
+**/.gitignore
+VisionPilot/build
+VisionPilot/build_*
+VisionPilot/development_releases
+VisionPilot/production_release
+VisionPilot/software_defined_vehicle
+VisionPilot/middleware_recipes
+VisionPilot/models
+**/__pycache__

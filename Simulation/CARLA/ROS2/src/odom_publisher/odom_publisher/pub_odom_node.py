@@ -26,7 +26,9 @@ class CarlaOdomPublisher(Node):
                 break
             self.get_logger().warn('Ego vehicle not found, waiting ...')
             time.sleep(1.0)
-        self.odom_pub_ = self.create_publisher(Odometry, '/hero/odom', 10)
+        # Standardized on the /carla/hero/* namespace so VisionPilot's
+        # control.vehicle_state_topic and the control bridge's ODOM_TOPIC agree.
+        self.odom_pub_ = self.create_publisher(Odometry, '/carla/hero/odometry', 10)
         self.tf_broadcaster = TransformBroadcaster(self)
 
         self.timer = self.create_timer(self.world.get_settings().fixed_delta_seconds, self.timer_callback)
