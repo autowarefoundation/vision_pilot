@@ -12,14 +12,13 @@ source.v4l2_device      = /dev/video0
 source.v4l2_fps         = 10
 
 # ─── ONNX models ───────────────────────────────────────────────────────────────
-models.autodrive_path = modules/models/weights/autodrive_fp32.onnx
-models.autosteer_path = modules/models/weights/autosteer_fp32.onnx
-models.autospeed_path = modules/models/weights/autospeed_fp32.onnx
 
 engine.provider     = cpu
-engine.precision    = fp32
 engine.device_id    = 0
 engine.cache_dir    = /tmp/visionpilot_trt_cache
 engine.workspace_gb = 1.0
+
+# Model precision fp32 or int8 for quantized models lowercase
+model.precision    = fp32
 
 pipeline.initial_inference_check = true

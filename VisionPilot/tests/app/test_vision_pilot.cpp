@@ -66,9 +66,8 @@ int main(int argc, char** argv)
 
     // ── 2. Pipeline (preprocess + ONNX + inference/fusion) ────────────────────
     ImagePreprocessor preprocessor;
-    ve::OnnxEngine engine(cfg.engine_cfg);
-    vm::InferencePipeline pipeline(engine, {
-        cfg.autodrive_model, cfg.autosteer_model, cfg.autospeed_model, cfg.fusion_debug, });
+    ve::OnnxEngine engine(cfg.engine);
+    vm::InferencePipeline pipeline(engine, cfg.inference);
 
     vd::init_wheel_assets(cfg.wheel_dir);
     vd::init_homography();

@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <filesystem>
 
 namespace visionpilot::engine {
 class OnnxEngine;
@@ -18,9 +19,7 @@ class OnnxEngine;
 namespace visionpilot::models {
 
 struct InferenceConfig {
-    std::string autodrive_model;
-    std::string autosteer_model;
-    std::string autospeed_model;
+    std::string precision = "fp32"; ;
     bool        fusion_debug = false;
 };
 
@@ -70,6 +69,12 @@ private:
     cv::Mat prev_frame_;
     cv::Mat curr_frame_;
     int     frame_buf_count_ = 0;
+
+    static std::string valid_model_path(const std::string& path) {
+        if (!std::filesystem::exists(path))
+            throw std::runtime_error("Model not found: " + path);
+        return path;
+    }
 };
 
 }  // namespace visionpilot::models

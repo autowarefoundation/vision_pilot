@@ -1,9 +1,11 @@
 #pragma once
 
-#include <engine/onnx_engine.hpp>
 #include <string>
+#include <engine/onnx_engine.hpp>
+#include <models/inference.hpp>
 
 namespace vpe = visionpilot::engine;
+namespace vpm = visionpilot::models;
 
 enum class SourceMode { Ros2 = 0, V4l2 = 1, Video = 2 };
 
@@ -22,10 +24,8 @@ struct PipelineConfig {
 };
 
 struct VisionPilotConfig {
-    std::string       autodrive_model;
-    std::string       autosteer_model;
-    std::string       autospeed_model;
-    vpe::EngineConfig engine_cfg;
+    vpe::EngineConfig engine;
+    vpm::InferenceConfig inference;
     SourceConfig      source;
     PipelineConfig    pipeline;
     // Print per-frame fusion debug logs
