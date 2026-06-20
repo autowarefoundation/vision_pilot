@@ -22,3 +22,7 @@ engine.workspace_gb = 1.0
 model.precision    = fp32
 
 pipeline.initial_inference_check = true
+
+# ───────────────────────────────────────────────────────────────────────────────
+speed_limit      = 16.666; # m/s
+Lf               = 2.67    # Front axle to CoG (m). Wheelbase L = Lf + Lr

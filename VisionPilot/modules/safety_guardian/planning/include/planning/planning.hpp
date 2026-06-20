@@ -8,7 +8,7 @@
 
 class Planner {
 public:
-    Planner();
+    Planner(double speed_limit, double Lf);
 
     // Unified longitudinal + lateral plan.
     //
@@ -40,7 +40,9 @@ public:
         double cipo_distance);
 
 private:
-    static LongitudinalPlanner::Config load_config();
+    static LongitudinalPlanner::Config load_config(double speed_limit);
+
+    double Lf_;            // Front-axle to CoG (m)
 
     LongitudinalPlanner::Config cfg_;
     LongitudinalPlanner         longitudinal_planner;

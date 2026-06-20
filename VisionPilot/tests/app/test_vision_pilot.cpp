@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     const std::string label = source_label(cfg.source);
     cv::Mat frame, warped, resized;
 
-    Planner planner;
+    Planner planner(cfg.speed_limit, cfg.Lf);
     // ── 5. Main loop ────────────────────────────────────────────────────────
     int frame_number = 0;
     std::vector<double> speeds = readSpeeds("/data/DEVELOPMENT/AUTONOMOUS/AUTOWARE/TOOLS/wod/extracted_2/frame_speed.txt");

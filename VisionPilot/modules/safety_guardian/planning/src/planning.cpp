@@ -2,14 +2,15 @@
 #include <algorithm>
 #include <planning/planning.hpp>
 
-Planner::Planner()
-    : cfg_(load_config())
+Planner::Planner(const double speed_limit, const double Lf)
+    : Lf_(Lf)
+    , cfg_(load_config(speed_limit))
     , longitudinal_planner(cfg_) {
 }
 
-LongitudinalPlanner::Config Planner::load_config() {
+LongitudinalPlanner::Config Planner::load_config(const double speed_limit) {
     LongitudinalPlanner::Config cfg;
-    cfg.speed_limit = 60.0 / 3.6;
+    cfg.speed_limit = speed_limit;
     cfg.a     = 1.5;
     cfg.b     = 3.0;
     cfg.T     = 1.5;
@@ -35,7 +36,7 @@ std::pair<double, std::vector<double> > Planner::compute_plan(
     constexpr double RATE_ALPHA      = 0.3;   // EMA gain for the rate (lower = smoother)
     constexpr double RATE_MAX        = 0.08;  // clamp on |d(kappa)/ds| (1/m^2)
 
-    const double KAPPA_MAX = std::tan(0.436332) / Lf;  // steering-achievable, ≈0.175 /m
+    const double KAPPA_MAX = std::tan(0.436332) / Lf_;  // steering-achievable, ≈0.175 /m
 
     // Curvature rate from current + previous kappa (filtered)
     double dkappa_ds = 0.0;
@@ -94,7 +95,7 @@ std::pair<double, std::vector<double> > Planner::compute_plan(
     Eigen::VectorXd state(3);
     state << cte, epsi, kappa;
 
-    auto steering = lateral_planner.compute_steering(state, v_schedule, kappa_schedule);
+    auto steering = lateral_planner.compute_steering(Lf_, state, v_schedule, kappa_schedule);
 
     return {acceleration, steering};
 }

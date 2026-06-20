@@ -5,6 +5,7 @@
 #include <image_preprocessing/image_preprocessor.hpp>
 #include <logging/logger.hpp>
 #include <models/inference.hpp>
+#include <planning/planning.hpp>
 #include <visualization/visualization.hpp>
 
 #include <camera_interface/frame_source.hpp>
@@ -20,8 +21,7 @@ namespace ve = visionpilot::engine;
 namespace vm = visionpilot::models;
 namespace vd = visionpilot::debug;
 
-int main(int argc, char** argv)
-{
+int main(int argc, char **argv) {
     // ── 1. Config ─────────────────────────────────────────────────────────────
     const std::string cfg_path = resolve_vision_pilot_config_path(argc, argv);
     if (cfg_path.empty()) {
@@ -30,14 +30,18 @@ int main(int argc, char** argv)
     }
 
     VisionPilotConfig cfg;
-    try { cfg = load_vision_pilot_config(cfg_path); }
-    catch (const std::exception& e) { VP_ERROR("Config: %s", e.what()); return 1; }
+    try { cfg = load_vision_pilot_config(cfg_path); } catch (const std::exception &e) {
+        VP_ERROR("Config: %s", e.what());
+        return 1;
+    }
 
     // ── 2. Pipeline (preprocess + ONNX + inference/fusion) ────────────────────
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
     // vm::InferencePipeline pipeline(engine, {cfg.inference.precision, cfg.fusion_debug,});
     vm::InferencePipeline pipeline(engine, cfg.inference);
+
+    Planner planner(cfg.speed_limit, cfg.Lf);
 
     vd::init_wheel_assets(cfg.wheel_dir);
     vd::init_homography();

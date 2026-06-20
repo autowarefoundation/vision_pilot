@@ -13,9 +13,6 @@ using Eigen::VectorXd;
 size_t N  = 20;
 double dt = 0.05;
 
-// Wheelbase: front axle to CoG (m)
-extern const double Lf = 2.67;
-
 // Variable-vector index offsets
 // Layout:  cte[0..N-1] | epsi[N..2N-1] | kappa_road[2N..3N-1] | delta[3N..4N-2]
 size_t cte_start        = 0;
@@ -29,8 +26,9 @@ public:
     VectorXd v_schedule;
     VectorXd kappa_schedule;   // precomputed, clamped curvature preview
 
-    FG_eval(VectorXd v_schedule, VectorXd kappa_schedule)
-        : v_schedule(std::move(v_schedule))
+    FG_eval(double Lf, VectorXd v_schedule, VectorXd kappa_schedule)
+        : Lf_(Lf)
+        , v_schedule(std::move(v_schedule))
         , kappa_schedule(std::move(kappa_schedule)) {}
 
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
@@ -81,7 +79,7 @@ public:
 
             AD<double> v0        = v_schedule[t - 1];
             AD<double> ds        = v0 * dt;
-            AD<double> kappa_cmd = CppAD::tan(delta0) / Lf;
+            AD<double> kappa_cmd = CppAD::tan(delta0) / Lf_;
 
             // Cross-track error
             fg[1 + cte_start + t] = vars[cte_start + t]
@@ -97,15 +95,18 @@ public:
                                          - kappa_schedule[t];
         }
     }
+private:
+    double Lf_;
 };
 
 // LateralPlanner
-LateralPlanner::LateralPlanner()  = default;
+LateralPlanner::LateralPlanner() = default;
 LateralPlanner::~LateralPlanner() = default;
 
-std::vector<double> LateralPlanner::compute_steering(const VectorXd& state,
-                                                      const VectorXd& v_schedule,
-                                                      const VectorXd& kappa_schedule) {
+std::vector<double> LateralPlanner::compute_steering(const double Lf,
+                                                    const VectorXd& state,
+                                                    const VectorXd& v_schedule,
+                                                    const VectorXd& kappa_schedule) {
     bool ok = true;
     typedef CPPAD_TESTVECTOR(double) Dvector;
 
@@ -138,7 +139,7 @@ std::vector<double> LateralPlanner::compute_steering(const VectorXd& state,
     con_lb[epsi_start]       = con_ub[epsi_start]       = epsi;
     con_lb[kappa_road_start] = con_ub[kappa_road_start] = kappa_road;
 
-    FG_eval fg_eval(v_schedule, kappa_schedule);
+    FG_eval fg_eval(Lf, v_schedule, kappa_schedule);
 
     std::string options;
     options += "Integer print_level 0\n";

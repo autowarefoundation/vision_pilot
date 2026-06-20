@@ -7,7 +7,6 @@
 // ── Horizon parameters ───────────────────────────────────────────────────────
 extern size_t N;
 extern double dt;
-extern const double Lf;   // front-axle to CoG (m)
 
 class LateralPlanner {
 public:
@@ -27,9 +26,10 @@ public:
     //                    constraints smooth.
     //
     // Returns [delta_0, delta_0, delta_1, ..., delta_{N-2}]
-    std::vector<double> compute_steering(const Eigen::VectorXd& state,
-                                         const Eigen::VectorXd& v_schedule,
-                                         const Eigen::VectorXd& kappa_schedule);
+    std::vector<double> compute_steering(double Lf,
+                                        const Eigen::VectorXd& state,
+                                        const Eigen::VectorXd& v_schedule,
+                                        const Eigen::VectorXd& kappa_schedule);
 };
 
 #endif //VISIONPILOT_LATERAL_HPP

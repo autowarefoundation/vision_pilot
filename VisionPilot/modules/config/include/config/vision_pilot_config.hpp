@@ -32,6 +32,9 @@ struct VisionPilotConfig {
     bool              fusion_debug   = false;
     // Directory with wheel_white.png / wheel_green.png for steering HUD
     std::string       wheel_dir;
+
+    double speed_limit;
+    double Lf;
 };
 
 // Load from key=value .conf file. Expands ~ to $HOME.

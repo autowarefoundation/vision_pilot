@@ -30,6 +30,10 @@ static const double LEAD_SPEED       = 5.0;
 static const double LEAD_SPAWN_AHEAD = 30.0;
 static const double VEHICLE_LENGTH   = 4.5;
 
+static const double SPEED_LIMIT = 16.666; // m/s
+static const double Lf = 2.67;            // Front axle to CoG (m). Wheelbase L = Lf + Lr
+
+
 cv::Point world2canvas(double x, double y) {
     return cv::Point(
         ORIGIN_X + static_cast<int>((x - cam_x) * SCALE),
@@ -261,7 +265,7 @@ int main(int argc, char* argv[]) {
                 scenario_name = "S-bend (sinusoidal)"; break;
     }
 
-    Planner planner;
+    Planner planner(SPEED_LIMIT, Lf); // speed_limit in m/s, Front axle to CoG (m). Wheelbase L = Lf + Lr
 
     double cte   = 0.0;
     double epsi  = 0.0;

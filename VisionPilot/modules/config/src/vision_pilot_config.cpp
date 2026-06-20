@@ -134,6 +134,9 @@ VisionPilotConfig load_vision_pilot_config(const std::string& path)
 
     cfg.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
 
+    cfg.speed_limit = parse_double(optional(kv, "speed_limit", ""), "speed_limit");
+    cfg.Lf = parse_double(optional(kv, "Lf", ""), "Lf");
+
     { const std::string raw = optional(kv, "debug.wheel_dir", "");
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }
 
