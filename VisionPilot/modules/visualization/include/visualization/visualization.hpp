@@ -44,7 +44,7 @@ inline constexpr float kDrivablePathAlpha = 0.30F;
 // 1. Bounding boxes
 inline const cv::Scalar kCipoColor(0, 0, 255);
 inline const cv::Scalar kCuttingInColor(0, 255, 255);
-inline const cv::Scalar kOtherCarsColor(255, 0, 0);
+inline const cv::Scalar kOtherCarsColor(255, 255, 0);
 // 2. Drivable path body (accel & decel)
 inline const cv::Scalar kPositiveAccelerationColor(0, 200, 0);
 inline const cv::Scalar kNegativeAccelerationColor(0, 0, 255);
