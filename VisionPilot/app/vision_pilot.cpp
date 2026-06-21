@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
             if (debug_ui) {
                 // If developer mode is toggled, generate the teammate's HUD annotations
                 vd::annotate_frame(display_frame, vd::debug_view_from(
-                    *r, label, cfg.wheel_dir, cfg.homography_path));
+                    *r, label, cfg.wheel_dir));
             } else {
 
                 // ====================== VISUALIZATION CALL ======================
