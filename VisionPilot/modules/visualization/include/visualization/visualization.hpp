@@ -54,8 +54,8 @@ inline const cv::Scalar kWhiteColor(255, 255, 255);
 inline const cv::Scalar kBlackColor(0, 0, 0);
 inline const cv::Scalar kYellowColor(0, 255, 255);
 inline const cv::Scalar kGrayColor(180, 180, 180);
-inline const cv::Scalar kPanelTextColor(35, 35, 35);
-inline const cv::Scalar kPanelBackgroundColor(245, 245, 245);
+inline const cv::Scalar kPanelTextColor(255, 255, 255);
+inline const cv::Scalar kPanelBackgroundColor(0, 0, 0);
 inline const cv::Scalar kBEVDrivablePathColor(40, 180, 90);
 inline const cv::Scalar kRulerLineColor(170, 170, 170);
 inline const cv::Scalar kRulerTickColor(120, 120, 120);
@@ -68,6 +68,7 @@ inline const int kThickNormal = 1;
 inline const double kFontSize = 0.58;
 inline const double kFontSizeRightPanelDesired = 0.58;
 inline const double kFontSizeRuler = 0.42;
+inline const double kFontSizeTelemetry = 0.48;
 
 // Drawing params
 inline const int kThickUltra = 4;

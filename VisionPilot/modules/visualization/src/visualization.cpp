@@ -368,7 +368,7 @@ namespace visualization {
 				height, 
 				width, 
 				CV_8UC3, 
-				kWhiteColor
+				kBlackColor
 			);
 
 			return blend_overlay(
@@ -1042,13 +1042,13 @@ namespace visualization {
 			if (panel_rect.x < 0) return;
 
 			cv::Mat panel = canvas(panel_rect);
-			cv::Mat white_bg(
+			cv::Mat black_bg(
 				panel.size(), 
 				panel.type(), 
-				kWhiteColor
+				kBlackColor
 			);
 			cv::addWeighted(
-				white_bg, 
+				black_bg, 
 				kRightPanelAlpha, 
 				panel, 
 				1.0F - kRightPanelAlpha, 
@@ -1128,16 +1128,16 @@ namespace visualization {
 				panel,
 				format_float(desired_control.velocity, 1) + " " + kTelemetryUnitVelocity,
 				velocity_rect,
-				0.36,
-				kBlackColor,
+				kFontSizeTelemetry,
+				kWhiteColor,
 				1
 			);
 			draw_text_centered(
 				panel,
 				format_float(desired_control.steering_angle, 1) + " " + kTelemetryUnitSteering,
 				steering_rect,
-				0.36,
-				kBlackColor,
+				kFontSizeTelemetry,
+				kWhiteColor,
 				1
 			);
 
