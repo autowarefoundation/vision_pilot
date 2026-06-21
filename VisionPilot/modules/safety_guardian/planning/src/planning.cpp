@@ -51,7 +51,7 @@ std::pair<double, std::vector<double> > Planner::compute_plan(
     has_prev_kappa_ = true;
 
     // Longitudinal planner
-    double acceleration = longitudinal_planner.compute_acceleration(ego_v, has_cipo, cipo_v, cipo_distance);
+    double acceleration = longitudinal_planner.compute_acceleration(kappa, ego_v, has_cipo, cipo_v, cipo_distance);
 
     Eigen::VectorXd v_schedule(N);
     {
@@ -59,7 +59,7 @@ std::pair<double, std::vector<double> > Planner::compute_plan(
         double cipo_plan = cipo_distance;
         for (int i = 0; i < (int) N; i++) {
             v_schedule[i] = v_plan;
-            double a_plan = longitudinal_planner.compute_acceleration(v_plan, has_cipo, cipo_v, cipo_plan);
+            double a_plan = longitudinal_planner.compute_acceleration(kappa, v_plan, has_cipo, cipo_v, cipo_plan);
             if (has_cipo)
                 cipo_plan = std::max(0.5, cipo_plan + (cipo_v - v_plan) * dt);
             v_plan = std::max(0.0, v_plan + a_plan * dt);

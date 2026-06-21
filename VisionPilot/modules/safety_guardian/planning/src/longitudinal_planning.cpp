@@ -5,8 +5,11 @@
 LongitudinalPlanner::LongitudinalPlanner(const Config& config)
     : config_(config) {}
 
-double LongitudinalPlanner::compute_acceleration(double ego_v, bool has_cipo, double cipo_v, double cipo_distance) {
-    ego_v = std::max(0.0, ego_v);
+double LongitudinalPlanner::compute_acceleration(double kappa, double ego_v, bool has_cipo, double cipo_v, double cipo_distance) {
+
+    // Limit max speed based on road curvature
+    double curv_v_max = std::sqrt(config_.mu * config_.g / std::abs(kappa));   // inf when kappa ~ 0, fine
+    double speed_limit = std::min(config_.speed_limit, curv_v_max);
 
     // Closing speed — negative when ego is slower than lead (gap opening)
     double delta_v = ego_v - cipo_v;
@@ -23,7 +26,7 @@ double LongitudinalPlanner::compute_acceleration(double ego_v, bool has_cipo, do
     double s = std::max(0.5, cipo_distance);
 
     // Free-road term: positive, drives ego toward speed_limit
-    double free_road_term = std::pow(ego_v / config_.speed_limit, config_.delta);
+    double free_road_term = std::pow(ego_v / speed_limit, config_.delta);
 
     // Interaction term: only active when a real lead vehicle is present.
     double interaction_term  = has_cipo ? std::pow(s_star / s, 2.0) : 0.0;
