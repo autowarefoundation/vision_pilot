@@ -13,6 +13,7 @@
 #include <visualization/visualization_to_webrtc.hpp>
 #endif
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -76,6 +77,8 @@ int main(int argc, char **argv) {
     const cv::Size net_size(vm::AutoDrive::NET_W, vm::AutoDrive::NET_H);
     const std::string label = source_label(cfg.source);
     cv::Mat frame, warped, resized;
+    double planned_speed_mps = cfg.speed_limit;
+    auto last_plan_ts = std::chrono::steady_clock::now();
 
     // ── 5. Main loop ────────────────────────────────────────────────────────
     while (true) {
@@ -153,10 +156,40 @@ int main(int argc, char **argv) {
 
                 visualization::DesiredControlVisualization desired_control;
 
-                // Deriving mock controls from lateral curvature for UI visualization
-                desired_control.steering_angle = r->lateral.curvature * -300.0f; 
-                desired_control.velocity = 45.0f;    // Mock placeholder state
-                desired_control.acceleration = 0.5f; // Mock placeholder state
+                // 3.1 Pull control from planning module (not mock constants)
+                const auto now = std::chrono::steady_clock::now();
+                const double dt_s = std::clamp(
+                    std::chrono::duration<double>(now - last_plan_ts).count(),
+                    0.01,
+                    0.2
+                );
+                last_plan_ts = now;
+
+                const double cte = r->lateral.cte_m;
+                const double epsi = r->lateral.yaw_rad;
+                const double kappa = r->lateral.curvature;
+                const bool has_cipo = r->cipo.valid;
+                const double cipo_distance = has_cipo ? r->cipo.distance_m : 9999.0;
+                const double lead_speed_mps = has_cipo
+                    ? std::max(0.0, planned_speed_mps + static_cast<double>(r->cipo.velocity_ms))
+                    : cfg.speed_limit;
+
+                const auto [acceleration_cmd, steering_plan] = planner.compute_plan(
+                    cte,
+                    epsi,
+                    kappa,
+                    planned_speed_mps,
+                    has_cipo,
+                    lead_speed_mps,
+                    cipo_distance
+                );
+
+                planned_speed_mps = std::clamp(planned_speed_mps + acceleration_cmd * dt_s, 0.0, cfg.speed_limit);
+
+                const double steering_rad = steering_plan.empty() ? 0.0 : steering_plan.front();
+                desired_control.steering_angle = static_cast<float>(steering_rad * 180.0 / M_PI);
+                desired_control.velocity = static_cast<float>(planned_speed_mps * 3.6);
+                desired_control.acceleration = static_cast<float>(acceleration_cmd);
 
                 // 4. Full UI vis render call
                 display_frame = visualization::visualize_frame(

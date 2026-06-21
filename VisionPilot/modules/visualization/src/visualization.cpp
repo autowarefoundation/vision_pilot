@@ -1124,12 +1124,25 @@ namespace visualization {
 
 			const cv::Rect velocity_rect(0, wheel_area.y + wheel_area.height + 6, panel_rect.width, 20);
 			const cv::Rect steering_rect(0, velocity_rect.y + 18, panel_rect.width, 20);
+			const cv::Rect acceleration_rect(0, steering_rect.y + 18, panel_rect.width, 20);
+			const cv::Scalar acceleration_color =
+				desired_control.acceleration >= 0.5F ? kPositiveAccelerationColor :
+				desired_control.acceleration <= -0.5F ? kNegativeAccelerationColor :
+				kNeutralAccelerationColor;
 			draw_text_centered(
 				panel,
 				format_float(desired_control.velocity, 1) + " " + kTelemetryUnitVelocity,
 				velocity_rect,
 				kFontSizeTelemetry,
 				kWhiteColor,
+				1
+			);
+			draw_text_centered(
+				panel,
+				format_float(desired_control.acceleration, 2) + " " + kTelemetryUnitAcceleration,
+				acceleration_rect,
+				kFontSizeTelemetry,
+				acceleration_color,
 				1
 			);
 			draw_text_centered(
