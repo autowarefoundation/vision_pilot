@@ -18,14 +18,14 @@ namespace visualization {
 // Dimensions of major compartments (all in pixels)
 inline constexpr int kFrameWidth = 1024;
 inline constexpr int kFrameHeight = 512;
-inline constexpr int kVisualizationPanelWidth = 360;
+inline constexpr int kVisualizationPanelWidth = 256;
 inline constexpr int kRulerWidth = 62;
 
 // Sizes
 inline const int kSizeWheelNonAva = 34;
 
 // Texts
-inline const std::string kTitleDesiredPlanningValue = "Desired planning values";
+inline const std::string kTitleDesiredPlanningValue = "Planning values";
 inline const std::string kTitlePathPreview = "Path preview";
 inline const std::string kTelemetryLabelVelocity = "Velocity";
 inline const std::string kTelemetryLabelSteering = "Steering";
@@ -48,6 +48,7 @@ inline const cv::Scalar kOtherCarsColor(255, 255, 0);
 // 2. Drivable path body (accel & decel)
 inline const cv::Scalar kPositiveAccelerationColor(0, 200, 0);
 inline const cv::Scalar kNegativeAccelerationColor(0, 0, 255);
+inline const cv::Scalar kNeutralAccelerationColor(255, 0, 0);
 // 3. Others
 inline const cv::Scalar kWhiteColor(255, 255, 255);
 inline const cv::Scalar kBlackColor(0, 0, 0);
@@ -65,7 +66,7 @@ inline const cv::Scalar kDeceleratingColor(114, 128, 250);
 inline const int kThickBold = 2;
 inline const int kThickNormal = 1;
 inline const double kFontSize = 0.58;
-inline const double kFontSizeRightPanelDesired = 0.50;
+inline const double kFontSizeRightPanelDesired = 0.58;
 inline const double kFontSizeRuler = 0.42;
 
 // Drawing params

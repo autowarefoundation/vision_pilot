@@ -539,9 +539,9 @@ namespace visualization {
 					1.0F
 				);
 				
-				// Total width is 1/4 at y=1.0 and 1/16 at y=0.5
+				// Total width is 1/4 at y=1.0 and 1/24 at y=0.5
 				// std::max ensures path converges to a point at horizon without inverting
-				const float half_width_ratio = std::max(0.0F, 0.1875F * y_ratio - 0.0625F);
+				const float half_width_ratio = std::max(0.0F, (5.0F / 24.0F) * y_ratio - (1.0F / 12.0F));
 				const float half_width = size.width * half_width_ratio;
 
 				// Expand purely horizontally (parallel to the bottom edge)
@@ -629,10 +629,6 @@ namespace visualization {
 			const LaneShapeVisualization &lane_shape, 
 			float acceleration
 		) {
-			
-			if (lane_shape.tracked_waypoints.size() < 2) {
-				return;
-			}
 
 			const std::vector<cv::Point2f> projected_points = fused_path_image_points(lane_shape, frame.size());
 
@@ -640,7 +636,10 @@ namespace visualization {
 				return;
 			}
 
-			const cv::Scalar path_color = acceleration >= 0.0F ? kPositiveAccelerationColor : kNegativeAccelerationColor;
+			const cv::Scalar path_color =
+				acceleration >= 0.5F ? kPositiveAccelerationColor :
+				acceleration <= -0.5F ? kNegativeAccelerationColor :
+				kNeutralAccelerationColor;
 			const std::vector<cv::Point> polygon = build_path_polygon(
 				projected_points, 
 				frame.size()
@@ -665,23 +664,6 @@ namespace visualization {
 				frame
 			);
 			
-			std::vector<cv::Point> centerline_points;
-			centerline_points.reserve(projected_points.size());
-			for (const auto &point : projected_points) {
-				centerline_points.emplace_back(cv::Point(
-					static_cast<int>(std::lround(point.x)),
-					static_cast<int>(std::lround(point.y))
-				));
-			}
-			cv::polylines(
-				frame, 
-				std::vector<std::vector<cv::Point>>{centerline_points}, 
-				false, 
-				kWhiteColor, 
-				kThickPolyline,
-				cv::LINE_AA
-			);
-
 		};
 
 
@@ -956,7 +938,7 @@ namespace visualization {
 				1.0F
 			);
 			const float y_ratio = std::clamp(
-				(lateral_y + kBEVMaxLateralMeters) / (2.0F * kBEVMaxLateralMeters), 
+				(kBEVMaxLateralMeters - lateral_y) / (2.0F * kBEVMaxLateralMeters), 
 				0.0F, 
 				1.0F
 			);
@@ -1090,7 +1072,13 @@ namespace visualization {
 			);
 
 			// Draw steering wheel
-			const cv::Rect wheel_area(24, 60, 96, 96);
+			const int wheel_size = 84;
+			const cv::Rect wheel_area(
+				(panel_rect.width - wheel_size) / 2,
+				52,
+				wheel_size,
+				wheel_size
+			);
 			const cv::Mat wheel_icon = load_wheel_icon();
 
 			if (!wheel_icon.empty()) {
@@ -1134,60 +1122,46 @@ namespace visualization {
 				);
 			}
 
-			// Inline telemetry texts
-
-			int text_x = 130;
-			draw_inline_value(
-				panel, 
-				cv::Point(text_x, 86), 
-				kTelemetryLabelVelocity, 
-				format_float(desired_control.velocity, 1) + " " + kTelemetryUnitVelocity, 
-				kYellowColor
+			const cv::Rect velocity_rect(0, wheel_area.y + wheel_area.height + 6, panel_rect.width, 20);
+			const cv::Rect steering_rect(0, velocity_rect.y + 18, panel_rect.width, 20);
+			draw_text_centered(
+				panel,
+				format_float(desired_control.velocity, 1) + " " + kTelemetryUnitVelocity,
+				velocity_rect,
+				0.36,
+				kBlackColor,
+				1
 			);
-
-			draw_inline_value(
-				panel, 
-				cv::Point(text_x, 116), 
-				kTelemetryLabelSteering, 
-				format_float(desired_control.steering_angle, 1) + " " + kTelemetryUnitSteering, 
-				kYellowColor
-			); 
-
-			const cv::Scalar accel_color = desired_control.acceleration >= 0.0F ? kAcceleratingColor : kDeceleratingColor;
-			draw_inline_value(
-				panel, 
-				cv::Point(text_x, 146), 
-				kTelemetryLabelAcceleration, 
-				format_float(desired_control.acceleration, 1) + " " + kTelemetryUnitAcceleration, 
-				accel_color
+			draw_text_centered(
+				panel,
+				format_float(desired_control.steering_angle, 1) + " " + kTelemetryUnitSteering,
+				steering_rect,
+				0.36,
+				kBlackColor,
+				1
 			);
 
 			// Path preview title
 			const cv::Rect bev_rect(
-				12, 
+				0, 
 				214, 
-				panel_rect.width - 24, 
-				panel_rect.height - 226
+				panel_rect.width, 
+				24
 			);
-			cv::putText(
+			draw_text_centered(
 				panel, 
 				kTitlePathPreview, 
-				cv::Point(
-					bev_rect.x + 10, 
-					bev_rect.y + 22
-				), 
-				cv::FONT_HERSHEY_SIMPLEX, 
+				bev_rect, 
 				kFontSize, 
 				kYellowColor, 
-				kThickBold, 
-				cv::LINE_AA
+				kThickBold
 			);
 
 			const cv::Rect path_area(
-				bev_rect.x + 10, 
-				bev_rect.y + 32, 
-				bev_rect.width - 20, 
-				bev_rect.height - 42
+				8, 
+				246, 
+				panel_rect.width - 16, 
+				panel_rect.height - 256
 			);
 			draw_path_preview_ruler(
 				panel, 
@@ -1323,18 +1297,17 @@ namespace visualization {
 		
 		if (frame.empty()) return cv::Mat();
 
-		// Don't expand the frame, overlay directly on top
-		cv::Mat output = frame.clone();
+			cv::Mat output = frame.clone();
 
 		draw_main_overlay(
-			output, 
+				output, 
 			bounding_boxes, 
 			lane_shape, 
 			desired_control
 		);
 
 		draw_right_panel(
-			output, 
+				output, 
 			lane_shape, 
 			desired_control
 		);
