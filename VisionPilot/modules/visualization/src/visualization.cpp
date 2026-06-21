@@ -98,27 +98,23 @@ namespace visualization {
 				return cv::Mat();
 			}
 
-			// Define frame of rotation
-			const cv::Point2f center(icon.cols * 0.5F, icon.rows * 0.5F);
+			// Rotate on a fixed square canvas so output size does not change with angle.
+			const int side = static_cast<int>(std::ceil(std::hypot(static_cast<float>(icon.cols), static_cast<float>(icon.rows))));
+			const cv::Scalar border_color = icon.channels() == 4 ? cv::Scalar(0, 0, 0, 0) : cv::Scalar(255, 255, 255);
+			cv::Mat padded(side, side, icon.type(), border_color);
+			const int x = (side - icon.cols) / 2;
+			const int y = (side - icon.rows) / 2;
+			icon.copyTo(padded(cv::Rect(x, y, icon.cols, icon.rows)));
+
+			const cv::Point2f center(side * 0.5F, side * 0.5F);
 			const cv::Mat rotation = cv::getRotationMatrix2D(center, angle_degrees, 1.0);
 
-			const cv::Rect2f bounds = cv::RotatedRect(
-				cv::Point2f(), 
-				icon.size(), 
-				angle_degrees
-			).boundingRect2f();
-			cv::Mat adjusted_rotation = rotation.clone();
-			adjusted_rotation.at<double>(0, 2) += bounds.width * 0.5 - center.x;
-			adjusted_rotation.at<double>(1, 2) += bounds.height * 0.5 - center.y;
-
-			// Perform rotation
 			cv::Mat rotated;
-			const cv::Scalar border_color = icon.channels() == 4 ? cv::Scalar(0, 0, 0, 0) : cv::Scalar(255, 255, 255);
 			cv::warpAffine(
-				icon,
+				padded,
 				rotated,
-				adjusted_rotation,
-				bounds.size(),
+				rotation,
+				padded.size(),
 				cv::INTER_LINEAR,
 				cv::BORDER_CONSTANT,
 				border_color
