@@ -55,12 +55,15 @@ namespace visualization {
 		* 		  or an empty Mat if loading somehow fails
 		*/
 		cv::Mat load_wheel_icon() {
+			const std::filesystem::path src_dir = std::filesystem::path(__FILE__).parent_path();
 
 			const std::vector<std::filesystem::path> candidates = {
 				// The one I added in src/assets
-				std::filesystem::path(__FILE__).parent_path() / "assets" / "wheel.png",
+				src_dir / "assets" / "wheel.png",
+				// Dev release fallback
+				src_dir / ".." / ".." / ".." / "development_releases" / "1.0" / "modules" / "visualization" / "src" / "assets" / "wheel.png",
 				// Fallback to the one in Media (that Atanasko or Pranav added wayyyy back in Dec 2025)
-				std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".." / ".." / ".." / ".." / "Media" / "wheel.png"
+				src_dir / ".." / ".." / ".." / ".." / "Media" / "wheel.png"
 			};
 
 			for (const auto &candidate : candidates) {
@@ -564,6 +567,53 @@ namespace visualization {
 		};
 
 
+		std::vector<cv::Point2f> fused_path_image_points(
+			const LaneShapeVisualization &lane_shape,
+			const cv::Size &size
+		) {
+			if (size.width <= 0 || size.height <= 0) {
+				return {};
+			}
+
+			// Same fixed VisionPilot model-view matrix used by fusion/debug
+			static const cv::Mat kHWorldToImage = [] {
+				cv::Mat h_world = (cv::Mat_<double>(3, 3) <<
+					0.00209514907, -0.000941721466, -9.24906396,
+					0.00662758637, -0.000352940531, -3.33396502,
+					0.000120077371, -0.00411343505, 1.0);
+				return h_world.inv();
+			}();
+
+			std::vector<cv::Point2f> world_points;
+			world_points.reserve(static_cast<std::size_t>(kPathPreviewMaxDistanceMeters) + 1);
+			for (float x = 0.0F; x <= kPathPreviewMaxDistanceMeters; x += 1.0F) {
+				const float y = lane_shape.path_a * x * x + lane_shape.path_b * x + lane_shape.path_c;
+				if (std::abs(y) > kBEVMaxLateralMeters) {
+					continue;
+				}
+				world_points.emplace_back(x, y);
+			}
+
+			if (world_points.size() < 2) {
+				return {};
+			}
+
+			std::vector<cv::Point2f> image_points;
+			cv::perspectiveTransform(world_points, image_points, kHWorldToImage);
+
+			std::vector<cv::Point2f> clipped;
+			clipped.reserve(image_points.size());
+			for (const auto &point : image_points) {
+				if (point.x < 0.0F || point.x >= static_cast<float>(size.width) || point.y < 0.0F || point.y >= static_cast<float>(size.height)) {
+					continue;
+				}
+				clipped.emplace_back(point);
+			}
+
+			return clipped;
+		}
+
+
 		/**
 		* @brief Utility func to draw drivable path polygon and centerline
 				 based on tracked waypoints and acceleration.
@@ -576,30 +626,15 @@ namespace visualization {
 		*/
 		void draw_main_drivable_path(
 			cv::Mat &frame, 
-			const std::vector<cv::Point2f> &tracked_waypoints, 
+			const LaneShapeVisualization &lane_shape, 
 			float acceleration
 		) {
 			
-			if (tracked_waypoints.size() < 2) {
+			if (lane_shape.tracked_waypoints.size() < 2) {
 				return;
 			}
 
-			std::vector<cv::Point2f> projected_points;
-			projected_points.reserve(tracked_waypoints.size());
-			for (const auto &waypoint : tracked_waypoints) {
-				projected_points.emplace_back(
-					std::clamp(
-						waypoint.x, 
-						0.0F, 
-						static_cast<float>(frame.cols - 1)
-					),
-					std::clamp(
-						waypoint.y, 
-						0.0F, 
-						static_cast<float>(frame.rows - 1)
-					)
-				);
-			}
+			const std::vector<cv::Point2f> projected_points = fused_path_image_points(lane_shape, frame.size());
 
 			if (projected_points.size() < 2) {
 				return;
@@ -743,12 +778,6 @@ namespace visualization {
 				kRulerWidth, 
 				area.height
 			);
-			cv::rectangle(
-				canvas, 
-				ruler_rect,
-				kPanelBackgroundColor, 
-				cv::FILLED
-			);
 			cv::line(
 				canvas, 
 				cv::Point(
@@ -759,7 +788,7 @@ namespace visualization {
 					ruler_rect.x, 
 					ruler_rect.y + ruler_rect.height
 				), 
-				kRulerLineColor,
+				kWhiteColor,
 				kThickRulerLine
 			);
 
@@ -775,7 +804,7 @@ namespace visualization {
 					canvas, 
 					cv::Point(ruler_rect.x, y), 
 					cv::Point(ruler_rect.x + tick_length, y), 
-					kRulerTickColor, 
+					kWhiteColor, 
 					kThickNormal
 				);
 
@@ -790,7 +819,7 @@ namespace visualization {
 						), 
 						cv::FONT_HERSHEY_SIMPLEX, 
 						kFontSizeRuler, 
-						kPanelTextColor, 
+						kWhiteColor, 
 						kThickNormal, 
 						cv::LINE_AA
 					);
@@ -902,6 +931,7 @@ namespace visualization {
 		) {
 			
 			if (!lane_shape.has_cipo_object || !lane_shape.distance_to_cipo.has_value()) return;
+			if (*lane_shape.distance_to_cipo > max_distance_m) return;
 
 			const float distance_m = std::clamp(
 				*lane_shape.distance_to_cipo, 
@@ -1200,7 +1230,7 @@ namespace visualization {
 			);
 			draw_main_drivable_path(
 				frame, 
-				lane_shape.tracked_waypoints, 
+				lane_shape, 
 				desired_control.acceleration
 			);
 
