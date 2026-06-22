@@ -91,9 +91,9 @@ int main(int argc, char **argv) {
 
         preprocessor.preprocess(frame, warped, resized, net_size);
 
-        cv::Mat display_frame = warped.clone();
+        cv::Mat display_frame = resized.clone();
 
-        if (const auto r = pipeline.process(warped)) {
+        if (const auto r = pipeline.process(resized)) {
 
             pipeline.latency().print();
             
@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
 
                 // 4. Full UI vis render call
                 display_frame = visualization::visualize_frame(
-                    warped, 
+                    resized, 
                     bboxes, 
                     lane_shape, 
                     desired_control
