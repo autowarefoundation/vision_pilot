@@ -79,6 +79,7 @@ inline const int kThickRulerLine = 1;
 // BEV max render distance (m)
 inline constexpr float kPathPreviewMaxDistanceMeters = 50.0F;
 inline constexpr float kBEVMaxLateralMeters = 15.0F;
+inline constexpr float kDrivableBodyWidthMeters = 2.0F;
 
 
 // ======================= VISUALIZATION UTILS =======================

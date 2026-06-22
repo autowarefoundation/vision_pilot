@@ -563,6 +563,96 @@ namespace visualization {
 		};
 
 
+		std::vector<cv::Point> build_path_polygon_from_bev(
+			const LaneShapeVisualization &lane_shape,
+			const cv::Size &size,
+			float width_meters
+		) {
+			if (size.width <= 0 || size.height <= 0 || width_meters <= 0.0F) {
+				return {};
+			}
+
+			// Same fixed VisionPilot model-view matrix used by fusion/debug.
+			static const cv::Mat kHWorldToImage = [] {
+				cv::Mat h_world = (cv::Mat_<double>(3, 3) <<
+					0.00209514907, -0.000941721466, -9.24906396,
+					0.00662758637, -0.000352940531, -3.33396502,
+					0.000120077371, -0.00411343505, 1.0);
+				return h_world.inv();
+			}();
+
+			const float half_width = 0.5F * width_meters;
+			std::vector<cv::Point2f> left_world;
+			std::vector<cv::Point2f> right_world;
+			left_world.reserve(static_cast<std::size_t>(kPathPreviewMaxDistanceMeters) + 1);
+			right_world.reserve(static_cast<std::size_t>(kPathPreviewMaxDistanceMeters) + 1);
+
+			for (float x = 0.0F; x <= kPathPreviewMaxDistanceMeters; x += 1.0F) {
+				const float y_center = lane_shape.path_a * x * x + lane_shape.path_b * x + lane_shape.path_c;
+				if (std::abs(y_center) > kBEVMaxLateralMeters) {
+					continue;
+				}
+
+				left_world.emplace_back(x, y_center - half_width);
+				right_world.emplace_back(x, y_center + half_width);
+			}
+
+			if (left_world.size() < 2 || right_world.size() < 2) {
+				return {};
+			}
+
+			std::vector<cv::Point2f> left_image_f;
+			std::vector<cv::Point2f> right_image_f;
+			cv::perspectiveTransform(left_world, left_image_f, kHWorldToImage);
+			cv::perspectiveTransform(right_world, right_image_f, kHWorldToImage);
+
+			std::vector<cv::Point> left_image;
+			std::vector<cv::Point> right_image;
+			left_image.reserve(left_image_f.size());
+			right_image.reserve(right_image_f.size());
+
+			for (std::size_t i = 0; i < left_image_f.size() && i < right_image_f.size(); ++i) {
+				const auto &left_pt = left_image_f[i];
+				const auto &right_pt = right_image_f[i];
+				if (!std::isfinite(left_pt.x) || !std::isfinite(left_pt.y) || !std::isfinite(right_pt.x) || !std::isfinite(right_pt.y)) {
+					continue;
+				}
+
+				const bool left_in_bounds =
+					left_pt.x >= 0.0F && left_pt.x < static_cast<float>(size.width) &&
+					left_pt.y >= 0.0F && left_pt.y < static_cast<float>(size.height);
+				const bool right_in_bounds =
+					right_pt.x >= 0.0F && right_pt.x < static_cast<float>(size.width) &&
+					right_pt.y >= 0.0F && right_pt.y < static_cast<float>(size.height);
+				if (!left_in_bounds || !right_in_bounds) {
+					continue;
+				}
+
+				left_image.emplace_back(
+					static_cast<int>(std::lround(left_pt.x)),
+					static_cast<int>(std::lround(left_pt.y))
+				);
+				right_image.emplace_back(
+					static_cast<int>(std::lround(right_pt.x)),
+					static_cast<int>(std::lround(right_pt.y))
+				);
+			}
+
+			if (left_image.size() < 2 || right_image.size() < 2) {
+				return {};
+			}
+
+			std::vector<cv::Point> image_polygon;
+			image_polygon.reserve(left_image.size() + right_image.size());
+			image_polygon.insert(image_polygon.end(), left_image.begin(), left_image.end());
+			for (auto it = right_image.rbegin(); it != right_image.rend(); ++it) {
+				image_polygon.push_back(*it);
+			}
+
+			return image_polygon;
+		}
+
+
 		std::vector<cv::Point2f> fused_path_image_points(
 			const LaneShapeVisualization &lane_shape,
 			const cv::Size &size
@@ -626,19 +716,14 @@ namespace visualization {
 			float acceleration
 		) {
 
-			const std::vector<cv::Point2f> projected_points = fused_path_image_points(lane_shape, frame.size());
-
-			if (projected_points.size() < 2) {
-				return;
-			}
-
 			const cv::Scalar path_color =
 				acceleration >= 0.5F ? kPositiveAccelerationColor :
 				acceleration <= -0.5F ? kNegativeAccelerationColor :
 				kNeutralAccelerationColor;
-			const std::vector<cv::Point> polygon = build_path_polygon(
-				projected_points, 
-				frame.size()
+			const std::vector<cv::Point> polygon = build_path_polygon_from_bev(
+				lane_shape,
+				frame.size(),
+				kDrivableBodyWidthMeters
 			);
 			if (polygon.size() < 3) {
 				return;
