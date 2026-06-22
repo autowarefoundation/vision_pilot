@@ -39,6 +39,8 @@ target_include_directories(visualization
 
 target_link_libraries(visualization
         PUBLIC
+    models
+    planning
         ${OpenCV_LIBRARIES}
         Threads::Threads
 )

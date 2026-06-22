@@ -11,6 +11,10 @@
 #include <string>
 #include <vector>
 
+namespace visionpilot::models {
+struct InferenceFrameResult;
+}
+
 namespace visualization {
 
 // ================== HARD-CODED VISUALIZATION PARAMS ==================
@@ -121,6 +125,13 @@ cv::Mat visualize_frame(
     const std::vector<YoloBoundingBox> &bounding_boxes,
     const LaneShapeVisualization &lane_shape,
     const DesiredControlVisualization &desired_control
+);
+
+void configure_control_planner(double speed_limit_mps, double Lf);
+
+cv::Mat visualize_frame(
+    const cv::Mat &frame,
+    const visionpilot::models::InferenceFrameResult &inference_result
 );
 
 

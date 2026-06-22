@@ -5,10 +5,15 @@
 
 #include <visualization/visualization.hpp>
 
+#include <models/inference.hpp>
+#include <planning/planning.hpp>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -16,6 +21,11 @@ namespace visualization {
 
 
 	namespace {
+
+		std::unique_ptr<Planner> g_planner;
+		double g_speed_limit_mps = 0.0;
+		double g_planned_speed_mps = 0.0;
+		auto g_last_plan_ts = std::chrono::steady_clock::now();
 
 
 		/**
@@ -1339,6 +1349,108 @@ namespace visualization {
 
 		};
 
+
+		std::vector<YoloBoundingBox> map_bounding_boxes(
+			const visionpilot::models::InferenceFrameResult &inference_result
+		) {
+			std::vector<YoloBoundingBox> bboxes;
+			bboxes.reserve(inference_result.auto_speed.detections.size());
+
+			for (const auto &det : inference_result.auto_speed.detections) {
+				YoloBoundingBox bbox;
+				bbox.class_id = det.class_id;
+				bbox.center_x = (det.x1 + det.x2) / (2.0F * kFrameWidth);
+				bbox.center_y = (det.y1 + det.y2) / (2.0F * kFrameHeight);
+				bbox.width = (det.x2 - det.x1) / kFrameWidth;
+				bbox.height = (det.y2 - det.y1) / kFrameHeight;
+				bboxes.push_back(bbox);
+			}
+
+			return bboxes;
+		}
+
+
+		LaneShapeVisualization map_lane_shape(
+			const visionpilot::models::InferenceFrameResult &inference_result
+		) {
+			LaneShapeVisualization lane_shape;
+
+			lane_shape.has_cipo_object = inference_result.cipo.valid;
+			if (inference_result.cipo.valid) {
+				lane_shape.distance_to_cipo = inference_result.cipo.distance_m;
+				lane_shape.relative_cipo_velocity = inference_result.cipo.velocity_ms * 3.6F;
+			}
+
+			lane_shape.path_a = inference_result.lateral.path_a;
+			lane_shape.path_b = inference_result.lateral.path_b;
+			lane_shape.path_c = inference_result.lateral.path_c;
+
+			for (int i = 0; i < 64; ++i) {
+				const float h_left = inference_result.auto_steer.h_vector[i];
+				const float h_right = inference_result.auto_steer.h_vector[64 + i];
+				if (h_left < 0.5F || h_right < 0.5F) {
+					continue;
+				}
+
+				const float left_x = inference_result.auto_steer.xp[i] * kFrameWidth;
+				const float right_x = inference_result.auto_steer.xp[64 + i] * kFrameWidth;
+				const float center_x = (left_x + right_x) / 2.0F;
+				const float v = i * (511.0F / 63.0F);
+				lane_shape.tracked_waypoints.emplace_back(center_x, v);
+			}
+
+			return lane_shape;
+		}
+
+
+		DesiredControlVisualization map_desired_control(
+			const visionpilot::models::InferenceFrameResult &inference_result
+		) {
+			DesiredControlVisualization desired_control;
+			if (!g_planner) {
+				desired_control.steering_angle = static_cast<float>(inference_result.lateral.yaw_rad * 180.0 / M_PI);
+				desired_control.velocity = static_cast<float>(g_planned_speed_mps * 3.6);
+				desired_control.acceleration = 0.0F;
+				return desired_control;
+			}
+
+			const auto now = std::chrono::steady_clock::now();
+			const double dt_s = std::clamp(
+				std::chrono::duration<double>(now - g_last_plan_ts).count(),
+				0.01,
+				0.2
+			);
+			g_last_plan_ts = now;
+
+			const double cte = inference_result.lateral.cte_m;
+			const double epsi = inference_result.lateral.yaw_rad;
+			const double kappa = inference_result.lateral.curvature;
+			const bool has_cipo = inference_result.cipo.valid;
+			const double cipo_distance = has_cipo ? inference_result.cipo.distance_m : 9999.0;
+			const double lead_speed_mps = has_cipo
+				? std::max(0.0, g_planned_speed_mps + static_cast<double>(inference_result.cipo.velocity_ms))
+				: g_speed_limit_mps;
+
+			const auto [acceleration_cmd, steering_plan] = g_planner->compute_plan(
+				cte,
+				epsi,
+				kappa,
+				g_planned_speed_mps,
+				has_cipo,
+				lead_speed_mps,
+				cipo_distance
+			);
+
+			g_planned_speed_mps = std::clamp(g_planned_speed_mps + acceleration_cmd * dt_s, 0.0, g_speed_limit_mps);
+
+			const double steering_rad = steering_plan.empty() ? 0.0 : steering_plan.front();
+			desired_control.steering_angle = static_cast<float>(steering_rad * 180.0 / M_PI);
+			desired_control.velocity = static_cast<float>(g_planned_speed_mps * 3.6);
+			desired_control.acceleration = static_cast<float>(acceleration_cmd);
+
+			return desired_control;
+		}
+
 	}  // namespace
 
 
@@ -1444,6 +1556,34 @@ namespace visualization {
 		return output;
 
 	};
+
+
+	void configure_control_planner(double speed_limit_mps, double Lf) {
+		if (speed_limit_mps <= 0.0 || Lf <= 0.0) {
+			g_planner.reset();
+			g_speed_limit_mps = 0.0;
+			g_planned_speed_mps = 0.0;
+			g_last_plan_ts = std::chrono::steady_clock::now();
+			return;
+		}
+
+		g_planner = std::make_unique<Planner>(speed_limit_mps, Lf);
+		g_speed_limit_mps = speed_limit_mps;
+		g_planned_speed_mps = speed_limit_mps;
+		g_last_plan_ts = std::chrono::steady_clock::now();
+	}
+
+
+	cv::Mat visualize_frame(
+		const cv::Mat &frame,
+		const visionpilot::models::InferenceFrameResult &inference_result
+	) {
+		const std::vector<YoloBoundingBox> bboxes = map_bounding_boxes(inference_result);
+		const LaneShapeVisualization lane_shape = map_lane_shape(inference_result);
+		const DesiredControlVisualization desired_control = map_desired_control(inference_result);
+
+		return visualize_frame(frame, bboxes, lane_shape, desired_control);
+	}
 
 
 	void close_windows() {
