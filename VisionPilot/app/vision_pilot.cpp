@@ -21,16 +21,20 @@ namespace ve = visionpilot::engine;
 namespace vm = visionpilot::models;
 namespace vd = visionpilot::debug;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv)
+{
     // ── 1. Config ─────────────────────────────────────────────────────────────
     const std::string cfg_path = resolve_vision_pilot_config_path(argc, argv);
-    if (cfg_path.empty()) {
+    if (cfg_path.empty())
+    {
         VP_ERROR("No config — cp config/vision_pilot.conf.example config/vision_pilot.conf");
         return 1;
     }
 
     VisionPilotConfig cfg;
-    try { cfg = load_vision_pilot_config(cfg_path); } catch (const std::exception &e) {
+    try { cfg = load_vision_pilot_config(cfg_path); }
+    catch (const std::exception& e)
+    {
         VP_ERROR("Config: %s", e.what());
         return 1;
     }
@@ -50,9 +54,11 @@ int main(int argc, char **argv) {
     bool show_window = true;
 #ifdef ENABLE_WEBRTC
     std::unique_ptr<visualization::WebRTCStreamer> webrtc;
-    for (int i = 1; i < argc; ++i) {
+    for (int i = 1; i < argc; ++i)
+    {
         if (std::string(argv[i]) == "--webrtc") show_window = false;
-        if (std::string(argv[i]) == "--webrtc-port" && i + 1 < argc) {
+        if (std::string(argv[i]) == "--webrtc-port" && i + 1 < argc)
+        {
             webrtc = std::make_unique<visualization::WebRTCStreamer>();
             if (!webrtc->init(static_cast<uint16_t>(std::stoi(argv[++i])))) return 1;
         }
@@ -61,7 +67,8 @@ int main(int argc, char **argv) {
 
     // ── 4. Frame source (video / V4L2 / ROS2) ───────────────────────────────
     auto source = camera_interface::open_frame_source(cfg.source);
-    if (!source || !source->is_device_open()) {
+    if (!source || !source->is_device_open())
+    {
         VP_ERROR("Cannot open frame source");
         return 1;
     }
@@ -71,9 +78,11 @@ int main(int argc, char **argv) {
     cv::Mat frame, warped, resized;
 
     // ── 5. Main loop ────────────────────────────────────────────────────────
-    while (true) {
+    while (true)
+    {
         auto [ok, frame] = source->get_latest_frame();
-        if (!ok || frame.empty()) {
+        if (!ok || frame.empty())
+        {
             if (cfg.source.mode == SourceMode::Video && !cfg.source.video_loop) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             continue;
@@ -81,7 +90,8 @@ int main(int argc, char **argv) {
 
         preprocessor.preprocess(frame, warped, resized, net_size);
 
-        if (const auto r = pipeline.process(warped)) {
+        if (const auto r = pipeline.process(warped))
+        {
             pipeline.latency().print();
             vd::annotate_frame(warped, vd::debug_view_from(
                                    *r, label, cfg.wheel_dir));
@@ -90,14 +100,16 @@ int main(int argc, char **argv) {
             // double cte = r->lateral.cte_m;
             // double epsi = r->lateral.yaw_rad;
             // double kappa = r->lateral.curvature;
-            // double ego_v = speeds[frame_number++];
+            // // double ego_v = speeds[frame_number++];
             // double cipo_v = r->cipo.velocity_ms;
             // double cipo_distance = r->cipo.distance_m;
             // bool has_cipo = r->cipo.cipo_raw_found;
             //
             // // acceleration m/s, steering rad
-            // auto [acceleration, steering] = planner.compute_plan(cte, epsi, kappa, ego_v, has_cipo, ego_v + cipo_v,
-            //                                                      cipo_distance);
+            // auto [acceleration, steering, warnings] = planner.compute_plan(
+            //     cte, epsi, kappa, ego_v, has_cipo, ego_v + cipo_v,
+            //     cipo_distance);
+
             // Send commands
         }
 

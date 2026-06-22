@@ -27,6 +27,7 @@ target_compile_definitions(planning
 
 target_link_libraries(planning
         PUBLIC
+        common
         Eigen3::Eigen
         PRIVATE
         ${IPOPT_LIBRARIES}

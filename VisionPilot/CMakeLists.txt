@@ -33,6 +33,8 @@ add_subdirectory(modules/logging)
 
 add_subdirectory(modules/config)
 
+add_subdirectory(modules/common)
+
 add_subdirectory(modules/control)
 
 add_subdirectory(modules/sensing/image_preprocessing)

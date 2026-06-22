@@ -1,10 +1,11 @@
 #ifndef VISIONPILOT_PLANNING_HPP
 #define VISIONPILOT_PLANNING_HPP
 
-#include <planning/lateral_planning.hpp>
-#include <planning/longitudinal_planning.hpp>
 #include <utility>
 #include <vector>
+#include <common/types.hpp>
+#include <planning/longitudinal_planning.hpp>
+#include <planning/lateral_planning.hpp>
 
 class Planner {
 public:
@@ -30,7 +31,7 @@ public:
     // 0 in planning.cpp for pure constant-curvature behaviour.
     //
     // Returns { acceleration, [delta_0, delta_0, delta_1, ..., delta_{N-2}] }
-    std::pair<double, std::vector<double>> compute_plan(
+    Plan compute_plan(
         double cte,
         double epsi,
         double kappa,

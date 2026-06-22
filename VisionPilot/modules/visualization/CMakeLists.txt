@@ -5,7 +5,8 @@ option(ENABLE_WEBRTC "Build WebRTC streaming (requires GStreamer WebRTC deps)" O
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
 
-set(VIS_SOURCES src/visualization.cpp)
+set(VIS_SOURCES src/visualization.cpp
+        ../common/include/common/types.hpp)
 
 if(ENABLE_WEBRTC)
     find_package(PkgConfig REQUIRED)

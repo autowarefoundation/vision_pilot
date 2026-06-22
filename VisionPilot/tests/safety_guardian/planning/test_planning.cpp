@@ -353,7 +353,7 @@ int main(int argc, char* argv[]) {
         double cipo_v    = lead_active ? lead_v_actual : SPEED_LIMIT;
         double cipo_dist = lead_active ? gap           : 9999.0;
 
-        auto [new_accel, result] = planner.compute_plan(
+        Plan plan = planner.compute_plan(
             cte, epsi,
             kappa_road,   // current signed road curvature (interpolated, smooth)
             v,
@@ -362,8 +362,8 @@ int main(int argc, char* argv[]) {
             cipo_dist
         );
 
-        accel     = new_accel;
-        delta_cmd = result[0];
+        accel     = plan.acceleration;
+        delta_cmd = plan.steering[0];
         double kappa_cmd = std::tan(delta_cmd) / Lf;
 
         // Rebuild v_schedule locally for arc reconstruction
@@ -372,7 +372,7 @@ int main(int argc, char* argv[]) {
             double gap_sim = cipo_dist;
             for (int i = 0; i < (int)N; i++) {
                 v_schedule_last[i] = v_sim;
-                double a_sim = (v_sim < SPEED_LIMIT) ? new_accel : 0.0;
+                double a_sim = (v_sim < SPEED_LIMIT) ? plan.acceleration : 0.0;
                 if (gap_sim < 9000.0)
                     gap_sim = std::max(0.5, gap_sim + (cipo_v - v_sim) * dt);
                 v_sim = std::max(0.0, v_sim + a_sim * dt);
@@ -431,7 +431,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::vector<cv::Point> pred_arc, const_arc;
-        reconstructArc(result, v_schedule_last,
+        reconstructArc(plan.steering, v_schedule_last,
                        veh_x, veh_y, path_yaw_arc, epsi, pred_arc);
         reconstructConstantArc(delta_cmd, veh_x, veh_y,
                                path_yaw_arc + epsi, v, const_arc);
