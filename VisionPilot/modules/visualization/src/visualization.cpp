@@ -638,6 +638,41 @@ namespace visualization {
 				);
 			}
 
+			if (left_image.size() >= 2 && right_image.size() >= 2) {
+				// Keep edge lists ordered from near ego (bottom) to far field (top).
+				if (left_image.front().y < left_image.back().y) {
+					std::reverse(left_image.begin(), left_image.end());
+					std::reverse(right_image.begin(), right_image.end());
+				}
+
+				const int bottom_y = size.height - 1;
+				auto extend_edge_to_bottom = [bottom_y, &size](std::vector<cv::Point> &edge) {
+					if (edge.size() < 2 || edge.front().y >= bottom_y - 1) {
+						return;
+					}
+
+					const cv::Point p0 = edge[0];
+					const cv::Point p1 = edge[1];
+					if (p1.y == p0.y) {
+						edge.insert(edge.begin(), cv::Point(std::clamp(p0.x, 0, size.width - 1), bottom_y));
+						return;
+					}
+
+					const float t = static_cast<float>(bottom_y - p0.y) / static_cast<float>(p1.y - p0.y);
+					const float x_bottom = static_cast<float>(p0.x) + t * static_cast<float>(p1.x - p0.x);
+					edge.insert(
+						edge.begin(),
+						cv::Point(
+							std::clamp(static_cast<int>(std::lround(x_bottom)), 0, size.width - 1),
+							bottom_y
+						)
+					);
+				};
+
+				extend_edge_to_bottom(left_image);
+				extend_edge_to_bottom(right_image);
+			}
+
 			if (left_image.size() < 2 || right_image.size() < 2) {
 				return {};
 			}
