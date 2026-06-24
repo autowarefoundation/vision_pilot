@@ -8,7 +8,8 @@ enum class Warning : uint8_t {
     None        = 0,
     FCW         = 1, // Forward collision warning
     AEB         = 2, // Automatic Emergency Braking
-    LDW         = 3  // Lane departure warning
+    LLDW        = 3, // Left lane departure warning
+    RLDW        = 4  // Right lane departure warning
 };
 
 struct Plan {

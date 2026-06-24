@@ -104,10 +104,16 @@ Plan Planner::compute_plan(
 
     // WARNINGS
     std::vector<Warning> warnings;
-    // LDW
-    if (cte > 1.0 || cte < -1.0)
+    // LLDW - y left
+    if (cte < -1.0)
     {
-        warnings.push_back(Warning::LDW);
+        warnings.push_back(Warning::LLDW);
+    }
+
+    // RLDW - y left
+    if (cte > 1.0)
+    {
+        warnings.push_back(Warning::RLDW);
     }
 
     // FCW
