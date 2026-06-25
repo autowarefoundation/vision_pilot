@@ -114,13 +114,13 @@ int main(int argc, char** argv)
                                    *r, label, cfg.wheel_dir));
 
             // Compute the plan
-            const double ego_v        = vehicle_interface->read();
-            const double cte          = r->lateral.cte_m;
-            const double epsi         = r->lateral.yaw_rad;
-            const double kappa        = r->lateral.curvature;
-            const bool   has_cipo     = r->cipo.cipo_raw_found;
-            const double cipo_v       = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
-            const double cipo_dist    = r->cipo.distance_m;
+            const double ego_v     = vehicle_interface->read();
+            const double cte       = r->lateral.cte_m;
+            const double epsi      = r->lateral.yaw_rad;
+            const double kappa     = r->lateral.curvature;
+            const bool   has_cipo  = r->cipo.cipo_raw_found;
+            const double cipo_v    = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
+            const double cipo_dist = r->cipo.distance_m;
 
             const Plan plan = planner.compute_plan(
                 cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
