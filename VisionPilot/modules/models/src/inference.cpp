@@ -83,13 +83,13 @@ InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Inference
     lat_fusion_ = fusion::LateralFusion{latc};
 }
 
-std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& preprocessed)
+std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& warped)
 {
     using Clock = std::chrono::steady_clock;
     using Ms    = std::chrono::duration<double, std::milli>;
 
-    prev_frame_ = curr_frame_.empty() ? preprocessed.clone() : curr_frame_;
-    curr_frame_ = preprocessed.clone();
+    prev_frame_ = curr_frame_.empty() ? warped.clone() : curr_frame_;
+    curr_frame_ = warped.clone();
     if (frame_buf_count_ < 1) frame_buf_count_ = 1;
     else                       frame_buf_count_ = 2;
 
@@ -99,8 +99,8 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& pr
     auto t0       = Clock::now();
     auto prev_imn    = chw_imagenet(prev_frame_);
     auto curr_imn    = chw_imagenet(curr_frame_);
-    auto curr_01_as  = chw_01(curr_frame_);          // AutoSteer's private copy
-    auto curr_01_asp = curr_01_as;                   // AutoSpeed's private copy
+    auto curr_01_as  = chw_01(curr_frame_);
+    auto curr_01_asp = curr_01_as;
     const double ms_pre = Ms(Clock::now() - t0).count();
 
     auto t_wall = Clock::now();
@@ -135,7 +135,7 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& pr
     out.auto_drive = res_drive;
     out.auto_steer = res_steer;
     out.auto_speed = res_speed;
-    out.cipo       = long_fusion_.update(res_drive, res_speed, preprocessed);
+    out.cipo       = long_fusion_.update(res_drive, res_speed, warped);
     out.lateral    = lat_fusion_.update(res_steer, res_drive);
 
     stats_.update(ms_pre, ms_drive, ms_steer, ms_speed, ms_wall);

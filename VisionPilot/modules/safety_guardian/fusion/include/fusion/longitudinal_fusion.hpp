@@ -5,7 +5,6 @@
 #include <opencv2/core.hpp>
 
 #include <random>
-#include <string>
 #include <vector>
 
 namespace visionpilot::fusion {
@@ -47,7 +46,7 @@ public:
         // Reinitialise filter when a reliable measurement jumps this far from
         // the particle cloud — handles genuine cut-in / cut-out events.
         float reset_gate_m         = 25.f;
-        bool debug = false;
+        bool  debug                = false;
     };
 
     LongitudinalFusion();

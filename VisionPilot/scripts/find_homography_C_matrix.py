@@ -47,10 +47,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
-    H = load_homography_H_matrix('../config/H.yaml')
+    H = load_homography_H_matrix(Path('../config/H.yaml'))
     C = find_homography_C_matrix(H)
 
-    # out = args.output or (Path(__file__).resolve().parents[1] / "build/config/homography_C_matrix.yaml")
     out = args.output
     out.parent.mkdir(parents=True, exist_ok=True)
     fs = cv2.FileStorage(str(out.resolve()), cv2.FILE_STORAGE_WRITE)

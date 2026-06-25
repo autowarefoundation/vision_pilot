@@ -22,11 +22,9 @@ target_link_libraries(VisionPilot
     engine           # OnnxEngine
     models           # AutoDrive, AutoSteer, AutoSpeed
     fusion           # LongitudinalFusion, LateralFusion
-    planning         # Planning
-    vp_debug         # annotate_frame, DebugView
+    planning         # Planner
     vehicle_interface
     camera_interface
-    vehicle_interface
     image_preprocessing
     visualization
 )

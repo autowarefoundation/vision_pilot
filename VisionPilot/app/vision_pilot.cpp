@@ -1,6 +1,5 @@
 // VisionPilot — preprocess → inference → fusion → display
 #include <config/vision_pilot_config.hpp>
-#include <debug/debug_draw.hpp>
 #include <engine/onnx_engine.hpp>
 #include <image_preprocessing/image_preprocessor.hpp>
 #include <logging/logger.hpp>
@@ -24,15 +23,11 @@
 #include <vehicle_ros2_interface/vehicle_ros2_interface.hpp>
 #endif
 
-
-
 namespace ve = visionpilot::engine;
 namespace vm = visionpilot::models;
-namespace vd = visionpilot::debug;
 
 int main(int argc, char** argv)
 {
-    // ── 1. Config ─────────────────────────────────────────────────────────────
     const std::string cfg_path = resolve_vision_pilot_config_path(argc, argv);
     if (cfg_path.empty())
     {
@@ -56,18 +51,13 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // ── 2. Pipeline (preprocess + ONNX + inference/fusion) ────────────────────
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
-    // vm::InferencePipeline pipeline(engine, {cfg.inference.precision, cfg.fusion_debug,});
     vm::InferencePipeline pipeline(engine, cfg.inference);
-
     Planner planner(cfg.speed_limit, cfg.Lf);
 
-    vd::init_wheel_assets(cfg.wheel_dir);
-    vd::init_homography();
+    visualization::init_production_assets();
 
-    // ── 3. Display output ─────────────────────────────────────────────────────
     bool show_window = true;
 #ifdef ENABLE_WEBRTC
     std::unique_ptr<visualization::WebRTCStreamer> webrtc;
@@ -82,7 +72,6 @@ int main(int argc, char** argv)
     }
 #endif
 
-    // ── 4. Frame source (video / V4L2 / ROS2) ───────────────────────────────
     auto source = camera_interface::open_frame_source(cfg.source);
     if (!source || !source->is_device_open())
     {
@@ -91,10 +80,8 @@ int main(int argc, char** argv)
     }
 
     const cv::Size net_size(vm::AutoDrive::NET_W, vm::AutoDrive::NET_H);
-    const std::string label = source_label(cfg.source);
     cv::Mat frame, warped, resized;
 
-    // ── 5. Main loop ────────────────────────────────────────────────────────
     while (true)
     {
         auto [ok, frame] = source->get_latest_frame();
@@ -110,10 +97,7 @@ int main(int argc, char** argv)
         if (const auto r = pipeline.process(warped))
         {
             pipeline.latency().print();
-            vd::annotate_frame(warped, vd::debug_view_from(
-                                   *r, label, cfg.wheel_dir));
 
-            // Compute the plan
             const double ego_v     = vehicle_interface->read();
             const double cte       = r->lateral.cte_m;
             const double epsi      = r->lateral.yaw_rad;
@@ -129,13 +113,18 @@ int main(int argc, char** argv)
                     plan.steering.empty() ? 0.0 : plan.steering[0],
                     plan.acceleration);
 
-            // Send commands
             vehicle_interface->write(
                 plan.steering.empty() ? 0.0 : plan.steering[0],
                 plan.acceleration);
+
+            if (show_window)
+                visualization::ProductionView::visualize(warped, *r, plan, ego_v);
+        }
+        else if (show_window)
+        {
+            visualization::show_frame(warped);
         }
 
-        if (show_window) visualization::render_frame(warped, "VisionPilot", {});
 #ifdef ENABLE_WEBRTC
         if (webrtc) webrtc->push_frame(warped);
 #endif

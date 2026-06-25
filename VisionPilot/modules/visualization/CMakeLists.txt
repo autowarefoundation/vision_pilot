@@ -42,4 +42,6 @@ target_link_libraries(visualization
         PUBLIC
         ${OpenCV_LIBRARIES}
         Threads::Threads
+        models
+        common
 )

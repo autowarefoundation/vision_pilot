@@ -52,10 +52,29 @@ CIPOFusionEstimate LongitudinalFusion::update(
         }
     }
 
-    // ── Step 3: AutoDrive distance ────────────────────────────────────────────
-    static constexpr float D_MAX = 150.f;
+    // ── Step 3: AutoDrive distance (gated by CIPO probability) ───────────────
+    static constexpr float D_MAX         = 150.f;
+    static constexpr float CIPO_PROB_MIN = 0.35f;  // below this → AD doesn't confirm CIPO
+
+    const bool ad_cipo_confirmed = autodrive.valid &&
+                                   autodrive.flag_prob >= CIPO_PROB_MIN;
+    const bool autospeed_cipo_confirmed = cipo_raw.valid;
+
+    // If neither network confirms a CIPO target, report max distance and
+    // reset the particle filter so we start fresh when a target reappears.
+    if (!ad_cipo_confirmed && !autospeed_cipo_confirmed) {
+        if (initialised_) {
+            VP_INFO("[Fusion] No CIPO confirmed (AD=%.0f%%  AS=none) — reset to %.0f m",
+                    autodrive.valid ? autodrive.flag_prob * 100.f : 0.f, D_MAX);
+            reset();
+        }
+        est.valid      = true;
+        est.distance_m = D_MAX;
+        return est;
+    }
+
     Meas ad_meas;
-    if (autodrive.valid) {
+    if (ad_cipo_confirmed) {
         ad_meas.distance_m = D_MAX * (1.f - autodrive.dist_normalized);
         ad_meas.stddev_m   = cfg_.autodrive_noise_m;
         ad_meas.valid      = true;
@@ -124,11 +143,15 @@ CIPOFusionEstimate LongitudinalFusion::update(
 
     // ── Step 7: Debug log ─────────────────────────────────────────────────────
     if (cfg_.debug) {
-        char ad_buf[32], cr_buf[32];
+        char ad_buf[48], cr_buf[32];
         if (ad_meas.valid)
-            std::snprintf(ad_buf, sizeof(ad_buf), "%.1f m", ad_meas.distance_m);
+            std::snprintf(ad_buf, sizeof(ad_buf), "%.1f m (p=%.0f%%)",
+                          ad_meas.distance_m,
+                          autodrive.valid ? autodrive.flag_prob * 100.f : 0.f);
         else
-            std::snprintf(ad_buf, sizeof(ad_buf), "(invalid)");
+            std::snprintf(ad_buf, sizeof(ad_buf), "(p=%.0f%% < %.0f%%)",
+                          autodrive.valid ? autodrive.flag_prob * 100.f : 0.f,
+                          CIPO_PROB_MIN * 100.f);
         if (cipo_raw.valid)
             std::snprintf(cr_buf, sizeof(cr_buf), "%.1f m", cipo_raw.distance_m);
         else

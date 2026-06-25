@@ -52,7 +52,7 @@ public:
     InferencePipeline(engine::OnnxEngine& engine, const InferenceConfig& cfg);
 
     // nullopt until two frames collected (AutoDrive needs t-1 and t).
-    std::optional<InferenceFrameResult> process(const cv::Mat& preprocessed);
+    std::optional<InferenceFrameResult> process(const cv::Mat& warped);
 
     void reset();
     const LatencyStats& latency() const { return stats_; }
