@@ -105,13 +105,13 @@ Plan Planner::compute_plan(
     // WARNINGS
     std::vector<Warning> warnings;
     // LLDW
-    if (cte < -1.0)
+    if (cte < -0.5)
     {
         warnings.push_back(Warning::LLDW);
     }
 
     // RLDW
-    if (cte > 1.0)
+    if (cte > 0.5)
     {
         warnings.push_back(Warning::RLDW);
     }
