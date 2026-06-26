@@ -281,7 +281,7 @@ static void draw_cipo_boxes(cv::Mat& img, const ProductionView& view) {
     }
 }
 
-// ─── Draw: speed readout (top-centre) ────────────────────────────────────────
+// ─── Draw: ego speed readout (top-centre) ────────────────────────────────────
 static void draw_speed(cv::Mat& img, double speed_ms) {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%.0f mph", speed_ms * 2.23694);
@@ -294,10 +294,19 @@ static void draw_speed(cv::Mat& img, double speed_ms) {
 
     cv::putText(img, buf, cv::Point(tx + 2, ty + 2),
                 cv::FONT_HERSHEY_DUPLEX, 1.1,
-                cv::Scalar(0, 0, 0), 3, cv::LINE_AA);   // shadow
+                cv::Scalar(0, 0, 0), 3, cv::LINE_AA);
     cv::putText(img, buf, cv::Point(tx, ty),
                 cv::FONT_HERSHEY_DUPLEX, 1.1,
                 cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+
+    // "EGO" label below the number so it's unambiguous
+    constexpr char kEgoLabel[] = "EGO";
+    int bl2 = 0;
+    const cv::Size ls = cv::getTextSize(kEgoLabel, cv::FONT_HERSHEY_SIMPLEX, 0.40, 1, &bl2);
+    cv::putText(img, kEgoLabel,
+                cv::Point((img.cols - ls.width) / 2, ty + 16),
+                cv::FONT_HERSHEY_SIMPLEX, 0.40,
+                cv::Scalar(180, 180, 180), 1, cv::LINE_AA);
 }
 
 // ─── Draw: alert overlays + icons ────────────────────────────────────────────
@@ -375,11 +384,12 @@ static bool draw_production_frame(cv::Mat& frame, const ProductionView& view) {
 
     cv::Mat display = frame.clone();
 
-    // Render order: path → boxes → alerts → speed
+    // Render order: path → boxes → alerts → speed → CIPO text
     draw_path_corridor(display, view);
     draw_cipo_boxes(display, view);
     draw_alerts(display, view);
     draw_speed(display, view.ego_speed_ms);
+
 
     cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
     cv::resizeWindow("VisionPilot", display.cols, display.rows);

@@ -64,12 +64,12 @@ public:
         float dt_s                   = 0.10f;   // nominal dt; overridden per-call
 
         // Process noise (random-walk, scaled by dt internally)
-        float proc_noise_cte_m       = 0.05f;
+        float proc_noise_cte_m       = 0.02f;   // stiffer — less drift between frames
         float proc_noise_yaw_rad     = 0.01f;
         float proc_noise_curv        = 0.002f;
 
         // Measurement 1-sigma
-        float meas_noise_cte_m       = 0.30f;
+        float meas_noise_cte_m       = 0.50f;   // more skeptical of raw polynomial CTE jumps
         float meas_noise_yaw_rad     = 0.05f;
         float meas_noise_curv_path   = 0.005f;  // AutoSteer polynomial curvature
         float meas_noise_curv_ad     = 0.010f;  // AutoDrive curvature (scaled)
@@ -82,7 +82,7 @@ public:
         // curvature_raw × scale → physical κ [1/m] (CURV_SCALE = 0.21 in training).
         float ad_curvature_scale     = 0.21f;
         int   ransac_min_inliers     = 20;      // reject path fit if fewer inliers
-        float max_abs_cte_m          = 4.0f;    // reject absurd RANSAC CTE
+        float max_abs_cte_m          = 1.2f;    // reject RANSAC fits extrapolating > 1.2m at ego
         float curv_x_min_m           = 3.f;     // κ sampled only at waypoint x ≥ this
         float curv_x_max_m           = 25.f;    // κ sampled only at waypoint x ≤ this
 

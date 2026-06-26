@@ -6,6 +6,7 @@
 #include <models/inference.hpp>
 #include <planning/planning.hpp>
 #include <visualization/visualization.hpp>
+#include <debug/debug_draw.hpp>
 
 #include <camera_interface/frame_source.hpp>
 #ifdef ENABLE_WEBRTC
@@ -14,6 +15,7 @@
 
 #include <chrono>
 #include <memory>
+#include <string>
 #include <thread>
 #include <vehicle_interface/vehicle_interface.hpp>
 #include <vehicle_interface/can_interface.hpp>
@@ -25,6 +27,7 @@
 
 namespace ve = visionpilot::engine;
 namespace vm = visionpilot::models;
+namespace vd = visionpilot::debug;
 
 int main(int argc, char** argv)
 {
@@ -34,6 +37,18 @@ int main(int argc, char** argv)
     {
         VP_ERROR("Config: %s", e.what());
         return 1;
+    }
+
+    // ── CLI flags ─────────────────────────────────────────────────────────────
+    bool show_window = true;
+    bool debug_viz   = false;
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string arg(argv[i]);
+        if (arg == "--debug-viz") debug_viz = true;
+#ifdef ENABLE_WEBRTC
+        if (arg == "--webrtc")    show_window = false;
+#endif
     }
 
     std::shared_ptr<VehicleInterface> vehicle_interface;
@@ -51,15 +66,25 @@ int main(int argc, char** argv)
     vm::InferencePipeline pipeline(engine, cfg.inference);
     Planner planner(cfg.speed_limit, cfg.Lf);
 
-    visualization::init_production_assets();
+    // ── Init visualization assets once based on mode ──────────────────────────
+    if (debug_viz)
+    {
+        VP_INFO("[Viz] Debug mode — annotated telemetry overlay");
+        vd::init_wheel_assets(cfg.wheel_dir);
+        vd::init_homography();
+    }
+    else
+    {
+        VP_INFO("[Viz] Production mode — clean HUD");
+        visualization::init_production_assets();
+    }
 
-    bool show_window = true;
 #ifdef ENABLE_WEBRTC
     std::unique_ptr<visualization::WebRTCStreamer> webrtc;
     for (int i = 1; i < argc; ++i)
     {
-        if (std::string(argv[i]) == "--webrtc") show_window = false;
-        if (std::string(argv[i]) == "--webrtc-port" && i + 1 < argc)
+        const std::string arg(argv[i]);
+        if (arg == "--webrtc-port" && i + 1 < argc)
         {
             webrtc = std::make_unique<visualization::WebRTCStreamer>();
             if (!webrtc->init(static_cast<uint16_t>(std::stoi(argv[++i])))) return 1;
@@ -93,27 +118,46 @@ int main(int argc, char** argv)
         {
             pipeline.latency().print();
 
-            const double ego_v = vehicle_interface->read();
-            const double cte = r->lateral.cte_m;
-            const double epsi = r->lateral.yaw_rad;
-            const double kappa = r->lateral.curvature;
-            const bool has_cipo = r->cipo.cipo_raw_found;
-            const double cipo_v = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
+            const double ego_v  = vehicle_interface->read();
+            const double cte    = r->lateral.cte_m;
+            const double epsi   = r->lateral.yaw_rad;
+            const double kappa  = r->lateral.curvature;
+
+            // has_cipo: tracker-based — true only when filter tracks a target
+            // closer than D_MAX. cipo_raw_found alone must not gate the planner.
+            static constexpr double D_MAX = 150.0;
+            const bool   has_cipo  = r->cipo.valid && r->cipo.distance_m < D_MAX;
+            const double cipo_v    = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
             const double cipo_dist = r->cipo.distance_m;
 
             const Plan plan = planner.compute_plan(
                 cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
 
-            VP_INFO("plan: tyre=%.4f rad  accel=%.3f m/s²",
+            VP_INFO("plan: tyre=%.4f rad  accel=%.3f m/s²  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s  raw=%s",
                     plan.steering.empty() ? 0.0 : plan.steering[0],
-                    plan.acceleration);
+                    plan.acceleration,
+                    has_cipo ? "true" : "false",
+                    cipo_dist,
+                    r->cipo.velocity_ms,
+                    r->cipo.cipo_raw_found ? "true" : "false");
 
             vehicle_interface->write(
                 plan.steering.empty() ? 0.0 : plan.steering[0],
                 plan.acceleration);
 
             if (show_window)
-                visualization::ProductionView::visualize(warped, *r, plan, ego_v);
+            {
+                if (debug_viz)
+                {
+                    auto dv = vd::debug_view_from(*r, cfg_path, cfg.wheel_dir);
+                    vd::annotate_frame(warped, dv);
+                    visualization::show_frame(warped);
+                }
+                else
+                {
+                    visualization::ProductionView::visualize(warped, *r, plan, ego_v);
+                }
+            }
         }
         else if (show_window)
         {

@@ -14,18 +14,19 @@ if (ENABLE_ROS2_INTERFACE)
 endif ()
 
 target_link_libraries(VisionPilot
-        PRIVATE
-        config           # VisionPilotConfig, load_vision_pilot_config
-        logging          # VP_INFO / VP_WARN / VP_ERROR
-        common           # Common module
-        engine           # OnnxEngine
-        models           # AutoDrive, AutoSteer, AutoSpeed
-        fusion           # LongitudinalFusion, LateralFusion
-        planning         # Planner
-        vehicle_interface
-        camera_interface
-        image_preprocessing
-        visualization
+    PRIVATE
+    config           # VisionPilotConfig, load_vision_pilot_config
+    logging          # VP_INFO / VP_WARN / VP_ERROR
+    common           # Common module
+    engine           # OnnxEngine
+    models           # AutoDrive, AutoSteer, AutoSpeed
+    fusion           # LongitudinalFusion, LateralFusion
+    planning         # Planner
+    vehicle_interface
+    camera_interface
+    image_preprocessing
+    visualization
+    vp_debug         # Debug annotate_frame
 )
 
 # Suppress unresolved-symbol errors from system shared libs (gdal→curl, ICU from miniforge3)

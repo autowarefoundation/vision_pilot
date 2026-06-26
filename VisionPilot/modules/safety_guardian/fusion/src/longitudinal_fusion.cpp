@@ -54,7 +54,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
 
     // ── Step 3: AutoDrive distance (gated by CIPO probability) ───────────────
     static constexpr float D_MAX         = 150.f;
-    static constexpr float CIPO_PROB_MIN = 0.35f;  // below this → AD doesn't confirm CIPO
+    static constexpr float CIPO_PROB_MIN = 0.40f;  // below this → AD doesn't confirm CIPO
 
     const bool ad_cipo_confirmed = autodrive.valid &&
                                    autodrive.flag_prob >= CIPO_PROB_MIN;
@@ -84,8 +84,14 @@ CIPOFusionEstimate LongitudinalFusion::update(
     const float dt = (dt_s > 1e-6f) ? dt_s : cfg_.dt_s;
 
     if (!initialised_) {
-        if (!ad_meas.valid) return est;
-        init_from(ad_meas.distance_m, ad_meas.stddev_m);
+        // Prefer AD for first init; fall back to CIPO raw if AD isn't available.
+        if (ad_meas.valid) {
+            init_from(ad_meas.distance_m, ad_meas.stddev_m);
+        } else if (cipo_raw.valid) {
+            init_from(cipo_raw.distance_m, cfg_.cipo_noise_m);
+        } else {
+            return est;   // nothing to init from — return default (distance_m=0 won't happen because we returned D_MAX above)
+        }
         initialised_ = true;
     } else {
         predict(dt);
