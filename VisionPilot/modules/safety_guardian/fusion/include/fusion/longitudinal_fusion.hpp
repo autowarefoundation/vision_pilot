@@ -61,6 +61,10 @@ public:
     void reset();
     const Config& config() const { return cfg_; }
 
+    // Override the internal H matrix used to project AutoSpeed bboxes to world
+    // space.  Call once when AutoSpeed runs on a non-BEV image.
+    void set_H(const cv::Mat& H) { H_ = H.clone(); }
+
 private:
     struct Particle { float distance_m, velocity_ms, log_w; };
     struct Meas     { float distance_m = 0.f; float stddev_m = 15.f; bool valid = false; };
