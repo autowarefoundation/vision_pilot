@@ -18,7 +18,7 @@ class OnnxEngine;
 
 namespace visionpilot::models {
 
-struct InferenceConfig {
+struct Config {
     std::string precision = "fp32"; ;
     bool        fusion_debug = false;
 };
@@ -49,7 +49,7 @@ struct InferenceFrameResult {
 // Two-frame buffer → parallel ONNX → longitudinal + lateral fusion.
 class InferencePipeline {
 public:
-    InferencePipeline(engine::OnnxEngine& engine, const InferenceConfig& cfg);
+    InferencePipeline(engine::OnnxEngine& engine, const Config& cfg);
 
     // nullopt until two frames collected (AutoDrive needs t-1 and t).
     std::optional<InferenceFrameResult> process(const cv::Mat& warped);

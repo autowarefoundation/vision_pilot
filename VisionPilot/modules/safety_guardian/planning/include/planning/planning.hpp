@@ -41,11 +41,9 @@ public:
         double cipo_distance);
 
 private:
-    static LongitudinalPlanner::Config load_config(double speed_limit);
-
     double Lf_;            // Front-axle to CoG (m)
 
-    LongitudinalPlanner::Config cfg_;
+    // LongitudinalPlanner::Config cfg_;
     LongitudinalPlanner         longitudinal_planner;
     LateralPlanner              lateral_planner;
 

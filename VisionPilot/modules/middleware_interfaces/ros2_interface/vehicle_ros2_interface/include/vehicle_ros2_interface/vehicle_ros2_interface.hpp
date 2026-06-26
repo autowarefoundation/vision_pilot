@@ -21,7 +21,8 @@
 class VehicleRos2Interface : public VehicleInterface
 {
 public:
-    VehicleRos2Interface();
+    VehicleRos2Interface(std::string vehicle_speed_topic, std::string vehicle_steering_topic,
+                         std::string vehicle_acceleration_topic);
     ~VehicleRos2Interface() override;
 
     // Returns the latest ego speed received on /vehicle/speed (m/s).
@@ -36,17 +37,20 @@ private:
     class VehicleRos2Node : public rclcpp::Node
     {
     public:
-        explicit VehicleRos2Node(std::function<void(double)> on_speed);
+        explicit VehicleRos2Node(std::string vehicle_speed_topic,
+                                 std::string vehicle_steering_topic,
+                                 std::string vehicle_acceleration_topic,
+                                 std::function<void(double)> on_speed);
         ~VehicleRos2Node() = default;
 
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_;
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr    steering_pub_;
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr    throttle_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr steering_pub_;
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr throttle_pub_;
     };
 
-    std::shared_ptr<VehicleRos2Node>          node_;
+    std::shared_ptr<VehicleRos2Node> node_;
     rclcpp::executors::SingleThreadedExecutor executor_;
-    std::thread                               spin_thread_;
+    std::thread spin_thread_;
 
     // Latest ego speed — written by the ROS2 callback, read by main loop.
     std::atomic<double> speed_{0.0};

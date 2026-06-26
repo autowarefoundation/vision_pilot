@@ -69,7 +69,7 @@ void LatencyStats::print() const
 
 void LatencyStats::reset() { *this = {}; }
 
-InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const InferenceConfig& cfg)
+InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& cfg)
     : auto_drive_(engine, valid_model_path("modules/models/weights/autodrive_" + cfg.precision + ".onnx"))
     , auto_steer_(engine, valid_model_path("modules/models/weights/autosteer_" + cfg.precision + ".onnx"))
     , auto_speed_(engine, valid_model_path("modules/models/weights/autospeed_" + cfg.precision + ".onnx"))

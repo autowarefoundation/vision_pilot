@@ -103,15 +103,16 @@ std::string source_label(const SourceConfig& source)
     switch (source.mode) {
     case SourceMode::Video: return "video";
     case SourceMode::V4l2:  return source.v4l2_device;
-    case SourceMode::Ros2:  return source.ros2_topic;
+    case SourceMode::Ros2:  return source.input_camera_topic;
     }
     return {};
 }
 
-VisionPilotConfig load_vision_pilot_config(const std::string& path)
+Config load_vision_pilot_config()
 {
-    const auto kv = parse_conf(path);
-    VisionPilotConfig cfg;
+    // Load default config
+    auto kv = parse_conf("config/vision_pilot.conf");
+    Config cfg;
 
     cfg.engine.provider     = optional(kv, "engine.provider",     "cpu");
     cfg.engine.precision    = optional(kv, "model.precision",    "fp32");
@@ -122,15 +123,15 @@ VisionPilotConfig load_vision_pilot_config(const std::string& path)
     cfg.inference.precision    = optional(kv, "model.precision",    "fp32");
 
     cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
-    cfg.source.video_path    = expand_home(optional(kv, "source.video_path", ""));
+
     cfg.source.video_realtime= parse_bool(optional(kv, "source.video_realtime", "true"), "source.video_realtime");
     cfg.source.video_loop    = parse_bool(optional(kv, "source.video_loop",     "false"), "source.video_loop");
-    cfg.source.ros2_topic    = optional(kv, "source.ros2_topic",  "/camera/image");
+
     cfg.source.v4l2_device   = optional(kv, "source.v4l2_device", "/dev/video0");
     cfg.source.v4l2_fps      = parse_int(optional(kv, "source.v4l2_fps", "10"), "source.v4l2_fps");
-    cfg.pipeline.initial_inference_check = parse_bool(
-        optional(kv, "pipeline.initial_inference_check", "true"),
-        "pipeline.initial_inference_check");
+    // cfg.pipeline.initial_inference_check = parse_bool(
+    //     optional(kv, "pipeline.initial_inference_check", "true"),
+    //     "pipeline.initial_inference_check");
 
     cfg.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
 
@@ -140,8 +141,21 @@ VisionPilotConfig load_vision_pilot_config(const std::string& path)
     { const std::string raw = optional(kv, "debug.wheel_dir", "");
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }
 
+    // Load ROS2 config config
+// #ifdef ENABLE_ROS2_INTERFACE
+    kv = parse_conf("config/vision_pilot_ros2.conf");
+    cfg.source.input_camera_topic = optional(kv, "source.input_camera_topic",  "/camera/image");
+    cfg.vehicle_speed_topic = optional(kv, "vehicle_speed_topic", "/vehicle/speed");
+    cfg.vehicle_steering_topic = optional(kv, "vehicle_steering_topic", "/vehicle/steering_cmd");
+    cfg.vehicle_acceleration_topic = optional(kv, "vehicle_acceleration_topic", "/vehicle/steering_cmd");
+// #endif
+
+    // Load test configuration
+    kv = parse_conf("config/vision_pilot_test.conf");
+
     // Validate file paths
     if (cfg.source.mode == SourceMode::Video) {
+        cfg.source.video_path    = expand_home(optional(kv, "source.video_path", ""));
         if (cfg.source.video_path.empty())
             throw std::runtime_error("source.mode=video requires source.video_path");
         if (!file_ok(cfg.source.video_path))

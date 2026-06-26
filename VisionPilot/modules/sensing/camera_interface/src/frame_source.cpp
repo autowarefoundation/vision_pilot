@@ -23,7 +23,7 @@ std::unique_ptr<CameraInterface> open_frame_source(const SourceConfig& cfg)
 
     case SourceMode::Ros2:
 #ifdef ENABLE_ROS2_INTERFACE
-        return std::make_unique<ROS2ImageSubscriber>(cfg.ros2_topic);
+        return std::make_unique<ROS2ImageSubscriber>(cfg.input_camera_topic);
 #else
         VP_ERROR("ROS2 requested but ENABLE_ROS2_INTERFACE=OFF");
         return nullptr;

@@ -1,6 +1,5 @@
 // VisionPilot — preprocess → inference → fusion → display
 #include <config/vision_pilot_config.hpp>
-#include <debug/debug_draw.hpp>
 #include <engine/onnx_engine.hpp>
 #include <image_preprocessing/image_preprocessor.hpp>
 #include <logging/logger.hpp>
@@ -16,12 +15,17 @@
 #include <chrono>
 #include <memory>
 #include <thread>
-
+#include <vehicle_interface/vehicle_interface.hpp>
+#include <vehicle_interface/can_interface.hpp>
 #include <fstream>
+
+#ifdef ENABLE_ROS2_INTERFACE
+#include <rclcpp/rclcpp.hpp>
+#include <vehicle_ros2_interface/vehicle_ros2_interface.hpp>
+#endif
 
 namespace ve = visionpilot::engine;
 namespace vm = visionpilot::models;
-namespace vd = visionpilot::debug;
 
 std::vector<double> readSpeeds(const std::string& filename)
 {
@@ -60,31 +64,31 @@ std::vector<double> readSpeeds(const std::string& filename)
 
 int main(int argc, char** argv)
 {
-    // ── 1. Config ─────────────────────────────────────────────────────────────
-    const std::string cfg_path = resolve_vision_pilot_config_path(argc, argv);
-    if (cfg_path.empty())
-    {
-        VP_ERROR("No config — cp config/vision_pilot.conf.example config/vision_pilot.conf");
-        return 1;
-    }
-
-    VisionPilotConfig cfg;
-    try { cfg = load_vision_pilot_config(cfg_path); }
+    Config cfg;
+    try { cfg = load_vision_pilot_config(); }
     catch (const std::exception& e)
     {
         VP_ERROR("Config: %s", e.what());
         return 1;
     }
 
-    // ── 2. Pipeline (preprocess + ONNX + inference/fusion) ────────────────────
+    std::shared_ptr<VehicleInterface> vehicle_interface;
+#ifdef ENABLE_ROS2_INTERFACE
+    rclcpp::init(argc, argv);
+    vehicle_interface = std::make_shared<VehicleRos2Interface>(cfg.vehicle_speed_topic,
+                                                               cfg.vehicle_steering_topic,
+                                                               cfg.vehicle_acceleration_topic);
+#else
+    vehicle_interface = std::make_shared<CanInterface>();
+#endif
+
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
+    Planner planner(cfg.speed_limit, cfg.Lf);
 
-    vd::init_wheel_assets(cfg.wheel_dir);
-    vd::init_homography();
+    visualization::init_production_assets();
 
-    // ── 3. Display output ─────────────────────────────────────────────────────
     bool show_window = true;
 #ifdef ENABLE_WEBRTC
     std::unique_ptr<visualization::WebRTCStreamer> webrtc;
@@ -99,7 +103,6 @@ int main(int argc, char** argv)
     }
 #endif
 
-    // ── 4. Frame source (video / V4L2 / ROS2) ───────────────────────────────
     auto source = camera_interface::open_frame_source(cfg.source);
     if (!source || !source->is_device_open())
     {
@@ -108,13 +111,9 @@ int main(int argc, char** argv)
     }
 
     const cv::Size net_size(vm::AutoDrive::NET_W, vm::AutoDrive::NET_H);
-    const std::string label = source_label(cfg.source);
     cv::Mat frame, warped, resized;
-
-    Planner planner(cfg.speed_limit, cfg.Lf);
-    // ── 5. Main loop ────────────────────────────────────────────────────────
     int frame_number = 0;
-    std::vector<double> speeds = readSpeeds("<PATH_TO_TEST_VEHICLE_SPEED>");
+    std::vector<double> speeds = readSpeeds("/data/DEVELOPMENT/AUTONOMOUS/AUTOWARE/TEST/test_zod_7/frame_speed.txt");
     while (true)
     {
         auto [ok, frame] = source->get_latest_frame();
@@ -130,31 +129,46 @@ int main(int argc, char** argv)
         if (const auto r = pipeline.process(warped))
         {
             pipeline.latency().print();
-            vd::annotate_frame(warped, vd::debug_view_from(
-                                   *r, label, cfg.wheel_dir));
 
-            double cte = r->lateral.cte_m;
-            double epsi = r->lateral.yaw_rad;
-            double kappa = r->lateral.curvature;
-            double ego_v = speeds[frame_number++];
-            double cipo_v = r->cipo.velocity_ms;
-            double cipo_distance = r->cipo.distance_m;
-            bool has_cipo = r->cipo.cipo_raw_found;
+            const double ego_v = speeds[frame_number++];
+            const double cte = r->lateral.cte_m;
+            const double epsi = r->lateral.yaw_rad;
+            const double kappa = r->lateral.curvature;
+            const bool has_cipo = r->cipo.cipo_raw_found;
+            const double cipo_v = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
+            const double cipo_dist = r->cipo.distance_m;
 
+            const Plan plan = planner.compute_plan(
+                cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
 
-            // std::pair<double, std::vector<double>> plan = planner.compute_plan(cte, epsi, kappa, ego_v, has_cipo, ego_v + cipo_v, cipo_distance);
             auto [acceleration, steering, warnings] = planner.compute_plan(
-                cte, epsi, kappa, ego_v, has_cipo, ego_v + cipo_v, cipo_distance);
+                cte, epsi, kappa, ego_v, has_cipo, ego_v + cipo_v, cipo_dist);
+
+            std::string cipo_speed = has_cipo ? std::to_string(ego_v + cipo_v) : "";
             std::cout << "Steering: " << steering[1] * 180.0 / M_PI << "  Acceleration: " << acceleration <<
-                "  EGO speed: " << ego_v << "  CIPO speed: " << ego_v + cipo_v << std::endl;
+                "  EGO speed: " << ego_v << "  CIPO speed: " << cipo_speed << std::endl;
 
             for (const auto& w : warnings)
             {
                 std::cout << static_cast<int>(w) << std::endl;
             }
+
+            VP_INFO("plan: tyre=%.4f rad  accel=%.3f m/s²",
+                    plan.steering.empty() ? 0.0 : plan.steering[0],
+                    plan.acceleration);
+
+            vehicle_interface->write(
+                plan.steering.empty() ? 0.0 : plan.steering[0],
+                plan.acceleration);
+
+            if (show_window)
+                visualization::ProductionView::visualize(warped, *r, plan, ego_v);
+        }
+        else if (show_window)
+        {
+            visualization::show_frame(warped);
         }
 
-        if (show_window) visualization::render_frame(warped, "VisionPilot", {});
 #ifdef ENABLE_WEBRTC
         if (webrtc) webrtc->push_frame(warped);
 #endif
