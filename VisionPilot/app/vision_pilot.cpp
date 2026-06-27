@@ -114,11 +114,11 @@ int main(int argc, char** argv)
         }
 
         preprocessor.preprocess(frame, warped, resized, net_size);
-
+        cv::Size frame_size = frame.size();
         // One-time: tell the pipeline how to project AutoSteer/AutoSpeed outputs
         // back to world when those networks run on the plain-resized image.
         if (!h_resized_set) {
-            pipeline.set_H_resized(preprocessor.C_mat(), preprocessor.raw_size());
+            pipeline.set_H_resized(preprocessor.C_mat(), frame_size);
             h_resized_set = true;
         }
 
