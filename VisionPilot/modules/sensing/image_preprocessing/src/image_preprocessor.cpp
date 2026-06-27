@@ -10,8 +10,7 @@ ImagePreprocessor::ImagePreprocessor() : homography_C_matrix_path("config/homogr
 }
 
 void ImagePreprocessor::preprocess(const cv::Mat &image, cv::Mat &warped_image, cv::Mat &resized_image,
-                                   const cv::Size &size) {
-    raw_size_ = image.size();
+                                   const cv::Size &size) const {
     cv::warpPerspective(image, warped_image, C, cv::Size(1024, 512), cv::INTER_LINEAR,
                         cv::BORDER_REFLECT_101);
     cv::resize(image, resized_image, size);
