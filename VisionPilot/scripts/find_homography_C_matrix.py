@@ -23,7 +23,7 @@ V = np.array(
 
 def load_homography_H_matrix(path: Path) -> np.ndarray:
     # Load the homography matrix from the YAML file
-    fs = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
+    fs = cv2.FileStorage(str(path), cv2.FILE_STORAGE_READ)
     H = fs.getNode("H").mat()
     fs.release()
     return H
