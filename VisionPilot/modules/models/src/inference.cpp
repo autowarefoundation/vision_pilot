@@ -79,7 +79,8 @@ InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& c
     long_fusion_ = fusion::LongitudinalFusion{lc};
 
     fusion::LateralFusion::Config latc;
-    latc.debug           = cfg.fusion_debug;
+    latc.debug      = cfg.fusion_debug;
+    latc.cte_bias_m = cfg.cte_bias_m;
     lat_fusion_ = fusion::LateralFusion{latc};
 }
 
