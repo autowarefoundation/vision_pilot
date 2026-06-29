@@ -22,6 +22,21 @@ Regenerate **C** only:
 python3 scripts/find_homography_C_matrix.py --ground-h /path/to/H.yaml
 ```
 
+## Prerequisites: Eigen
+
+```bash
+mkdir -p modules/safety_guardian/planning/src
+
+wget https://gitlab.com/libeigen/eigen/-/archive/5.0.0/eigen-5.0.0.tar.gz
+tar -xzf eigen-5.0.0.tar.gz -C modules/safety_guardian/planning/src/
+rm eigen-5.0.0.tar.gz
+```
+
+Notes:
+- Ensure extracted folder is named exactly `eigen-5.0.0` at `./modules/safety_guardian/planning/src/eigen-5.0.0`.
+- **Do not commit this folder to Git**.
+
+
 ## Build (video / v4l2 — no ROS2 required)
 
 ```bash
