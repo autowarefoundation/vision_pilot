@@ -4,7 +4,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(IPOPT REQUIRED ipopt)
 
 # eigen-5.0.0
-add_subdirectory(src/eigen-5.0.0)
+add_subdirectory(src/eigen-5.0.0 EXCLUDE_FROM_ALL)
 
 add_library(planning
         src/planning.cpp

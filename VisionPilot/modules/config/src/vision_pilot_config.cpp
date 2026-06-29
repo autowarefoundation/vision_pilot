@@ -111,7 +111,7 @@ std::string source_label(const SourceConfig& source)
 Config load_vision_pilot_config()
 {
     // Load default config
-    auto kv = parse_conf("config/vision_pilot.conf");
+    auto kv = parse_conf(find_config("vision_pilot.conf"));
     Config cfg;
 
     cfg.engine.provider     = optional(kv, "engine.provider",     "cpu");
@@ -146,17 +146,17 @@ Config load_vision_pilot_config()
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }
 
     // Load ROS2 config config
-// #ifdef ENABLE_ROS2_INTERFACE
-    kv = parse_conf("config/vision_pilot_ros2.conf");
+#ifdef ENABLE_ROS2_INTERFACE
+    kv = parse_conf(find_config("vision_pilot_ros2.conf"));
     cfg.source.input_camera_topic = optional(kv, "source.input_camera_topic",  "/camera/image");
     cfg.vehicle_speed_topic = optional(kv, "vehicle_speed_topic", "/vehicle/speed");
     cfg.vehicle_steering_topic = optional(kv, "vehicle_steering_topic", "/vehicle/steering_cmd");
     cfg.vehicle_acceleration_topic = optional(kv, "vehicle_acceleration_topic", "/vehicle/steering_cmd");
-// #endif
+#endif
 
     // Load test configuration
     if (cfg.source.mode == SourceMode::Video) {
-        kv = parse_conf("config/vision_pilot_test.conf");
+        kv = parse_conf(find_config("vision_pilot_test.conf"));
 
         cfg.source.video_path    = expand_home(optional(kv, "source.video_path", ""));
         if (cfg.source.video_path.empty())

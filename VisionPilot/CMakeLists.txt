@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project(VisionPilot)
+project(VisionPilot VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -64,3 +64,24 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config
 
 # App
 add_subdirectory(app)
+
+set(CPACK_PACKAGE_VENDOR       "Autoware Foundation")
+set(CPACK_PACKAGE_CONTACT      "atanasko.mitrev@autoware.org, pranav.doma@autoware.org, tran.huy@autoware.org")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "VisionPilot 1.0")
+
+set(CPACK_DEBIAN_PACKAGE_DEPENDS
+    "cuda-toolkit-13-3,
+     libcudnn9-cuda-13,
+     libcublas-13-3,
+     cuda-cudart-13-3,
+     libnvinfer10,
+     libnvinfer-plugin10,
+     libnvonnxparsers10,
+     nvidia-open"
+)
+
+set(CPACK_SYSTEM_NAME "x86_64")
+set(CPACK_GENERATOR   "DEB")
+
+include(CPack)

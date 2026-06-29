@@ -293,18 +293,33 @@ static void draw_cipo_boxes(cv::Mat& img, const ProductionView& view) {
 
 // ─── Draw: ego speed readout (top-centre) ────────────────────────────────────
 static void draw_speed(cv::Mat& img, double speed_ms) {
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "%.0f mph", speed_ms * 2.23694);
+    char num_buf[32];
+    std::snprintf(num_buf, sizeof(num_buf), "%.0f", speed_ms * 2.23694);
+    const char* unit_buf = "mph";
 
     int bl = 0;
-    const cv::Size ts = cv::getTextSize(
-        buf, cv::FONT_HERSHEY_DUPLEX, 1.1, 2, &bl);
-    const int tx = (img.cols - ts.width) / 2;
-    const int ty = 44;
+    const cv::Size num_ts  = cv::getTextSize(num_buf,  cv::FONT_HERSHEY_DUPLEX, 1.1, 2, &bl);
+    const cv::Size unit_ts = cv::getTextSize(unit_buf, cv::FONT_HERSHEY_DUPLEX, 0.5, 1, &bl);
 
-    cv::putText(img, buf, cv::Point(tx, ty),
-                cv::FONT_HERSHEY_DUPLEX, 1.1,
-                cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+    const int num_tx  = (img.cols - num_ts.width)  / 2;
+    const int unit_tx = (img.cols - unit_ts.width) / 2;
+    const int num_ty  = 44;
+    const int unit_ty = num_ty + num_ts.height -4 ;
+
+    cv::Mat overlay;
+    img.copyTo(overlay);
+
+    cv::putText(overlay, num_buf, cv::Point(num_tx + 2, num_ty + 2),
+                cv::FONT_HERSHEY_DUPLEX, 1.1, cv::Scalar(0, 0, 0), 3, cv::LINE_AA);
+    cv::putText(overlay, num_buf, cv::Point(num_tx, num_ty),
+                cv::FONT_HERSHEY_DUPLEX, 1.1, cv::Scalar(255, 255, 255), 2, cv::LINE_AA);
+
+    cv::putText(overlay, unit_buf, cv::Point(unit_tx + 2, unit_ty + 2),
+                cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(0, 0, 0), 2, cv::LINE_AA);
+    cv::putText(overlay, unit_buf, cv::Point(unit_tx, unit_ty),
+                cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+
+    cv::addWeighted(overlay, 1.0, img, 0.5, 0, img);
 }
 
 // ─── Draw: alert overlays + icons ────────────────────────────────────────────

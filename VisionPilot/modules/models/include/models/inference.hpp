@@ -92,12 +92,6 @@ private:
     cv::Mat prev_frame_;
     cv::Mat curr_frame_;
     int     frame_buf_count_ = 0;
-
-    static std::string valid_model_path(const std::string& path) {
-        if (!std::filesystem::exists(path))
-            throw std::runtime_error("Model not found: " + path);
-        return path;
-    }
 };
 
 }  // namespace visionpilot::models

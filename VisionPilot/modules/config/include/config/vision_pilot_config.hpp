@@ -45,6 +45,16 @@ struct Config {
     int webrtc_port;
 };
 
+static std::string find_config(const std::string& filename) {
+    const std::string local  = "config/" + filename;
+    const std::string system = "/usr/share/visionpilot/config/" + filename;
+
+    if (std::filesystem::exists(local))  return local;
+    if (std::filesystem::exists(system)) return system;
+
+    throw std::runtime_error("Config file not found: " + filename);
+}
+
 // Load from key=value .conf file. Expands ~ to $HOME.
 // Throws std::runtime_error on missing or invalid config.
 Config load_vision_pilot_config();
