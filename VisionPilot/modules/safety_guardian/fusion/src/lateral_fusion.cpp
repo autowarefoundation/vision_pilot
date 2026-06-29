@@ -73,11 +73,13 @@ LateralFusionEstimate LateralFusion::update(
 
     // ── Step 4: CTE / Yaw particle filter ────────────────────────────────────
     if (path.valid) {
+        // Apply camera mounting offset correction before feeding the filter.
+        const float corrected_cte = path.cte_m - cfg_.cte_bias_m;
         if (!cy_init_) {
-            cy_init(path.cte_m, path.yaw_rad);
+            cy_init(corrected_cte, path.yaw_rad);
         } else {
             cy_predict(dt);
-            cy_update(path.cte_m, cfg_.meas_noise_cte_m,
+            cy_update(corrected_cte, cfg_.meas_noise_cte_m,
                       path.yaw_rad, cfg_.meas_noise_yaw_rad);
             if (cy_eff_n() < 0.5f * static_cast<float>(cfg_.n_particles))
                 cy_resample();
@@ -136,11 +138,12 @@ LateralFusionEstimate LateralFusion::update(
 
     // ── Step 7: Debug log ─────────────────────────────────────────────────────
     if (cfg_.debug) {
-        char path_buf[64], ad_buf[32];
+        char path_buf[96], ad_buf[32];
         if (path.valid)
             std::snprintf(path_buf, sizeof(path_buf),
-                          "CTE=%.2fm  yaw=%.3frad  κ=%.4f  (%d pts)",
-                          path.cte_m, path.yaw_rad, path.curvature, path.inliers);
+                          "raw_CTE=%.2fm  bias=%.2fm  corr=%.2fm  yaw=%.3frad  κ=%.4f  (%d pts, xmin=%.1fm)",
+                          path.cte_m, cfg_.cte_bias_m, path.cte_m - cfg_.cte_bias_m,
+                          path.yaw_rad, path.curvature, path.inliers, path.x_min_m);
         else
             std::snprintf(path_buf, sizeof(path_buf), "(no path fit, %d pts)", est.path_points);
 
@@ -312,16 +315,22 @@ LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts,
     p.b = sol.at<float>(1);
     p.c = sol.at<float>(2);
 
-    p.cte_m   = p.c;
-    p.yaw_rad = std::atan(p.b);
-    p.curvature = sample_path_curvature(pts, p.a, p.b, curv_x_min_m, curv_x_max_m);
-
+    // Find x range of actual data first so CTE is evaluated there, not extrapolated to x=0.
     p.x_min_m = pts[0].x;
     p.x_max_m = pts[0].x;
     for (const auto& pt : pts) {
         p.x_min_m = std::min(p.x_min_m, pt.x);
         p.x_max_m = std::max(p.x_max_m, pt.x);
     }
+
+    // Evaluate CTE and yaw at x_min_m (closest observed waypoint) — avoids
+    // extrapolating back to x=0 where there is no actual data.
+    const float x_ref   = p.x_min_m;
+    const float dydx    = 2.f * p.a * x_ref + p.b;   // polynomial slope at x_ref
+    p.cte_m   = eval_quad(p.a, p.b, p.c, x_ref);
+    p.yaw_rad = std::atan(dydx);
+    p.curvature = sample_path_curvature(pts, p.a, p.b, curv_x_min_m, curv_x_max_m);
+
     return p;
 }
 

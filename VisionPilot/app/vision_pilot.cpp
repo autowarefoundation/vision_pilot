@@ -128,16 +128,20 @@ int main(int argc, char** argv)
             const double cipo_v = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
             const double cipo_dist = r->cipo.distance_m;
 
+            const double raw_cte = r->lateral.path_valid
+                                    ? static_cast<double>(r->lateral.raw_cte_m)
+                                    : cte;
             const Plan plan = planner.compute_plan(
                 cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
 
-            VP_INFO("plan: tyre=%.4f rad  accel=%.3f m/s²  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s  raw=%s",
+            VP_INFO("plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm)  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
                     plan.steering.empty() ? 0.0 : plan.steering[0],
                     plan.acceleration,
+                    cte,
+                    raw_cte,
                     has_cipo ? "true" : "false",
                     cipo_dist,
-                    r->cipo.velocity_ms,
-                    r->cipo.cipo_raw_found ? "true" : "false");
+                    r->cipo.velocity_ms);
 
             vehicle_interface->write(
                 plan.steering.empty() ? 0.0 : plan.steering[0],

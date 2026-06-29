@@ -121,6 +121,9 @@ Config load_vision_pilot_config()
     cfg.engine.workspace_gb = parse_double(optional(kv, "engine.workspace_gb", "1.0"), "engine.workspace_gb");
 
     cfg.inference.precision    = optional(kv, "model.precision",    "fp32");
+    cfg.inference.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
+    cfg.inference.cte_bias_m   = static_cast<float>(
+        parse_double(optional(kv, "fusion.cte_bias_m", "0.0"), "fusion.cte_bias_m"));
 
     cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
 

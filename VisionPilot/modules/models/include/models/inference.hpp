@@ -19,8 +19,9 @@ class OnnxEngine;
 namespace visionpilot::models {
 
 struct Config {
-    std::string precision = "fp32"; ;
+    std::string precision    = "fp32";
     bool        fusion_debug = false;
+    float       cte_bias_m   = 0.0f;  // camera mounting offset [m] — subtracted from raw CTE before filter
 };
 
 struct LatencyStats {

@@ -64,12 +64,18 @@ public:
         float dt_s                   = 0.10f;   // nominal dt; overridden per-call
 
         // Process noise (random-walk, scaled by dt internally)
-        float proc_noise_cte_m       = 0.02f;   // stiffer — less drift between frames
+        float proc_noise_cte_m       = 0.05f;   // allows ~0.05m/s RMS drift for smooth tracking
         float proc_noise_yaw_rad     = 0.01f;
         float proc_noise_curv        = 0.002f;
 
+        // Camera mounting offset compensation.  Set to the observed steady-state
+        // CTE on a straight road (camera not at vehicle centreline).
+        // Subtracted from raw polynomial CTE before it enters the particle filter.
+        float cte_bias_m             = 0.0f;
+
+
         // Measurement 1-sigma
-        float meas_noise_cte_m       = 0.50f;   // more skeptical of raw polynomial CTE jumps
+        float meas_noise_cte_m       = 0.15f;   // tighter now that CTE is at x_min (not extrapolated)
         float meas_noise_yaw_rad     = 0.05f;
         float meas_noise_curv_path   = 0.005f;  // AutoSteer polynomial curvature
         float meas_noise_curv_ad     = 0.010f;  // AutoDrive curvature (scaled)
