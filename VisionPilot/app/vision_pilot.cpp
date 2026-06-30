@@ -1,21 +1,21 @@
 // VisionPilot — preprocess → inference → fusion → display
+#include <chrono>
+#include <memory>
+#include <string>
+#include <thread>
+
 #include <config/vision_pilot_config.hpp>
+#include <common/utils.hpp>
 #include <engine/onnx_engine.hpp>
+#include <camera_interface/frame_source.hpp>
+#include <vehicle_interface/vehicle_interface.hpp>
+#include <vehicle_interface/can_interface.hpp>
 #include <image_preprocessing/image_preprocessor.hpp>
 #include <logging/logger.hpp>
 #include <models/inference.hpp>
 #include <planning/planning.hpp>
 #include <visualization/visualization.hpp>
 #include <debug/debug_draw.hpp>
-
-#include <camera_interface/frame_source.hpp>
-
-#include <chrono>
-#include <memory>
-#include <string>
-#include <thread>
-#include <vehicle_interface/vehicle_interface.hpp>
-#include <vehicle_interface/can_interface.hpp>
 
 #if ENABLE_ROS2_INTERFACE
 #include <rclcpp/rclcpp.hpp>
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     const cv::Size net_size(vm::AutoDrive::NET_W, vm::AutoDrive::NET_H);
     cv::Mat frame, warped, resized;
     bool h_resized_set = false;
-
+    cv::Mat H = load_matrix("H_open_lane.yaml", "H");
     while (true)
     {
         auto [ok, frame] = source->get_latest_frame();
@@ -105,7 +105,7 @@ int main(int argc, char** argv)
         // back to world when those networks run on the plain-resized image.
         if (!h_resized_set)
         {
-            pipeline.set_H_resized(preprocessor.C_mat(), frame_size);
+            pipeline.set_H_resized(H, frame_size);
             h_resized_set = true;
         }
 

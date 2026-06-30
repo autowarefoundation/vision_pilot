@@ -101,23 +101,31 @@ static const cv::Matx33d kV(
      0.00662758637, -0.000352940531, -3.33396502,
      0.000120077371, -0.00411343505,  1.0);
 
-void InferencePipeline::set_H_resized(const cv::Mat& C, cv::Size raw_size)
+void InferencePipeline::set_H_resized(const cv::Mat& H, cv::Size raw_size)
 {
     // H_resized: resized_px → world
     //   world = V × C × raw_px
     //   raw_px = inv(T_resize) × resized_px   where T_resize scales raw to 1024×512
     //   ⟹  H_resized = V × C × inv(T_resize)
-    cv::Mat C64;
-    C.convertTo(C64, CV_64F);
+    cv::Mat H64;
+    H.convertTo(H64, CV_64F);
+
+    int input_image_w = raw_size.width;
+    int input_image_h = raw_size.height;
+    double crop_h = (input_image_h - input_image_w / 2) / 2;
 
     const double sx = 1024.0 / raw_size.width;
     const double sy =  512.0 / raw_size.height;
     // inv(T_resize) — maps 1024×512 px back to raw px
-    const cv::Matx33d T_inv(1.0/sx, 0,      0,
-                             0,      1.0/sy,  0,
-                             0,      0,       1);
+    // const cv::Matx33d T_inv(1.0/sx, 0,      0,
+    //                          0,      1.0/sy,  0,
+    //                          0,      0,       1);
 
-    const cv::Mat H_resized = cv::Mat(kV) * C64 * cv::Mat(T_inv);
+    const cv::Matx33d T(1.0, 0,    0,
+                        0,   1.0,  crop_h,
+                        0,   0,    1);
+
+    const cv::Mat H_resized = H64 * cv::Mat(T);
 
     H_resized_ = H_resized.clone();
     cv::Mat H64_inv = H_resized.inv();   // MatExpr → cv::Mat
