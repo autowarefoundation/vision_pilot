@@ -16,9 +16,14 @@ namespace visualization {
 // Build from pipeline output + plan, then call render() or use visualize().
 
 struct ProductionView {
-    double               ego_speed_ms = 0.0;
-    double               acceleration = 0.0;
+    double               ego_speed_ms   = 0.0;
+    double               speed_limit_ms = 0.0;   // 0 = not shown
+    double               acceleration   = 0.0;
     std::vector<uint8_t> warnings;   // Warning enum values (FCW=1 … RLDW=4)
+
+    // AutoDrive-only CIPO: AD detects in-path object but AutoSpeed has no bbox.
+    bool  ad_cipo_only  = false;
+    float ad_distance_m = 0.f;
 
     float path_a       = 0.f;
     float path_b       = 0.f;
@@ -56,7 +61,8 @@ struct ProductionView {
         const visionpilot::models::InferenceFrameResult& result,
         const Plan& plan,
         double ego_speed_ms,
-        const cv::Mat& H_resized = {});
+        const cv::Mat& H_resized = {},
+        double speed_limit_ms = 0.0);
 
     // Draw production UI onto the display frame and show the window.
     // frame should be the resized frame when H_resized was supplied to from().
@@ -68,7 +74,8 @@ struct ProductionView {
         const visionpilot::models::InferenceFrameResult& result,
         const Plan& plan,
         double ego_speed_ms,
-        const cv::Mat& H_resized = {});
+        const cv::Mat& H_resized = {},
+        double speed_limit_ms = 0.0);
 };
 
 struct Config
@@ -97,7 +104,8 @@ public:
         const visionpilot::models::InferenceFrameResult& result,
         const Plan& plan,
         double ego_speed_ms,
-        const cv::Mat& H_resized);
+        const cv::Mat& H_resized,
+        double speed_limit_ms = 0.0);
     bool render_frame(const cv::Mat& display_frame);
 };
 
