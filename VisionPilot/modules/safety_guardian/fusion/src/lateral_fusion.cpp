@@ -51,6 +51,7 @@ LateralFusionEstimate LateralFusion::update(
             path = fit_ransac(pts);
     }
 
+
         est.path_valid         = path.valid;
         est.raw_cte_m          = path.cte_m;
         est.raw_yaw_rad        = path.yaw_rad;
