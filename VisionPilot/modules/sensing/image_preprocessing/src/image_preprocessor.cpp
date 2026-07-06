@@ -13,8 +13,10 @@ void ImagePreprocessor::preprocess(const cv::Mat& image, cv::Mat& warped_image, 
     cv::warpPerspective(image, warped_image, C_, cv::Size(1024, 512), cv::INTER_LINEAR,
                         cv::BORDER_REFLECT_101);
 
-    int crop_h = (image.rows - image.cols / 2) / 2;
-    cv::Rect roi(0, crop_h, image.cols, image.rows - 2 * crop_h);
-    cv::Mat cropped_image = image(roi);
-    cv::resize(cropped_image, resized_image, size);
+    // AutoSteer / AutoSpeed: top-crop to 2:1 → resize 1024×512
+    // (matches Python --preprocess top-crop-2-1 / auto_steer_infer.py).
+    const int crop_top = compute_top_crop_2_1(image.rows, image.cols);
+    const cv::Rect roi(0, crop_top, image.cols, image.rows - crop_top);
+    cv::Mat cropped = image(roi);
+    cv::resize(cropped, resized_image, size, 0, 0, cv::INTER_LINEAR);
 }
