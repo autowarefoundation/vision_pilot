@@ -29,6 +29,7 @@
 </div>
 
 ## Free and fully open-source stack for L2 ADAS
+[![Watch the Video](/Media/Vision_Pilot_Thumbnail.jpg)](https://drive.google.com/file/d/1nJQ5xLiCqsnPttvqt_wOGcxjFzFIPidl/preview)
 <img src="/Media/hero_GIF.gif" width="100%">
 
 **This codebase contains a productionizable and safety certifiable implementation of an open-source L2 ADAS system called Vision Pilot.**
@@ -59,12 +60,21 @@ We utilize a **Hybrid End-to-End AI Architecture** as the core of Vision Pilot i
 
 <img src="/Media/VisionPilot_architecture.png" width="100%">
 
+Specifically, Vision Pilot leverages three open-source AI models developed by the Autoware Foundation, these are:
+
+1. [AutoSpeed](https://github.com/autowarefoundation/auto_speed) - Closest in-path object detection
+2. [AutoSteer](https://github.com/autowarefoundation/auto_steer) - Ego path future waypoint detection
+3. [AutoDrive](https://github.com/autowarefoundation/auto_drive) - End to End distance/in-path object presence detection and road curvature estimation
+
 ### No Reliance on High Definition Maps
-**We do not require 3D high definition maps**. Vision Pilot operates in a 'mapless' mode to follow the road geometry in real-time.
+**Vision Pilot does not require 3D high definition maps** and operates in a 'mapless' mode to follow the road in real-time.
 
 ## Getting Started
 
-### How to download and build Vision Pilot
+There are two ways you can build and run Vision Pilot - we provide example data which you can use for visualization and evaluation, select either Option-1 or Option-2 from the drop down options below:
+
+<details>
+<summary><b>Option 1 - Download and build from source</b></summary>
 
 To get started with the project, download the source code from:
 ```bash
@@ -126,8 +136,12 @@ Run VisionPilot from inside `build` directory
 ```
 ./VisionPilot
 ```
+</details>
 
-### Install Vision Pilot from a prebuilt binary
+<details>
+<summary><b>Option 2 - Use the pre-built Debian pacakge</b></summary>
+
+### Install from the pre-built Debian package
 
 This method is recommended in case new system installation and cuda dependencies are not installed yet.
 
@@ -174,14 +188,11 @@ Run VisionPilot from the command line
 ```
 VisionPilot
 ```
-
-### Coming Soon:
-
-- How to run Vision Pilot with simulators
-- How to run Vision Pilot with your own camera on a real vehicle
+</details>
 
 ## Roadmap
-
+- Guide on how to run Vision Pilot with simulators
+- Guide on how to run Vision Pilot with your own camera on a real vehicle or with pre-recorded data
 - Containerization of Vision Pilot
 - Simulation integration guide
 - Automotive Hardware, Automotive 
