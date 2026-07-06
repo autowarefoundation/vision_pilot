@@ -38,7 +38,7 @@ Vision Pilot is designed to be integrated with automotive OEMs and Tier-1 suppli
 We offer the complete codebase as free and fully open-source, including AI model weights to help democratize access to this vital technology. Vision Pilot is available under the persmissive Apache 2.0 licence and can freely be used for both commercial and research purposes.
 
 
-<img src="/Media/VisionPilot.png" width="100%">
+<img src="/Media/VisionPilot_1.0.png" width="100%">
 
 Vision Pilot is designed to support basic/entry L2 ADAS features for in-lane autonomous driving including the following features:
 
@@ -67,6 +67,9 @@ Specifically, Vision Pilot leverages three open-source AI models developed by th
 
 ### No Reliance on High Definition Maps
 **Vision Pilot does not require 3D high definition maps** and operates in a 'mapless' mode to follow the road in real-time.
+
+### Presentation
+For more information about Vision Pilot, please view our introductory presentation at this [link](https://canva.link/qjz6rwp40v7apft)
 
 ## Getting Started
 
