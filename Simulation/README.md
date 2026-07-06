@@ -140,8 +140,6 @@ VisionPilot internally crops the frame to 1280 × 640 (top 420 rows removed), gi
 
 To view or change camera settings in SodaSim: select the ego vehicle → `Open Vehicle Components` → expand `Camera Sensors` → select the camera → edit `Publishing` (ROS 2) and `Camera Sensor` (image) parameters.
 
-![Camera publisher settings](media/camera_publisher_settings.png)
-
 ---
 
 ### Homography calibration
