@@ -141,7 +141,7 @@ int main(int argc, char** argv)
     bool h_resized_set = false;
     cv::Mat H = load_matrix("H.yaml", "H");
     int frame_number = 0;
-    std::vector<double> speeds = readSpeeds("/data/DEVELOPMENT/AUTONOMOUS/AUTOWARE/TEST/test_open_lane_1/frame_speed.txt");
+    std::vector<double> speeds = readSpeeds("<INPUT_VEHICLE_SPEED_FILE_PATH>");
     while (true)
     {
         auto [ok, frame] = camera_interface->get_latest_frame();
