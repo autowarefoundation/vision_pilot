@@ -63,7 +63,7 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/config
 add_subdirectory(app)
 
 set(CPACK_PACKAGE_VENDOR       "Autoware Foundation")
-set(CPACK_PACKAGE_CONTACT      "atanasko.mitrev@autoware.org, pranav.doma@autoware.org, tran.huy@autoware.org")
+set(CPACK_PACKAGE_CONTACT      "zain.khawaja@autoware.org, atanasko.mitrev@autoware.org, pranav.doma@autoware.org, tran.huy@autoware.org")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "VisionPilot 1.0")
 
