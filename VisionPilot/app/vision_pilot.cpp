@@ -22,6 +22,7 @@
 
 #if ENABLE_ROS2_INTERFACE
 #include <rclcpp/rclcpp.hpp>
+#include <camera_subscriber/ros2_to_opencv.hpp>
 #include <vehicle_ros2_interface/vehicle_ros2_interface.hpp>
 #endif
 
@@ -52,7 +53,8 @@ int main(int argc, char** argv)
     std::shared_ptr<VehicleInterface> vehicle_interface;
 #ifdef ENABLE_ROS2_INTERFACE
     rclcpp::init(argc, argv);
-    camera_interface = std::make_unique<ROS2ImageSubscriber>(cfg.input_camera_topic);
+    camera_interface = std::make_unique<camera_interface::ROS2ImageSubscriber>(
+        cfg.source.input_camera_topic);
     vehicle_interface = std::make_shared<VehicleRos2Interface>(cfg.vehicle_speed_topic,
                                                                cfg.vehicle_steering_topic,
                                                                cfg.vehicle_acceleration_topic);
