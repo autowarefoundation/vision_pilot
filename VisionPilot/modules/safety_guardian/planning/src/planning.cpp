@@ -4,21 +4,13 @@
 
 Planner::Planner(const double speed_limit, const double Lf)
     : Lf_(Lf)
-      , cfg_(load_config(speed_limit))
-      , longitudinal_planner(cfg_)
+      , longitudinal_planner([&]
+      {
+          LongitudinalPlanner::Config c;
+          c.speed_limit = speed_limit;
+          return c;
+      }())
 {
-}
-
-LongitudinalPlanner::Config Planner::load_config(const double speed_limit)
-{
-    LongitudinalPlanner::Config cfg;
-    cfg.speed_limit = speed_limit;
-    cfg.a = 1.5;
-    cfg.b = 3.0;
-    cfg.T = 1.5;
-    cfg.s0 = 2.0;
-    cfg.delta = 4.0;
-    return cfg;
 }
 
 Plan Planner::compute_plan(
@@ -104,10 +96,16 @@ Plan Planner::compute_plan(
 
     // WARNINGS
     std::vector<Warning> warnings;
-    // LDW
-    if (cte > 1.0 || cte < -1.0)
+    // LLDW
+    if (cte < -0.5)
     {
-        warnings.push_back(Warning::LDW);
+        warnings.push_back(Warning::LLDW);
+    }
+
+    // RLDW
+    if (cte > 0.5)
+    {
+        warnings.push_back(Warning::RLDW);
     }
 
     // FCW

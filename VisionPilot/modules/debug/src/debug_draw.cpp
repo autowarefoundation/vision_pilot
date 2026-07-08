@@ -1,6 +1,6 @@
 #include <debug/debug_draw.hpp>
 
-
+#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 
@@ -559,14 +559,20 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 
-void annotate_frame(cv::Mat& frame, const DebugView& view)
+void annotate_frame(cv::Mat& frame, const DebugView& view,
+                    const cv::Mat& H_world_to_px)
 {
-    {
+    // Resolve which H to use for fused-path back-projection:
+    //   • if caller supplies one (resized-frame mode), use it directly.
+    //   • otherwise fall back to the hardcoded warped-BEV inverse.
+    cv::Mat H_use = H_world_to_px;
+    if (H_use.empty()) {
         std::lock_guard<std::mutex> lock(g_homo_mu);
         if (!g_homo_tried) {
             g_homo_tried     = true;
             g_H_world_to_img = load_homography_inv();
         }
+        H_use = g_H_world_to_img;
     }
 
     const OverlayLayout layout = layout_for(frame);
@@ -574,7 +580,7 @@ void annotate_frame(cv::Mat& frame, const DebugView& view)
     // Scene overlays (paths, boxes) — drawn first
     draw_autospeed_detections(frame, view.auto_speed);
     draw_autosteer_ego_path(frame, view.auto_steer);
-    draw_fused_path_on_image(frame, view.lateral, g_H_world_to_img);
+    draw_fused_path_on_image(frame, view.lateral, H_use);
 
     // Chrome: legend, BEV, wheels, bars (on top, fixed zones)
     draw_legend(frame, layout, view);
@@ -582,6 +588,22 @@ void annotate_frame(cv::Mat& frame, const DebugView& view)
     draw_steering_wheels(frame, view);
     draw_top_bar(frame, view);
     draw_hud_panel(frame, view, layout);
+}
+
+bool visualize(cv::Mat& frame,
+               const models::InferenceFrameResult& result,
+               const std::string& src_label,
+               const std::string& wheel_dir,
+               const cv::Mat& H_world_to_px)
+{
+    if (frame.empty()) return false;
+    auto dv = debug_view_from(result, src_label, wheel_dir);
+    annotate_frame(frame, dv, H_world_to_px);
+    cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
+    cv::resizeWindow("VisionPilot", frame.cols, frame.rows);
+    cv::imshow("VisionPilot", frame);
+    cv::waitKey(1);
+    return true;
 }
 
 }  // namespace visionpilot::debug

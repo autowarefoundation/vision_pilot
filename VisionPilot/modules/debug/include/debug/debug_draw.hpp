@@ -58,9 +58,22 @@ inline DebugView debug_view_from(
 void init_wheel_assets(const std::string& wheel_dir);
 void init_homography();
 
-// Draws onto 1024×512 BGR frame with fixed layout zones:
+// Draws onto a 1024×512 BGR frame with fixed layout zones:
 //   • Green = AutoSteer waypoints; yellow = fused path (image + BEV inset)
 //   • Top-left legend; bottom-right BEV; bottom strip = 3-column telemetry
-void annotate_frame(cv::Mat& frame, const DebugView& view);
+//
+// H_world_to_px: world → display-pixel homography for projecting the fused
+//   path onto the frame.  When supplied (resized-frame mode) it replaces the
+//   internal hardcoded warped-BEV homography.
+void annotate_frame(cv::Mat& frame, const DebugView& view,
+                    const cv::Mat& H_world_to_px = {});
+
+// One-shot helper — mirrors visualization::ProductionView::visualize().
+// Builds a DebugView from result, annotates frame, and shows the window.
+bool visualize(cv::Mat& frame,
+               const models::InferenceFrameResult& result,
+               const std::string& src_label,
+               const std::string& wheel_dir,
+               const cv::Mat& H_world_to_px = {});
 
 }  // namespace visionpilot::debug

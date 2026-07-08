@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>carla_msgs</name>
+  <version>0.0.1</version>
+  <description>
+    Minimal CARLA message definitions (CarlaEgoVehicleControl) used by the
+    VisionPilot CARLA bridge. Message definition derived from
+    carla-simulator/ros-carla-msgs (MIT) so it interoperates with CARLA's
+    native --ros2 DDS by type compatibility.
+  </description>
+  <maintainer email="noreply@example.com">visionpilot</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <depend>std_msgs</depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -7,8 +7,7 @@ find_package(OpenCV REQUIRED COMPONENTS core videoio)
 
 add_library(camera_interface
         src/v4l2_camera_interface.cpp
-        src/video_file_interface.cpp
-        src/frame_source.cpp
+        src/file_interface.cpp
 )
 
 # Set C++ standard

@@ -23,7 +23,7 @@ V = np.array(
 
 def load_homography_H_matrix(path: Path) -> np.ndarray:
     # Load the homography matrix from the YAML file
-    fs = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
+    fs = cv2.FileStorage(str(path), cv2.FILE_STORAGE_READ)
     H = fs.getNode("H").mat()
     fs.release()
     return H
@@ -47,10 +47,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
-    H = load_homography_H_matrix('../config/H.yaml')
+    H = load_homography_H_matrix(Path('../config/H.yaml'))
     C = find_homography_C_matrix(H)
 
-    # out = args.output or (Path(__file__).resolve().parents[1] / "build/config/homography_C_matrix.yaml")
     out = args.output
     out.parent.mkdir(parents=True, exist_ok=True)
     fs = cv2.FileStorage(str(out.resolve()), cv2.FILE_STORAGE_WRITE)

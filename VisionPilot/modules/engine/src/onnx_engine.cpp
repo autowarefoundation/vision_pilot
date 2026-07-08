@@ -8,7 +8,7 @@
 
 namespace visionpilot::engine {
 
-OnnxEngine::OnnxEngine(const EngineConfig& cfg)
+OnnxEngine::OnnxEngine(const Config& cfg)
     : env_(ORT_LOGGING_LEVEL_WARNING, "VisionPilot")
     , cfg_(cfg)
 {

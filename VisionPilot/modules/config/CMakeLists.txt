@@ -9,6 +9,10 @@ target_include_directories(config
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+if (ENABLE_ROS2_INTERFACE)
+    target_compile_definitions(config PUBLIC ENABLE_ROS2_INTERFACE)
+endif()
+
 target_link_libraries(config
     PUBLIC
     engine   # for visionpilot::engine::EngineConfig in VisionPilotConfig

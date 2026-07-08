@@ -11,35 +11,55 @@ enum class SourceMode { Ros2 = 0, V4l2 = 1, Video = 2 };
 
 struct SourceConfig {
     SourceMode  mode         = SourceMode::Video;
-    std::string video_path;
+    std::string input_video;
+    std::string input_vehicle_speed;
+    std::string dataset;
     bool        video_realtime = true;
     bool        video_loop     = false;
-    std::string ros2_topic   = "/camera/image";
+    std::string input_camera_topic   = "/camera/image";
     std::string v4l2_device  = "/dev/video0";
     int         v4l2_fps     = 10;
 };
 
-struct PipelineConfig {
-    bool initial_inference_check = true;
-};
+// struct PipelineConfig {
+//     bool initial_inference_check = true;
+// };
 
-struct VisionPilotConfig {
-    vpe::EngineConfig engine;
-    vpm::InferenceConfig inference;
+struct Config {
+    vpe::Config engine;
+    vpm::Config inference;
     SourceConfig      source;
-    PipelineConfig    pipeline;
+    // PipelineConfig    pipeline;
     // Print per-frame fusion debug logs
     bool              fusion_debug   = false;
     // Directory with wheel_white.png / wheel_green.png for steering HUD
     std::string       wheel_dir;
 
+    std::string vehicle_speed_topic;
+    std::string vehicle_steering_topic;
+    std::string vehicle_acceleration_topic;
+
     double speed_limit;
     double Lf;
+
+    bool visualization_on = false;
+    bool webrtc_on = false;
+    int webrtc_port;
 };
+
+static std::string find_config(const std::string& filename) {
+    const std::string local  = "config/" + filename;
+    const std::string system = "/usr/share/visionpilot/config/" + filename;
+
+    if (std::filesystem::exists(local))  return local;
+    if (std::filesystem::exists(system)) return system;
+
+    throw std::runtime_error("Config file not found: " + filename);
+}
 
 // Load from key=value .conf file. Expands ~ to $HOME.
 // Throws std::runtime_error on missing or invalid config.
-VisionPilotConfig load_vision_pilot_config(const std::string& config_path);
+Config load_vision_pilot_config();
 
 // Resolve config path from --config <path>, VISIONPILOT_CONFIG env var,
 // or default candidates. Returns empty string if nothing found.

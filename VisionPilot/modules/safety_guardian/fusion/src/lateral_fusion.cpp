@@ -30,6 +30,8 @@ void LateralFusion::reset()
 {
     cy_.clear();  cy_init_ = false;
     k_.clear();   k_init_  = false;
+    poly_kf_ = PolyKF{};
+    kf_      = KFState{};
 }
 
 // ─── Public update ────────────────────────────────────────────────────────────
@@ -51,16 +53,57 @@ LateralFusionEstimate LateralFusion::update(
             path = fit_ransac(pts);
     }
 
-        est.path_valid         = path.valid;
-        est.raw_cte_m          = path.cte_m;
-        est.raw_yaw_rad        = path.yaw_rad;
-        est.raw_path_curvature = path.curvature;
-        est.path_inliers       = path.inliers;
-        est.path_a             = path.a;
-        est.path_b             = path.b;
-        est.path_c             = path.c;
-        est.path_x_min_m       = path.x_min_m;
-        est.path_x_max_m       = path.x_max_m;
+    // Record raw RANSAC outputs for debug.
+    est.path_valid         = path.valid;
+    est.raw_cte_m          = path.cte_m;
+    est.raw_yaw_rad        = path.yaw_rad;
+    est.raw_path_curvature = path.curvature;
+    est.path_inliers       = path.inliers;
+    est.path_x_min_m       = path.x_min_m;
+    est.path_x_max_m       = path.x_max_m;
+
+    // ── Step 2b: Polynomial-coefficient Kalman smoother ─────────────────────
+    //  Always predict (P grows when path is missing so KF re-acquires quickly).
+    //  Update only when RANSAC succeeded.  The smoothed (sa, sb, sc) coefficients
+    //  are used downstream for BOTH the PF measurements AND the visualization.
+    //  This is the primary fix for sudden path jumps at lane merges.
+    if (poly_kf_.init)
+        poly_kf_predict(dt);
+
+    if (path.valid) {
+        const float quality = static_cast<float>(path.inliers) /
+                              std::max(1.f, static_cast<float>(cfg_.ransac_min_inliers));
+        if (!poly_kf_.init) {
+            poly_kf_.x[0] = path.a;
+            poly_kf_.x[1] = path.b;
+            poly_kf_.x[2] = path.c;
+            poly_kf_.P[0] = cfg_.poly_meas_R_a;
+            poly_kf_.P[1] = cfg_.poly_meas_R_b;
+            poly_kf_.P[2] = cfg_.poly_meas_R_c;
+            poly_kf_.init = true;
+        } else {
+            poly_kf_update(path.a, path.b, path.c, quality);
+        }
+    }
+
+    // Use smoothed polynomial for everything downstream; fall back to raw if KF
+    // not yet initialised (very first frame or after a long gap).
+    const float sa = poly_kf_.init ? poly_kf_.x[0] : path.a;
+    const float sb = poly_kf_.init ? poly_kf_.x[1] : path.b;
+    const float sc = poly_kf_.init ? poly_kf_.x[2] : path.c;
+
+    // Derive smoothed CTE, yaw, curvature from the smoothed polynomial.
+    const float x_ref         = path.x_min_m;
+    const float smooth_cte    = eval_quad(sa, sb, sc, x_ref);
+    const float dydx_smooth   = 2.f * sa * x_ref + sb;
+    const float smooth_yaw    = std::atan(dydx_smooth);
+    const float denom         = std::pow(1.f + dydx_smooth * dydx_smooth, 1.5f);
+    const float smooth_curv   = (denom > 1e-6f) ? (2.f * sa / denom) : 0.f;
+
+    // Set visualization path to the smoothed polynomial coefficients.
+    est.path_a = sa;
+    est.path_b = sb;
+    est.path_c = sc;
 
     // ── Step 3: AutoDrive curvature ───────────────────────────────────────────
     float ad_curv = 0.f;
@@ -72,27 +115,30 @@ LateralFusionEstimate LateralFusion::update(
     }
 
     // ── Step 4: CTE / Yaw particle filter ────────────────────────────────────
-    if (path.valid) {
+    //  Feed the PF the SMOOTHED CTE/yaw so it doesn't jump at merges.
+    if (poly_kf_.init && (path.valid || cy_init_)) {
+        // Apply camera mounting offset correction before feeding the filter.
+        const float corrected_cte = smooth_cte - cfg_.cte_bias_m;
         if (!cy_init_) {
-            cy_init(path.cte_m, path.yaw_rad);
-        } else {
+            cy_init(corrected_cte, smooth_yaw);
+        } else if (path.valid) {
             cy_predict(dt);
-            cy_update(path.cte_m, cfg_.meas_noise_cte_m,
-                      path.yaw_rad, cfg_.meas_noise_yaw_rad);
+            cy_update(corrected_cte, cfg_.meas_noise_cte_m,
+                      smooth_yaw, cfg_.meas_noise_yaw_rad);
             if (cy_eff_n() < 0.5f * static_cast<float>(cfg_.n_particles))
                 cy_resample();
         }
     }
 
     // ── Step 5: Curvature particle filter ────────────────────────────────────
-    // Initialise from whichever source is available first.
+    // Feed the PF the SMOOTHED curvature from the polynomial KF.
     if (!k_init_) {
-        if      (path.valid)    k_init(path.curvature);
+        if      (poly_kf_.init) k_init(smooth_curv);
         else if (ad_curv_valid) k_init(ad_curv);
     } else {
         k_predict(dt);
-        if (path.valid)    k_update(path.curvature, cfg_.meas_noise_curv_path);
-        if (ad_curv_valid) k_update(ad_curv,        cfg_.meas_noise_curv_ad);
+        if (poly_kf_.init && path.valid) k_update(smooth_curv, cfg_.meas_noise_curv_path);
+        if (ad_curv_valid)               k_update(ad_curv,     cfg_.meas_noise_curv_ad);
         if (k_eff_n() < 0.5f * static_cast<float>(cfg_.n_particles))
             k_resample();
     }
@@ -134,25 +180,68 @@ LateralFusionEstimate LateralFusion::update(
         est.valid       = true;
     }
 
-    // ── Step 7: Debug log ─────────────────────────────────────────────────────
+    // ── Step 7: Rao-Blackwellized Kalman smoother on PF posterior ─────────────
+    //  Always predict (grows P when no measurement arrives).
+    //  Update only when RANSAC path is valid — that is when we have a fresh,
+    //  geometrically consistent measurement.  During missing-path frames the KF
+    //  just predicts forward, preventing the PF's raw estimate from snapping.
+    if (kf_.init)
+        kf_predict(dt);
+
+    if (est.valid) {
+        if (!kf_.init) {
+            kf_.x[0] = est.cte_m;
+            kf_.x[1] = est.yaw_rad;
+            kf_.x[2] = est.curvature;
+            // Bootstrap P from PF posterior variance (generous lower bound)
+            kf_.P[0] = std::max(est.cte_stddev_m   * est.cte_stddev_m,   0.25f);
+            kf_.P[1] = std::max(est.yaw_stddev_rad * est.yaw_stddev_rad,  0.01f);
+            kf_.P[2] = std::max(est.curv_stddev    * est.curv_stddev,     cfg_.kf_meas_R_curv_min);
+            kf_.init = true;
+        } else if (path.valid) {
+            // Measurement = PF posterior mean; noise = PF posterior variance.
+            // High PF variance  → low KF gain → KF barely reacts (e.g. mid-merge).
+            // Low  PF variance  → high KF gain → KF follows quickly (converged lane).
+            const float z[3] = {est.cte_m, est.yaw_rad, est.curvature};
+            const float R[3] = {
+                std::max(est.cte_stddev_m   * est.cte_stddev_m,   1e-4f),
+                std::max(est.yaw_stddev_rad * est.yaw_stddev_rad,  1e-6f),
+                std::max(est.curv_stddev    * est.curv_stddev,     cfg_.kf_meas_R_curv_min),
+            };
+            kf_update(z, R);
+        }
+        // Replace PF posterior with KF-smoothed output
+        est.cte_m     = kf_.x[0];
+        est.yaw_rad   = kf_.x[1];
+        est.curvature = kf_.x[2];
+    }
+
+    // ── Step 8: Debug log ─────────────────────────────────────────────────────
     if (cfg_.debug) {
-        char path_buf[64], ad_buf[32];
+        char path_buf[128], poly_buf[96], ad_buf[32];
         if (path.valid)
             std::snprintf(path_buf, sizeof(path_buf),
-                          "CTE=%.2fm  yaw=%.3frad  κ=%.4f  (%d pts)",
+                          "raw(CTE=%.2fm yaw=%.3frad κ=%.4f, %d pts)",
                           path.cte_m, path.yaw_rad, path.curvature, path.inliers);
         else
-            std::snprintf(path_buf, sizeof(path_buf), "(no path fit, %d pts)", est.path_points);
+            std::snprintf(path_buf, sizeof(path_buf), "(no path, %d pts)", est.path_points);
+
+        if (poly_kf_.init)
+            std::snprintf(poly_buf, sizeof(poly_buf),
+                          "poly-KF(CTE=%.2fm yaw=%.3frad κ=%.4f P_c=%.4f)",
+                          smooth_cte, smooth_yaw, smooth_curv, poly_kf_.P[2]);
+        else
+            std::snprintf(poly_buf, sizeof(poly_buf), "poly-KF(uninit)");
 
         if (ad_curv_valid)
-            std::snprintf(ad_buf, sizeof(ad_buf), "%.4f (raw=%.4f)",
-                          ad_curv, drive.curvature_raw);
+            std::snprintf(ad_buf, sizeof(ad_buf), "%.4f", ad_curv);
         else
             std::snprintf(ad_buf, sizeof(ad_buf), "(none)");
 
-        VP_INFO("[Lateral] Path: %s | AD-κ=%s | Fused CTE=%.2fm yaw=%.3frad κ=%.4f",
-                path_buf, ad_buf,
-                est.cte_m, est.yaw_rad, est.curvature);
+        VP_INFO("[Lateral] %s | %s | AD-κ=%s | out CTE=%.2fm yaw=%.3frad κ=%.4f  KF-P=[%.3f %.4f %.6f]",
+                path_buf, poly_buf, ad_buf,
+                est.cte_m, est.yaw_rad, est.curvature,
+                kf_.P[0], kf_.P[1], kf_.P[2]);
     }
 
     return est;
@@ -312,16 +401,22 @@ LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts,
     p.b = sol.at<float>(1);
     p.c = sol.at<float>(2);
 
-    p.cte_m   = p.c;
-    p.yaw_rad = std::atan(p.b);
-    p.curvature = sample_path_curvature(pts, p.a, p.b, curv_x_min_m, curv_x_max_m);
-
+    // Find x range of actual data first so CTE is evaluated there, not extrapolated to x=0.
     p.x_min_m = pts[0].x;
     p.x_max_m = pts[0].x;
     for (const auto& pt : pts) {
         p.x_min_m = std::min(p.x_min_m, pt.x);
         p.x_max_m = std::max(p.x_max_m, pt.x);
     }
+
+    // Evaluate CTE and yaw at x_min_m (closest observed waypoint) — avoids
+    // extrapolating back to x=0 where there is no actual data.
+    const float x_ref   = p.x_min_m;
+    const float dydx    = 2.f * p.a * x_ref + p.b;   // polynomial slope at x_ref
+    p.cte_m   = eval_quad(p.a, p.b, p.c, x_ref);
+    p.yaw_rad = std::atan(dydx);
+    p.curvature = sample_path_curvature(pts, p.a, p.b, curv_x_min_m, curv_x_max_m);
+
     return p;
 }
 
@@ -400,6 +495,69 @@ float LateralFusion::k_eff_n() const
 }
 
 void LateralFusion::k_resample() { systematic_resample(k_); }
+
+// ─── Rao-Blackwellized Kalman smoother ────────────────────────────────────────
+// ─── Polynomial-coefficient Kalman smoother ────────────────────────────────────
+//  Smooths raw RANSAC (a, b, c) before they drive the PF and visualization.
+//  Prevents sudden path-corridor jumps during lane merges.
+//  Random-walk process: F = I,  Q = diag(proc²·dt),  H = I.
+//
+void LateralFusion::poly_kf_predict(float dt)
+{
+    const float q[3] = {
+        cfg_.poly_proc_a_s * cfg_.poly_proc_a_s * dt,
+        cfg_.poly_proc_b_s * cfg_.poly_proc_b_s * dt,
+        cfg_.poly_proc_c_s * cfg_.poly_proc_c_s * dt,
+    };
+    for (int i = 0; i < 3; ++i)
+        poly_kf_.P[i] += q[i];
+}
+
+// quality = actual_inliers / ransac_min_inliers ≥ 1.
+// More inliers → smaller effective R → KF follows the fit faster.
+void LateralFusion::poly_kf_update(float a, float b, float c, float quality)
+{
+    // Scale base measurement noise inversely with inlier quality.
+    // quality ≥ 1 always, so R only decreases (fit is more reliable).
+    const float iq = 1.f / std::max(quality, 1.f);
+    const float R[3] = {
+        cfg_.poly_meas_R_a * iq,
+        cfg_.poly_meas_R_b * iq,
+        cfg_.poly_meas_R_c * iq,
+    };
+    const float z[3] = {a, b, c};
+    for (int i = 0; i < 3; ++i) {
+        const float K    = poly_kf_.P[i] / (poly_kf_.P[i] + R[i] + 1e-12f);
+        poly_kf_.x[i]  += K * (z[i] - poly_kf_.x[i]);
+        poly_kf_.P[i]  *= (1.f - K);
+    }
+}
+
+// ─── Rao-Blackwellized Kalman smoother (post-PF scalar smoother) ───────────────
+//  Random-walk process: x_{k|k-1} = x_{k-1},  P_{k|k-1} = P_{k-1} + Q
+//  Measurement:         H = I  →  K = P / (P + R),  simple scalar update per state.
+//
+void LateralFusion::kf_predict(float dt)
+{
+    // Q_i = (proc_noise_i_per_s)² · dt  — grow uncertainty proportional to elapsed time
+    const float q[3] = {
+        cfg_.kf_proc_cte_m_s   * cfg_.kf_proc_cte_m_s   * dt,
+        cfg_.kf_proc_yaw_rad_s * cfg_.kf_proc_yaw_rad_s * dt,
+        cfg_.kf_proc_curv_s    * cfg_.kf_proc_curv_s    * dt,
+    };
+    for (int i = 0; i < 3; ++i)
+        kf_.P[i] += q[i];
+    // x_{k|k-1} = x_{k-1}  (identity transition)
+}
+
+void LateralFusion::kf_update(const float z[3], const float R[3])
+{
+    for (int i = 0; i < 3; ++i) {
+        const float K    = kf_.P[i] / (kf_.P[i] + R[i] + 1e-9f);
+        kf_.x[i]        += K * (z[i] - kf_.x[i]);
+        kf_.P[i]        *= (1.f - K);
+    }
+}
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 

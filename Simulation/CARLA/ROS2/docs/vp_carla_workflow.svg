@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="900" viewBox="0 0 1320 900" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="aRed" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#c0392b"/></marker>
+    <marker id="aGreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#138d75"/></marker>
+    <marker id="aBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#2471a3"/></marker>
+    <marker id="aGray" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#7d6608"/></marker>
+  </defs>
+  <rect width="1320" height="900" fill="#ffffff"/>
+  <text x="660" y="36" text-anchor="middle" font-size="23" font-weight="bold" fill="#1a1a1a">VisionPilot 1.0 ⇄ CARLA 0.10.0 — camera-only closed-loop drive</text>
+  <text x="660" y="60" text-anchor="middle" font-size="14" fill="#555">3 Docker containers · --net=host · Fast-DDS UDPv4 · CARLA server on host (windowed, --ros2, Town10HD_Opt)</text>
+
+  <!-- ================= VisionPilot container (top row) ================= -->
+  <rect x="30" y="86" width="1260" height="180" rx="14" fill="#fef9e7" stroke="#b7950b" stroke-width="2"/>
+  <text x="50" y="110" font-size="15" font-weight="bold" fill="#9a7d0a">container: visionpilot-drive — VisionPilot binary (ENABLE_ROS2_INTERFACE=ON, CUDA)</text>
+
+  <!-- pipeline stage boxes -->
+  <g font-size="13" text-anchor="middle">
+    <rect x="48"   y="150" width="170" height="86" rx="9" fill="#f9e79f" stroke="#b7950b"/>
+    <text x="133" y="185">camera</text><text x="133" y="203">_subscriber</text><text x="133" y="221" font-size="11" fill="#666">ros2 → cv::Mat</text>
+
+    <rect x="246"  y="150" width="180" height="86" rx="9" fill="#f9e79f" stroke="#b7950b"/>
+    <text x="336" y="180">Image</text><text x="336" y="198">Preprocessor</text><text x="336" y="220" font-size="11" fill="#666">homography C → 1024×512</text>
+
+    <rect x="454"  y="150" width="190" height="86" rx="9" fill="#f6c343" stroke="#b7950b"/>
+    <text x="549" y="180" font-weight="bold">Inference (CUDA)</text><text x="549" y="200" font-size="11">AutoDrive · AutoSteer</text><text x="549" y="216" font-size="11">· AutoSpeed (ONNX)</text>
+
+    <rect x="672"  y="150" width="190" height="86" rx="9" fill="#f9e79f" stroke="#b7950b"/>
+    <text x="767" y="180">Fusion</text><text x="767" y="200" font-size="11" fill="#666">cte / epsi / kappa</text><text x="767" y="216" font-size="11" fill="#666">+ CIPO Kalman</text>
+
+    <rect x="890"  y="150" width="195" height="86" rx="9" fill="#f6c343" stroke="#b7950b"/>
+    <text x="987" y="178" font-weight="bold">Planner ★tuned</text><text x="987" y="198" font-size="11">Lateral MPC</text><text x="987" y="214" font-size="11">+ Longitudinal IDM (smoothed)</text>
+
+    <rect x="1112" y="150" width="158" height="86" rx="9" fill="#f9e79f" stroke="#b7950b"/>
+    <text x="1191" y="182">VehicleRos2</text><text x="1191" y="200">Interface</text><text x="1191" y="218" font-size="10" fill="#666">pub cmd · sub speed</text>
+  </g>
+  <!-- internal pipeline arrows -->
+  <g stroke="#7d6608" stroke-width="2" fill="none" marker-end="url(#aGray)">
+    <line x1="218" y1="193" x2="244" y2="193"/>
+    <line x1="426" y1="193" x2="452" y2="193"/>
+    <line x1="644" y1="193" x2="670" y2="193"/>
+    <line x1="862" y1="193" x2="888" y2="193"/>
+    <line x1="1085" y1="193" x2="1110" y2="193"/>
+  </g>
+
+  <!-- ================= carla-spawn (left middle) ================= -->
+  <rect x="30" y="470" width="250" height="120" rx="14" fill="#eaf2f8" stroke="#2471a3" stroke-width="2"/>
+  <text x="45" y="494" font-size="14" font-weight="bold" fill="#1f618d">container: carla-spawn</text>
+  <rect x="48" y="506" width="214" height="68" rx="9" fill="#aed6f1" stroke="#2471a3"/>
+  <text x="155" y="532" font-size="13" text-anchor="middle">ros_carla_config.py</text>
+  <text x="155" y="550" font-size="11" text-anchor="middle" fill="#555">PythonAPI · async · spawns</text>
+  <text x="155" y="565" font-size="11" text-anchor="middle" fill="#555">hero + main_cam · ticks world</text>
+
+  <!-- ================= carla-bridge (right middle) ================= -->
+  <rect x="900" y="430" width="390" height="200" rx="14" fill="#e8f8f5" stroke="#138d75" stroke-width="2"/>
+  <text x="918" y="454" font-size="14" font-weight="bold" fill="#0e6655">container: carla-bridge (visionpilot_carla_bridge)</text>
+  <rect x="918" y="466" width="354" height="68" rx="9" fill="#a3e4d7" stroke="#138d75"/>
+  <text x="1095" y="492" font-size="13" text-anchor="middle" font-weight="bold">carla_control_relay (ROS 2)</text>
+  <text x="1095" y="510" font-size="11" text-anchor="middle" fill="#444">Float64 cmds → CarlaEgoVehicleControl</text>
+  <text x="1095" y="525" font-size="11" text-anchor="middle" fill="#444">direct accel→throttle map</text>
+  <rect x="918" y="548" width="354" height="64" rx="9" fill="#a3e4d7" stroke="#138d75"/>
+  <text x="1095" y="574" font-size="13" text-anchor="middle">ego_speed_publisher.py</text>
+  <text x="1095" y="592" font-size="11" text-anchor="middle" fill="#444">PythonAPI ego velocity → /vehicle/speed</text>
+
+  <!-- ================= CARLA server (bottom) ================= -->
+  <rect x="30" y="730" width="1260" height="120" rx="14" fill="#fdecea" stroke="#c0392b" stroke-width="2.5"/>
+  <text x="660" y="772" font-size="20" font-weight="bold" text-anchor="middle" fill="#922b21">CARLA 0.10.0 simulator  (native Fast-DDS + PythonAPI)</text>
+  <text x="660" y="800" font-size="14" text-anchor="middle" fill="#922b21">ego: vehicle.lincoln.mkz 'hero'  ·  sensor: main_cam 1280×720 fov60  ·  Town10HD_Opt</text>
+  <text x="660" y="824" font-size="12" text-anchor="middle" fill="#aa4039">publishes camera + accepts CarlaEgoVehicleControl natively over --ros2</text>
+
+  <!-- ================= LOOP ARROWS ================= -->
+  <!-- camera: CARLA -> camera_subscriber (left, red) -->
+  <path d="M120,730 L120,239" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#aRed)"/>
+  <rect x="128" y="300" width="290" height="40" rx="6" fill="#fdecea" stroke="#c0392b" opacity="0.95"/>
+  <text x="138" y="318" font-size="12.5" fill="#922b21" font-weight="bold">①  /carla/hero/main_cam/image</text>
+  <text x="138" y="334" font-size="11" fill="#922b21">sensor_msgs/Image  (camera in)</text>
+
+  <!-- control out: VehicleRos2Interface -> relay (green) -->
+  <path d="M1191,237 L1191,465" stroke="#138d75" stroke-width="2.5" fill="none" marker-end="url(#aGreen)"/>
+  <rect x="930" y="300" width="360" height="56" rx="6" fill="#e8f8f5" stroke="#138d75"/>
+  <text x="940" y="320" font-size="12.5" fill="#0e6655" font-weight="bold">②  /vehicle/steering_cmd (rad)</text>
+  <text x="940" y="336" font-size="12.5" fill="#0e6655" font-weight="bold">     /vehicle/throttle_cmd (m/s²)</text>
+  <text x="940" y="351" font-size="11" fill="#0e6655">std_msgs/Float64  (actuation out)</text>
+
+  <!-- relay -> CARLA (green) -->
+  <path d="M1095,612 L1095,728" stroke="#138d75" stroke-width="2.5" fill="none" marker-end="url(#aGreen)"/>
+  <rect x="930" y="650" width="360" height="56" rx="6" fill="#e8f8f5" stroke="#138d75"/>
+  <text x="940" y="670" font-size="12.5" fill="#0e6655" font-weight="bold">③  /carla/hero/vehicle_control_cmd</text>
+  <text x="940" y="686" font-size="11" fill="#0e6655">carla_msgs/CarlaEgoVehicleControl</text>
+  <text x="940" y="700" font-size="11" fill="#0e6655">→ CARLA actuates the ego</text>
+
+  <!-- CARLA ego velocity -> ego_speed_publisher (blue dashed, PythonAPI) -->
+  <path d="M780,790 C840,790 855,580 916,580" stroke="#2471a3" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#aBlue)"/>
+  <text x="700" y="700" font-size="11" fill="#1f618d">ego velocity (PythonAPI)</text>
+
+  <!-- ego_speed -> VehicleRos2Interface (green) : /vehicle/speed -->
+  <path d="M1271,560 C1300,520 1300,300 1230,237" stroke="#138d75" stroke-width="2.5" fill="none" marker-end="url(#aGreen)"/>
+  <text x="1230" y="420" font-size="12" fill="#0e6655" font-weight="bold" transform="rotate(90 1230 420)">④ /vehicle/speed (Float64)</text>
+
+  <!-- spawn -> CARLA (blue dashed, PythonAPI) -->
+  <path d="M155,590 L155,728" stroke="#2471a3" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#aBlue)"/>
+  <text x="165" y="660" font-size="11" fill="#1f618d">spawn + tick</text>
+  <text x="165" y="675" font-size="11" fill="#1f618d">(PythonAPI)</text>
+
+  <!-- legend -->
+  <g font-size="12">
+    <rect x="300" y="470" width="560" height="120" rx="10" fill="#fbfbfb" stroke="#ccc"/>
+    <text x="316" y="492" font-weight="bold" fill="#333">Closed loop (numbers above):</text>
+    <text x="316" y="514" fill="#333">① CARLA camera ⟶ VisionPilot perception (warp → CUDA inference)</text>
+    <text x="316" y="533" fill="#333">→ fusion (cte/epsi/kappa) → planner (MPC + IDM)</text>
+    <text x="316" y="552" fill="#333">② Float64 steer/throttle ⟶ ③ relay → CarlaEgoVehicleControl → ego moves</text>
+    <text x="316" y="571" fill="#333">④ ego speed fed back to the planner.  ★ = boxes tuned this session.</text>
+  </g>
+</svg>

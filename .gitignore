@@ -9,7 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
-build_docker/
+build_docker*/
 runs/
 develop-eggs/
 dist/
@@ -220,6 +220,8 @@ __marimo__/
 # VisionPilot specific
 3rdparty/
 trt_cache/
+# Generated preprocess C matrix (built from the ground homography by find_homography_C_matrix.py)
+VisionPilot/config/homography_C_matrix.yaml
 Tutorials/E2E_Models/autoware_vision_pilot/
 Tutorials/E2E_Models/weights/
 # Open AD Kit demo assets (downloaded via OpenADKit/download-assets.sh, not tracked)

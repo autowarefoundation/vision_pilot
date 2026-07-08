@@ -17,6 +17,7 @@ target_include_directories(models
 # engine provides OnnxEngine + ORT headers/libs transitively
 target_link_libraries(models
     PUBLIC
+        common
         engine
         fusion
         logging

@@ -1,5 +1,6 @@
 #include <models/inference.hpp>
 
+#include <common/utils.hpp>
 #include <logging/logger.hpp>
 
 #include <opencv2/imgproc.hpp>
@@ -52,6 +53,16 @@ std::vector<float> chw_01(const cv::Mat& bgr)
     return out;
 }
 
+std::string find_model(const std::string& filename) {
+    const std::string local  = "modules/models/weights/" + filename;
+    const std::string system = "/usr/share/visionpilot/modules/models/weights/" + filename;
+
+    if (std::filesystem::exists(local))  return local;
+    if (std::filesystem::exists(system)) return system;
+
+    throw std::runtime_error("Config file not found: " + filename);
+}
+
 }  // namespace
 
 void LatencyStats::update(double pre_, double ad_, double as_, double asp_, double wall_)
@@ -69,38 +80,81 @@ void LatencyStats::print() const
 
 void LatencyStats::reset() { *this = {}; }
 
-InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const InferenceConfig& cfg)
-    : auto_drive_(engine, valid_model_path("modules/models/weights/autodrive_" + cfg.precision + ".onnx"))
-    , auto_steer_(engine, valid_model_path("modules/models/weights/autosteer_" + cfg.precision + ".onnx"))
-    , auto_speed_(engine, valid_model_path("modules/models/weights/autospeed_" + cfg.precision + ".onnx"))
+InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& cfg)
+    : auto_drive_(engine, find_model("autodrive_" + cfg.precision + ".onnx"))
+    , auto_steer_(engine, find_model("autosteer_" + cfg.precision + ".onnx"))
+    , auto_speed_(engine, find_model("autospeed_" + cfg.precision + ".onnx"))
 {
     fusion::LongitudinalFusion::Config lc;
     lc.debug           = cfg.fusion_debug;
     long_fusion_ = fusion::LongitudinalFusion{lc};
 
     fusion::LateralFusion::Config latc;
-    latc.debug           = cfg.fusion_debug;
+    latc.debug      = cfg.fusion_debug;
+    latc.cte_bias_m = cfg.cte_bias_m;
     lat_fusion_ = fusion::LateralFusion{latc};
 }
 
-std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& preprocessed)
+// V matrix — warped BEV 1024×512 → world.  Matches lateral/longitudinal fusion H_.
+// DO NOT MODIFY — must stay in sync with the hardcoded H_ in both fusion modules.
+static const cv::Matx33d kV(
+     0.00209514907, -0.000941721466, -9.24906396,
+     0.00662758637, -0.000352940531, -3.33396502,
+     0.000120077371, -0.00411343505,  1.0);
+
+void InferencePipeline::set_H_resized(const cv::Mat& H, cv::Size raw_size)
+{
+    // H_resized: resized_px → world  (AutoSteer / AutoSpeed path)
+    // Preprocessor: top-crop to 2:1, then resize → 1024×512.
+    //   u_raw = u_r · (raw_w / 1024)
+    //   v_raw = v_r · (crop_h / 512) + crop_top
+    //   world = H × raw_px  ⟹  H_resized = H × T
+    cv::Mat H64;
+    H.convertTo(H64, CV_64F);
+
+    const int crop_top = compute_top_crop_2_1(raw_size.height, raw_size.width);
+    const double crop_h = static_cast<double>(raw_size.height - crop_top);
+    const double sx = static_cast<double>(raw_size.width) / 1024.0;
+    const double sy = crop_h / 512.0;
+
+    const cv::Matx33d T(sx, 0,  0,
+                        0,  sy, static_cast<double>(crop_top),
+                        0,   0, 1);
+
+    const cv::Mat H_resized = H64 * cv::Mat(T);
+
+    H_resized_ = H_resized.clone();
+    cv::Mat H64_inv = H_resized.inv();   // MatExpr → cv::Mat
+    H64_inv.convertTo(H_world2resized_, CV_32F);
+    lat_fusion_.set_H(H_resized_);
+    long_fusion_.set_H(H_resized_);
+    VP_INFO("[Pipeline] H_resized set — raw=%dx%d  top_crop=%d  sx=%.4f sy=%.4f",
+            raw_size.width, raw_size.height, crop_top, sx, sy);
+}
+
+std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& warped,
+                                                               const cv::Mat& resized)
 {
     using Clock = std::chrono::steady_clock;
     using Ms    = std::chrono::duration<double, std::milli>;
 
-    prev_frame_ = curr_frame_.empty() ? preprocessed.clone() : curr_frame_;
-    curr_frame_ = preprocessed.clone();
+    // Two-frame buffer is warped (for AutoDrive only)
+    prev_frame_ = curr_frame_.empty() ? warped.clone() : curr_frame_;
+    curr_frame_ = warped.clone();
     if (frame_buf_count_ < 1) frame_buf_count_ = 1;
     else                       frame_buf_count_ = 2;
 
     ++frame_count_;
     if (frame_buf_count_ < 2) return std::nullopt;
 
-    auto t0       = Clock::now();
+    // AutoSteer + AutoSpeed use resized if provided, else fall back to warped
+    const cv::Mat& as_input = (!resized.empty()) ? resized : warped;
+
+    auto t0          = Clock::now();
     auto prev_imn    = chw_imagenet(prev_frame_);
     auto curr_imn    = chw_imagenet(curr_frame_);
-    auto curr_01_as  = chw_01(curr_frame_);          // AutoSteer's private copy
-    auto curr_01_asp = curr_01_as;                   // AutoSpeed's private copy
+    auto curr_01_as  = chw_01(as_input);
+    auto curr_01_asp = curr_01_as;   // shared preprocessing (same image)
     const double ms_pre = Ms(Clock::now() - t0).count();
 
     auto t_wall = Clock::now();
@@ -135,7 +189,7 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& pr
     out.auto_drive = res_drive;
     out.auto_steer = res_steer;
     out.auto_speed = res_speed;
-    out.cipo       = long_fusion_.update(res_drive, res_speed, preprocessed);
+    out.cipo       = long_fusion_.update(res_drive, res_speed, warped);
     out.lateral    = lat_fusion_.update(res_steer, res_drive);
 
     stats_.update(ms_pre, ms_drive, ms_steer, ms_speed, ms_wall);

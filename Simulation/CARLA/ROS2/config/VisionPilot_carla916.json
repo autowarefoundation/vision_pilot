@@ -1,0 +1,17 @@
+{
+  "type": "vehicle.lincoln.mkz_2020",
+  "id": "hero",
+  "spawn_index": 100,
+  "sensors": [
+    {
+      "type": "sensor.camera.rgb",
+      "id": "main_cam",
+      "spawn_point": { "x": 1.25, "y": 0.0, "z": 1.58, "roll": 0.0, "pitch": 0.0, "yaw": 0.0 },
+      "attributes": {
+        "image_size_x": 1280,
+        "image_size_y": 720,
+        "fov": 60.0
+      }
+    }
+  ]
+}

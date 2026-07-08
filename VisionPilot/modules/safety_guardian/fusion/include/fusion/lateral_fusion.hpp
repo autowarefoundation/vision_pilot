@@ -64,27 +64,60 @@ public:
         float dt_s                   = 0.10f;   // nominal dt; overridden per-call
 
         // Process noise (random-walk, scaled by dt internally)
-        float proc_noise_cte_m       = 0.05f;
+        float proc_noise_cte_m       = 0.05f;   // allows ~0.05m/s RMS drift for smooth tracking
         float proc_noise_yaw_rad     = 0.01f;
         float proc_noise_curv        = 0.002f;
 
+        // Camera mounting offset compensation.  Set to the observed steady-state
+        // CTE on a straight road (camera not at vehicle centreline).
+        // Subtracted from raw polynomial CTE before it enters the particle filter.
+        float cte_bias_m             = 0.0f;
+
+
         // Measurement 1-sigma
-        float meas_noise_cte_m       = 0.30f;
+        float meas_noise_cte_m       = 0.15f;   // tighter now that CTE is at x_min (not extrapolated)
         float meas_noise_yaw_rad     = 0.05f;
-        float meas_noise_curv_path   = 0.005f;  // AutoSteer polynomial curvature
+        float meas_noise_curv_path   = 0.008f;  // AutoSteer polynomial curvature
         float meas_noise_curv_ad     = 0.010f;  // AutoDrive curvature (scaled)
 
         // RANSAC polynomial fit
+        // thresh raised 0.20→0.25 m: AutoSteer waypoints spread more laterally
+        // in close-following / occlusion scenarios; 20cm was too tight.
+        // min_inliers lowered 20→15: requiring 70% consensus from ~28 pts was
+        // too strict when a lead vehicle scatters some waypoints. 54% is still
+        // majority agreement and keeps bad fits from passing.
         float ransac_thresh_m        = 0.20f;   // lateral inlier tolerance [m]
-        int   ransac_iters           = 50;
+        int   ransac_iters           = 80;      // more iterations → better coverage in occlusion
         int   ransac_min_pts         = 5;       // min projected points to attempt fit
 
         // curvature_raw × scale → physical κ [1/m] (CURV_SCALE = 0.21 in training).
         float ad_curvature_scale     = 0.21f;
-        int   ransac_min_inliers     = 20;      // reject path fit if fewer inliers
-        float max_abs_cte_m          = 4.0f;    // reject absurd RANSAC CTE
+        int   ransac_min_inliers     = 12;      // reject path fit if fewer inliers
+        float max_abs_cte_m          = 3.0f;    // reject RANSAC fits with |cte| > 3m
         float curv_x_min_m           = 3.f;     // κ sampled only at waypoint x ≥ this
         float curv_x_max_m           = 25.f;    // κ sampled only at waypoint x ≤ this
+
+        // ── Polynomial-coefficient Kalman smoother (pre-PF stage) ─────────
+        // Smooths the raw RANSAC (a, b, c) polynomial before it drives both
+        // the particle filter inputs AND the visualization path corridor.
+        // This is the primary fix for sudden path jumps during lane merges.
+        // proc noise per second — larger = faster tracking, less smooth.
+        // poly_meas_R_a / R_b: keep moderate — too large and the yellow fused path
+        // lags real curves (sticks to straight-road memory).  poly_meas_R_c stays
+        // large to smooth lateral jumps at merges.
+        float poly_proc_a_s  = 2e-3f;   // curvature coeff [(1/m)/s]
+        float poly_proc_b_s  = 0.08f;   // slope [rad/s] — tracks heading on curves
+        float poly_proc_c_s  = 0.50f;   // lateral offset [m/s] — merge smoothing
+        float poly_meas_R_a  = 4e-4f;   // [(1/m)²]
+        float poly_meas_R_b  = 0.015f;  // [rad²]
+        float poly_meas_R_c  = 0.50f;   // [m²]
+
+        // ── Rao-Blackwellized Kalman smoother (post-PF stage) ──────────────
+        // Second stage: smooths scalar PF outputs (cte, yaw, curvature).
+        float kf_proc_cte_m_s   = 0.50f;   // [m / s]
+        float kf_proc_yaw_rad_s = 0.15f;   // [rad / s]
+        float kf_proc_curv_s    = 0.004f;  // [(1/m) / s]
+        float kf_meas_R_curv_min = 1e-7f;  // post-PF KF curvature meas-noise floor [(1/m)²]
 
         // Same YAML used by LongitudinalFusion (shared config field).
         bool debug = false;
@@ -100,6 +133,11 @@ public:
     );
 
     void reset();
+
+    // Override the internal H matrix used to project AutoSteer waypoints to
+    // world space.  Call once after construction when the network runs on a
+    // non-BEV image (e.g. plain-resized frame) that requires a different H.
+    void set_H(const cv::Mat& H) { H_ = H.clone(); }
 
 private:
     // ── Path processing ───────────────────────────────────────────────────────
@@ -148,6 +186,32 @@ private:
     float k_eff_n() const;
     void  k_init(float curv);
 
+    // ── Polynomial-coefficient Kalman smoother (pre-PF) ──────────────────────
+    //  Smooths the raw RANSAC (a, b, c) each frame before they feed the PF and
+    //  the visualization.  This eliminates sudden path-corridor jumps at merges.
+    //  State: x = [a, b, c]  (diagonal — 3 independent scalars)
+    //  Process: random-walk  F = I,  Q = diag(q_i² · dt)
+    //  Measurement: H = I,  z = raw RANSAC coefficients,  R = cfg_.poly_meas_R_*
+    struct PolyKF {
+        float x[3] = {};   // [a, b, c]
+        float P[3] = {};   // diagonal covariances
+        bool  init  = false;
+    };
+    void poly_kf_predict(float dt);
+    // z = raw RANSAC [a, b, c]; quality = inliers / ransac_min_inliers
+    void poly_kf_update(float a, float b, float c, float quality);
+
+    // ── Rao-Blackwellized Kalman smoother (post-PF) ───────────────────────────
+    //  Sits after the PF: consumes PF posterior mean + variance as measurement,
+    //  outputs a smoothed [cte, yaw, curvature] estimate.
+    struct KFState {
+        float x[3] = {};   // [cte, yaw, curvature]
+        float P[3] = {};   // diagonal covariances
+        bool  init  = false;
+    };
+    void kf_predict(float dt);
+    void kf_update(const float z[3], const float R[3]);
+
     // ── Shared helpers ────────────────────────────────────────────────────────
     static float gauss_loglik(float z, float mean, float sigma);
 
@@ -164,6 +228,9 @@ private:
 
     std::vector<KParticle>  k_;
     bool                    k_init_  = false;
+
+    PolyKF  poly_kf_;  // Polynomial-coefficient smoother (pre-PF, pre-viz)
+    KFState kf_;       // Rao-Blackwellized scalar smoother (post-PF)
 
     std::mt19937 rng_;
     // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset

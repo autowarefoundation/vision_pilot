@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>visionpilot_carla_bridge</name>
+  <version>0.0.1</version>
+  <description>
+    Bridge between VisionPilot's middleware-agnostic Float64 actuation contract
+    (/vehicle/steering_cmd, /vehicle/throttle_cmd, /vehicle/speed) and CARLA's
+    native --ros2 interface (carla_msgs/CarlaEgoVehicleControl). Lets the
+    camera-only VisionPilot loop drive the CARLA ego (0.9.16 and 0.10).
+  </description>
+  <maintainer email="noreply@example.com">visionpilot</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>carla_msgs</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

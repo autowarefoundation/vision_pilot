@@ -1,8 +1,15 @@
-cmake_minimum_required(VERSION 3.22.1)
+find_package(OpenCV REQUIRED)
 
-add_library(common INTERFACE)
+add_library(common
+        src/utils.cpp
+)
 
 target_include_directories(common
-        INTERFACE
+        PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(common
+        PUBLIC
+        ${OpenCV_LIBS}
 )

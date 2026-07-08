@@ -1,0 +1,9 @@
+build/
+install/
+log/
+__pycache__/
+*.pyc
+# Preprocess homography C is generated from H_carla.yaml (gen_carla_C_matrix.py), never committed
+config/homography_C_matrix.yaml
+# carla wheel staging for Dockerfile.carla-spawn (build artifact)
+.carla_pkg/
