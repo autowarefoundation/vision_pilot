@@ -5,16 +5,16 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
-add_library(camera_subscriber
-        src/ros2_to_opencv.cpp
+add_library(camera_ros2_interface
+        src/camera_ros2_interface.cpp
 )
 
-target_include_directories(camera_subscriber
+target_include_directories(camera_ros2_interface
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(camera_subscriber
+target_link_libraries(camera_ros2_interface
         PUBLIC
         camera_interface
         rclcpp::rclcpp
@@ -23,4 +23,4 @@ target_link_libraries(camera_subscriber
         ${OpenCV_LIBRARIES}
 )
 
-target_compile_features(camera_subscriber PUBLIC cxx_std_17)
+target_compile_features(camera_ros2_interface PUBLIC cxx_std_17)

@@ -31,11 +31,6 @@ target_link_libraries(camera_interface
         opencv_videoio
 )
 
-if(ENABLE_ROS2_INTERFACE)
-    target_compile_definitions(camera_interface PRIVATE ENABLE_ROS2_INTERFACE)
-    target_link_libraries(camera_interface PRIVATE camera_subscriber)
-endif()
-
 # Link threading support for std::mutex
 find_package(Threads REQUIRED)
 target_link_libraries(camera_interface

@@ -211,6 +211,63 @@ VisionPilot
 ```
 </details>
 
+<details>
+<summary><b>Option 3 - Use the Docker container</b></summary>
+
+### Run inside Docker container
+
+To run Vision Pilot inside a Docker container, build the container using the Dockerfiles provided in the docker directory of the repository.
+Docker containers can be built with GPU/CPU support, and NO_ROS2/ROS2 support.
+
+To build the container, go to the docker subdirectory and run the following commands:
+
+Default is GPU support NO ROS2 support
+
+```bash
+  ./build.sh --gpu --ros2 
+```
+to build with CPU support
+
+```bash
+  ./build.sh --cpu
+```
+
+To run the container use the `run.sh` script. For example to run the container with CPU support 
+
+```bash
+  ./run.sh --cpu
+```
+
+or with GPU support and ROS2 support
+
+```bash
+  ./run.sh --gpu --ros2
+```
+
+*_Note:_* Before building the container update the config files inside: `config` directory.
+
+If building with CPU support update `config/vision_pilot.conf`
+```
+engine.provider     = cpu
+```
+and when building with ros2 support update 
+```
+source.mode         = ros2
+```
+When using video input source update `config/vision_pilot_test.conf`
+```
+source.input_video         = <INPUT_VIDEO_FILE_PATH>
+source.input_vehicle_speed = <INPUT_VEHICLE_SPEED_FILE_PATH>
+```
+Input directory can be modified in the source by using `run.sh` script switch
+
+```bash
+  ./run.sh --gpu --data <HOST_DIR>:<CONTAINER_DIR>
+```
+*_Note:_* <CONTAINER_DIR> need to be the same as during the container build.
+
+</details>
+
 ## Roadmap
 - Guide on how to run Vision Pilot with simulators
 - Containerization of Vision Pilot

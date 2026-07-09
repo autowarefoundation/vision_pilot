@@ -1,0 +1,127 @@
+# VisionPilot — CPU-only build
+
+# Build:
+#   docker build -t visionpilot:cpu -f docker/Dockerfile.cpu .     (run from inside VisionPilot/)
+# Run:
+#   docker run --rm -it -v <TEST_DATA_DIR>:<CONFIG_TEST_DATA_DIR>:ro -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw visionpilot:cpu
+
+# syntax=docker/dockerfile:1
+ARG UBUNTU_VERSION=24.04
+ARG ONNXRUNTIME_VERSION=1.26.0
+ARG TARGETARCH=amd64
+ARG ENABLE_ROS2=OFF
+
+# build
+FROM ubuntu:${UBUNTU_VERSION} AS builder
+ARG TARGETARCH
+ARG ONNXRUNTIME_VERSION
+ARG ENABLE_ROS2
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common \
+    && add-apt-repository -y universe \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake git wget ca-certificates gnupg \
+        python3 python3-pip \
+        libopencv-dev \
+        libgstreamer1.0-dev \
+        libgstreamer-plugins-base1.0-dev \
+        libgstreamer-plugins-bad1.0-dev \
+        libsoup2.4-dev \
+        libjson-glib-dev \
+        coinor-libipopt-dev \
+        libcppad-dev \
+        liblapack-dev \
+        libblas-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# CppAD's cppad/ipopt/solve.hpp hardcodes #include <coin-or/IpIpoptApplication.hpp>,
+# but Ubuntu 24.04's coinor-libipopt-dev ships an older Ipopt whose headers land
+# under a differently-named directory (e.g. /usr/include/coin/ instead of
+# /usr/include/coin-or/ — that rename only happened in newer Ipopt packaging).
+# Resolve wherever the header actually is rather than hardcoding the name, and
+# symlink coin-or to it so CppAD's #include resolves.
+RUN hdr_dir="$(dirname "$(find /usr/include -name IpIpoptApplication.hpp | head -1)")" \
+    && [ -n "$hdr_dir" ] \
+    && ln -sf "$hdr_dir" /usr/include/coin-or
+
+RUN pip3 install --no-cache-dir --break-system-packages opencv-python numpy
+
+# ROS2 Jazzy — only installed when ENABLE_ROS2=ON.
+RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            curl \
+        && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+            -o /usr/share/keyrings/ros-archive-keyring.gpg \
+        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+            > /etc/apt/sources.list.d/ros2.list \
+        && apt-get update && apt-get install -y --no-install-recommends \
+            ros-jazzy-ros-base \
+            ros-jazzy-cv-bridge \
+            ros-jazzy-image-transport \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# ONNX Runtime CPU build. Unlike the GPU asset, the CPU tarball name has no
+# "gpu"/"gpu_cuda13" split — it's just onnxruntime-linux-<arch>-<version>.tgz.
+# Extracted into an empty scratch dir first and moved via glob, since the
+# tarball's internal folder name isn't guaranteed to match its filename
+# (confirmed this mismatch firsthand on the GPU asset for 1.26.0).
+WORKDIR /opt
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) ORT_ARCH=x64 ;; \
+        arm64) ORT_ARCH=aarch64 ;; \
+        *) echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p /usr/share/visionpilot /opt/ort_extract; \
+    wget -q -O ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}.tgz"; \
+    tar -xzf ort.tgz -C /opt/ort_extract; \
+    mv /opt/ort_extract/*/ /usr/share/visionpilot/onnxruntime; \
+    rm -rf ort.tgz /opt/ort_extract
+
+WORKDIR /opt/visionpilot
+COPY . .
+
+RUN mkdir build && cd build \
+    && if [ "$ENABLE_ROS2" = "ON" ]; then . /opt/ros/jazzy/setup.bash; fi \
+    && cmake -DONNXRUNTIME_ROOT=/usr/share/visionpilot/onnxruntime -DGPU=OFF \
+             -DENABLE_ROS2_INTERFACE=${ENABLE_ROS2} \
+             -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib" .. \
+    && make -j"$(nproc)" VisionPilot
+
+# runtime
+FROM ubuntu:${UBUNTU_VERSION} AS runtime
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common \
+    && add-apt-repository -y universe \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        libopencv-dev \
+        libgstreamer1.0-0 \
+        libgstreamer-plugins-base1.0-0 \
+        libgstreamer-plugins-bad1.0-0 \
+        libsoup2.4-1 \
+        libjson-glib-1.0-0 \
+        coinor-libipopt-dev \
+        liblapack3 \
+        libblas3 \
+        libcppad-lib1456.0t64 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /usr/share/visionpilot
+
+# ONNX Runtime shared libs — must land at the same path baked into the
+# binary's INSTALL_RPATH (/usr/share/visionpilot/onnxruntime/lib).
+COPY --from=builder /usr/share/visionpilot/onnxruntime /usr/share/visionpilot/onnxruntime
+
+COPY --from=builder /opt/visionpilot/build/VisionPilot /usr/bin/VisionPilot
+COPY --from=builder /opt/visionpilot/build/config /usr/share/visionpilot/config
+COPY --from=builder /opt/visionpilot/assets/icons /usr/share/visionpilot/assets/icons
+COPY --from=builder /opt/visionpilot/modules/models/weights /usr/share/visionpilot/modules/models/weights
+
+WORKDIR /usr/share/visionpilot
+ENTRYPOINT ["/usr/bin/VisionPilot"]

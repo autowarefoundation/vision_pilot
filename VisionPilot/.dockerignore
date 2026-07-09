@@ -1,0 +1,12 @@
+# Place this file inside VisionPilot/ itself — it applies to whatever
+# directory you pass docker as the build context, so it should sit next
+# to the Dockerfile, not at the repo root (the repo root already has its
+# own .dockerignore which allowlists unrelated, not-yet-created paths and
+# will exclude this whole project if used as the build context).
+
+build/
+.git/
+.gitignore
+# tests/
+**/__pycache__/
+*.pyc

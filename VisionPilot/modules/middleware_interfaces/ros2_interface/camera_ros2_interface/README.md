@@ -52,14 +52,14 @@ VisionPilot pipeline (E2E models inference and other processing)
 
 ```
 
-camera_subscriber/
+camera_ros2_interface/
 ├── CMakeLists.txt
 ├── README.md
 ├── include/
-│   └── camera_subscriber/
-│       └── ros2_to_opencv.hpp
+│   └── camera_ros2_interface/
+│       └── camera_ros2_interface.hpp
 └── src/
-    └── ros2_to_opencv.cpp
+    └── camera_ros2_interface.cpp
 
 ```
 
