@@ -4,3 +4,7 @@ add_subdirectory(app)
 add_subdirectory(config)
 add_subdirectory(sensing/image_preprocessing)
 add_subdirectory(safety_guardian/planning)
+
+if (ENABLE_ROS2_INTERFACE)
+    add_subdirectory(middleware_interfaces/ros2_interface/camera_subscriber)
+endif ()

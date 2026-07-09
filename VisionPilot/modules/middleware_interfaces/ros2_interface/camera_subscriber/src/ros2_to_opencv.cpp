@@ -1,7 +1,10 @@
 #include <camera_subscriber/ros2_to_opencv.hpp>
 
+#include <sensor_msgs/image_encodings.hpp>
+
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <thread>
 
 namespace camera_interface {
@@ -115,7 +118,13 @@ namespace camera_interface {
             // For desired output encoding:
             //      - "bgr8"  : commonly used for color images
             //      - "mono8" : for grayscale
-            cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
+            // The pipeline consumes 3-channel BGR (CV_8UC3), so normalize any color
+            // encoding (e.g. bgra8, rgb8) to bgr8; mono frames pass through unchanged.
+            const std::string& encoding = msg->encoding;
+            const bool is_mono = encoding == sensor_msgs::image_encodings::MONO8 ||
+                                 encoding == sensor_msgs::image_encodings::MONO16;
+            cv_bridge::CvImagePtr cv_ptr =
+                cv_bridge::toCvCopy(msg, is_mono ? encoding : sensor_msgs::image_encodings::BGR8);
             return cv_ptr->image;
 
         } catch (cv_bridge::Exception &e) {
