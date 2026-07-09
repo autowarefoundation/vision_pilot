@@ -32,6 +32,9 @@ target_link_libraries(camera_interface
 )
 
 if(ENABLE_ROS2_INTERFACE)
+    # camera_subscriber propagates rclcpp's imported targets (e.g. fastcdr on
+    # ROS 2 Humble); imported targets are directory-scoped, so find them here too.
+    find_package(rclcpp REQUIRED)
     target_compile_definitions(camera_interface PRIVATE ENABLE_ROS2_INTERFACE)
     target_link_libraries(camera_interface PRIVATE camera_subscriber)
 endif()
