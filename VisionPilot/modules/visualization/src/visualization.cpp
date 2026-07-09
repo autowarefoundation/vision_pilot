@@ -312,7 +312,7 @@ static void draw_speed(cv::Mat& img, double speed_ms) {
     cv::putText(overlay, unit_buf, cv::Point(unit_tx, unit_ty),
                 cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
 
-    cv::addWeighted(overlay, 1.0, img, 0.5, 0, img);
+    cv::addWeighted(overlay, 0.85, img, 0.15, 0.0, img);
 }
 
 // ─── Helper: production HUD text (Duplex + subtle shadow) ────────────────────
