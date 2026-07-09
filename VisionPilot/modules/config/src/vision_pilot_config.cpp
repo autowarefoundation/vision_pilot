@@ -151,7 +151,7 @@ Config load_vision_pilot_config()
     cfg.source.input_camera_topic = optional(kv, "source.input_camera_topic",  "/camera/image");
     cfg.vehicle_speed_topic = optional(kv, "vehicle_speed_topic", "/vehicle/speed");
     cfg.vehicle_steering_topic = optional(kv, "vehicle_steering_topic", "/vehicle/steering_cmd");
-    cfg.vehicle_acceleration_topic = optional(kv, "vehicle_acceleration_topic", "/vehicle/steering_cmd");
+    cfg.vehicle_acceleration_topic = optional(kv, "vehicle_acceleration_topic", "/vehicle/throttle_cmd");
 #endif
 
     // Load test configuration
