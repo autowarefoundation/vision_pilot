@@ -73,7 +73,7 @@ For more information about Vision Pilot, please view our introductory presentati
 
 ## Getting Started
 
-There are two ways you can build and run Vision Pilot - we provide example data which you can use for visualization and evaluation, select either Option-1 or Option-2 from the drop down options below:
+There are three  ways you can build and run Vision Pilot - we provide example data which you can use for visualization and evaluation, select from the drop down options below:
 
 <details>
 <summary><b>Option 1 - Download and build from source</b></summary>
@@ -267,6 +267,12 @@ Input directory can be modified in the source by using `run.sh` script switch
 *_Note:_* <CONTAINER_DIR> need to be the same as during the container build.
 
 </details>
+
+## Running Vision Pilot with your own camera
+In order to run Vision Pilot with your own camera, you will need to calibrate your camera and provide the calibraiton information to the Vision Pilot app - this is important for Vision Pilot to accurately measure the shape of the road and the distance to objects.
+
+### Calibrate your camera
+Please follow the steps in the [calibration guide](/Calibration/) and save the calibration yaml file in the [Vision Pilot config folder](/VisionPilot/config/) and overwrite the data of the [H.yaml](/VisionPilot/config/H.yaml) file with your calibraiton file parameters - we suggest you retain a copy of the original H.yaml parameters so that you can run Vision Pilot on our example data.
 
 ## Roadmap
 - Guide on how to run Vision Pilot with simulators

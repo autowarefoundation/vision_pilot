@@ -69,11 +69,11 @@ The pipeline executes through five distinct stages:
 
 ## 3. Run the script
 
-Execute the script by feeding it your captured camera frame along with the physical coordinates measured from your real-world marker grid, an example is shown below - ensure to save your H-matrix in the [VisionPilot/config](../VisionPilot/config/) folder
+Execute the script by feeding it your captured camera frame along with the physical coordinates measured from your real-world marker grid, an example is shown below - ensure to save your H-matrix in the [VisionPilot/config](../VisionPilot/config/) folder and **replace the default H.yaml file** with your new yaml file.
 
 ```bash
 python calc_homography_2x2.py --img road_frame.jpg \
-  --out ../VisionPilot/config/H_custom.yaml \
+  --out ../VisionPilot/config/H.yaml \
   --tl 0.0 15.0 \
   --tr 3.7 15.0 \
   --bl 0.0 0.0 \
