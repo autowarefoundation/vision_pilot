@@ -70,6 +70,7 @@ public:
     */
     std::tuple<bool, cv::Mat> get_latest_frame();
 
+    double get_latest_frame_stamp_sec() const override;
 
     // /**
     // * @brief Get latest frame with frame metadata, via timestamp and frame index
@@ -155,6 +156,8 @@ private:
     mutable std::mutex frame_mutex;
     cv::Mat latest_frame;
     bool has_latest_frame = false;
+    double latest_stamp_sec_ = -1.0;    // stamp of the frame in the slot
+    double consumed_stamp_sec_ = -1.0;  // stamp of the last frame handed out
 
     // QoS settings for subscription
     // (KeepLast with hardcoded `depth=1` for single-slot retrieval)

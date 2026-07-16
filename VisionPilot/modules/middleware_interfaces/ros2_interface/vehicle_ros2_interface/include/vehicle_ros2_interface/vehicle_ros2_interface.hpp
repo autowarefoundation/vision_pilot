@@ -3,6 +3,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <thread>
 #include <atomic>
 #include <functional>
@@ -15,6 +17,7 @@
 //
 //  Publish    /vehicle/steering_cmd    Float64   tyre angle (rad)
 //             /vehicle/throttle_cmd   Float64   acceleration (m/s²)
+//             /vehicle/lane_path      nav_msgs/Path  fused lane center (base_link)
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -32,6 +35,12 @@ public:
     // Publish tyre angle (rad) and acceleration (m/s²) to ROS2.
     void write(double steering, double acceleration) override;
 
+    // Publish the fused lane center as nav_msgs/Path in base_link, stamped
+    // with the source image's sim time. Empty path = invalid frame.
+    void publish_lane_path(double stamp_sec, bool valid, double cte_m,
+                           double yaw_rad, double curvature, bool path_valid,
+                           double path_x_max) override;
+
 private:
     // Inner node — owns all ROS 2 concerns
     class VehicleRos2Node : public rclcpp::Node
@@ -46,6 +55,7 @@ private:
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr steering_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr throttle_pub_;
+        rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr lane_path_pub_;
     };
 
     std::shared_ptr<VehicleRos2Node> node_;

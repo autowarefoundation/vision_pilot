@@ -104,6 +104,7 @@ void CameraRos2Interface::image_callback(
         // Store latest frame
         latest_frame = cv_image.clone(); // Clone to ensure independent memory
         has_latest_frame = true;
+        latest_stamp_sec_ = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
     }
 };
 
@@ -146,6 +147,7 @@ std::tuple<bool, cv::Mat> CameraRos2Interface::get_latest_frame()
 
     // Fetch and consume latest frame
     cv::Mat frame = latest_frame.clone();
+    consumed_stamp_sec_ = latest_stamp_sec_;
     has_latest_frame = false;
     latest_frame.release();
 
@@ -201,6 +203,11 @@ void CameraRos2Interface::reset_stats()
     RCLCPP_INFO(node->get_logger(), "Statistics reset");
 };
 
+double CameraRos2Interface::get_latest_frame_stamp_sec() const
+{
+    std::lock_guard<std::mutex> lock(frame_mutex);
+    return consumed_stamp_sec_;
+};
 
 CameraRos2Interface::~CameraRos2Interface()
 {
