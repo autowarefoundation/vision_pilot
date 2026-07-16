@@ -276,8 +276,6 @@ Please follow the steps in the [calibration guide](/Calibration/) and save the c
 
 ## Roadmap
 - Guide on how to run Vision Pilot with simulators
-- Containerization of Vision Pilot
-- Guide on how to run Vision Pilot with your own camera
 - Support for 8MP camera resolution with 120 degree horizontal field-of-view
 - Support for fusion between front-facing camera and automotive RADAR
 - Safety Verification and Automotive Standards Compliance (ISO26262, ISO8800)
