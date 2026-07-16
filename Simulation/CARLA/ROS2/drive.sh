@@ -119,9 +119,11 @@ up() {
     sleep 5 # let the world settle before API connections
 
     echo "[up] 2/4 spawn helper (host, pure PythonAPI) — rig $(basename "$RIG_JSON") — log: $SPAWN_LOG"
+    # env(1) is required: assignments produced by ${VAR:+...} expansion are not
+    # recognized as prefix assignments by the shell (they become command words).
     (cd "$HERE" &&
-        PYTHONPATH="$PKG_DIR/$host_pytag${PYTHONPATH:+:$PYTHONPATH}" \
-            ${SPAWN_INDEX:+SPAWN_INDEX=$SPAWN_INDEX} \
+        env PYTHONPATH="$PKG_DIR/$host_pytag${PYTHONPATH:+:$PYTHONPATH}" \
+            ${SPAWN_INDEX:+SPAWN_INDEX="$SPAWN_INDEX"} \
             "$SPAWN_PYTHON" ros_carla_config.py -f "$RIG_JSON" >"$SPAWN_LOG" 2>&1) &
     sleep 6
     pgrep -f ros_carla_config.py >/dev/null || die "spawn helper died — see $SPAWN_LOG"

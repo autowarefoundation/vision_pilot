@@ -24,6 +24,18 @@ if [ -f "${ROS_SETUP}" ]; then
 fi
 
 cd "${WS_DIR}"
+
+# A build tree created under a different mount prefix (host vs /ws vs /workspace)
+# poisons CMakeCache and colcon fails; detect and start clean.
+for cache in build/*/CMakeCache.txt; do
+    [ -f "$cache" ] || continue
+    if ! grep -q "=${WS_DIR}/build/" "$cache"; then
+        echo "[build_bridge] stale build tree (different mount prefix) — cleaning build/ install/"
+        rm -rf build install
+        break
+    fi
+done
+
 colcon build --packages-select carla_msgs visionpilot_carla_bridge "$@"
 
 echo "[build_bridge] done. Source the overlay with:"
