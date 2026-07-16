@@ -20,5 +20,7 @@ target_link_libraries(vehicle_ros2_interface
         rclcpp::rclcpp
         std_msgs::std_msgs__rosidl_generator_cpp
         nav_msgs::nav_msgs__rosidl_generator_cpp
+        nav_msgs::nav_msgs__rosidl_typesupport_cpp
         geometry_msgs::geometry_msgs__rosidl_generator_cpp
+        geometry_msgs::geometry_msgs__rosidl_typesupport_cpp
 )
