@@ -6,24 +6,10 @@ By leveraging exactly **four 2x2 ground-plane checkerboard markers**, the script
 
 ## 1. Physical Calibration Setup
 
-To establish a highly precise mapping from pixels to physical road coordinates, you must place four **2x2 black-and-white checkerboard targets** flat on the asphalt surface. 
+To establish a highly precise mapping from pixels to physical road coordinates, you must place four **2x2 black-and-white checkerboard targets** flat on the asphalt surface in front of the vehicle, in view of the camera - please see the 'Ground Layout Diagram' below for reference. 
 
 ### Ground Layout Diagram:
 ![Calibration Setup Guide](camera_calibration_setup.jpg)
-
-### Step-by-Step Ground Marker Placement:
-
-1. **Print/Create Four 2x2 Checkerboard Targets:**
-   * A 2x2 checkerboard consists of two black and two white squares meeting in the middle.
-   * **Crucial Detail:** The exact intersection point at the center serves as the single pixel-accurate coordinate $(u,v)$.
-   
-2. **Lay Out the Grid on the Ground:**
-   * Using an A4 papger, print out four copies of the [checkerboard grid pattern](checkerboard-bw.png), each page should have one 2x2 checkerboard pattern on it. Place the checkerboards on the flat asphalt in front of the vehicle in a rectangular pattern such that they are visible to the camera and firmly tape the pages flat to the road surface.
-   * Ensure they do not slide or warp.
-
-3. **Measure Your Coordinates:**
-   * Pick the centre of the front bumper of your vehicle to act as your **World Coordinate Origin $(0,0)$**
-   * Measure the precise physical distancefrom the World Coordinate Origin to the Bottom-Right to each of the four checkerboard centres and record them, ensuring you write down which of the checkerboards the measurement belongs to (top-left, top-right, bottom-left, and bottom-right)
 
 ### Coordinate Mapping Reference:
 
@@ -34,6 +20,25 @@ To establish a highly precise mapping from pixels to physical road coordinates, 
 | **Bottom-Left** | $(u_3, v_3)$ | $(X3, Y3)$ |
 | **Bottom-Right** | $(u_4, v_4)$ | $(X4, Y4)$ |
 
+**Please note the axis convention - X is positive forward and Y is positive left with the origin at the front bumper at the centre of the vehicle on the ground**
+
+### Step-by-Step Ground Marker Placement:
+
+1. **Print Four 2x2 Checkerboard Targets:**
+   * A 2x2 checkerboard consists of two black and two white squares meeting in the middle.
+   * **Crucial Detail:** The exact intersection point at the center serves as the single pixel-accurate coordinate $(u,v)$.
+   
+2. **Lay Out the Grid on the Ground:**
+   * Using an A4 papger, print out four copies of the [checkerboard grid pattern](checkerboard-bw.png), each page should have one 2x2 checkerboard pattern on it. Place the checkerboards on the flat asphalt in front of the vehicle in a rectangular pattern such that they are visible to the camera and firmly tape the pages flat to the road surface.
+   * Ensure they do not slide or warp.
+
+3. **Measure Your Coordinates:**
+   * Pick the centre of the front bumper of your vehicle to act as your **World Coordinate Origin $(0,0)$**
+   * Measure the precise physical distance from the World Coordinate Origin to the four checkerboard centres and record them, ensuring you write down which of the checkerboards the measurement belongs to (top-left, top-right, bottom-left, and bottom-right) as referenced in the 'Ground Layout Diagram'.
+
+4. **Save a calibration image:**
+   * Save an image of the scene in which the camera sees the checkerboard patterns on the asphalt, this image will be used by the script as the input calibration image. 
+   * Ensure that camera is firmly and rigidly mounted - if the camera moves after you have run the calibraiton script, the calibration parameters will be invalid and you will need to re-run the calibration script again.
 
 ---
 
@@ -105,10 +110,10 @@ Ensure high-contrast illumination on the road. Shadows cast directly across a ch
 
 Adjust cv2.findChessboardCorners flags if you have reflective pavement.
 
-### Extreme Camera Tilts:
+#### Extreme Camera Tilts:
 
 Spatial sorting assumes the camera has minimal roll. If the camera is tilted sideways by more than 45 degrees, the vertical separation logic may mix up the left-right pairing. Keep the camera level during calibration.
 
-### Lines Distorting Into Sky (Horizon Errors):
+#### Lines Distorting Into Sky (Horizon Errors):
 
 Straight lines projected past the horizon line can mathematically "wrap around" and render incorrectly. The code utilizes a custom perspective-depth filter (homog_img[:, 2] > 1e-5) to clip segments extending into infinite space safely.
