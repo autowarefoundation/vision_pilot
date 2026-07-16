@@ -2,7 +2,7 @@
 
 ## Single Camera - 50 - 55 degree H-Fov and 2MP resolution
 
-For the baseline version of Vision Pilot, we recommend using an automotive grade camera with a GMSL2 interface, 2MP resolution and a horizontal field of view between 50 and 55 degrees. Cameras with wider field of view are not suitable since such cameras lack the ability to capture the scene at a longer range, required for highway driving and ADAS safety features.
+For the baseline version of Vision Pilot, we recommend using an automotive grade camera with a GMSL2 interface, 2MP resolution and a horizontal field of view between 50 and 55 degrees. Cameras with wider field of view are not suitable since such cameras lack the ability to capture the scene at a longer range, required for highway driving and ADAS safety features. The Vision Pilot stack is designed to run at 10Hz, although you can run it at higher FPS - we recommend 10Hz. Average human drivers have a reaction time equivalent to 4Hz and F1-drivers have an average reaction time of 8Hz, so Vision Pilot provides super-human reaction speeds whilst operating at 10Hz.
 
 ### Mounting the camera
 
