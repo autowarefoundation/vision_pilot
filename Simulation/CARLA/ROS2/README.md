@@ -7,12 +7,13 @@ Drive a CARLA ego **camera-only** with the single-binary VisionPilot closed loop
 publish identical topic names, so only the ego blueprint, launcher and CARLA wheel differ.
 
 **CARLA always runs on the HOST (from `$CARLA_ROOT`), never in Docker.** Only VisionPilot
-and the control bridge run in the dev container (`autoware-visionpilot-dev:cuda`).
+and the control bridge run in a container — the **official VisionPilot image**
+(`visionpilot:gpu-ros2`, built by `VisionPilot/docker/build.sh --gpu --ros2`).
 
 ```text
 HOST:  CARLA --ros2 (windowed)  +  ros_carla_config.py (spawn ego/camera — pure PythonAPI, no ROS)
 CONTAINERS (one DDS domain — ROS never crosses the host/container boundary):
-  /carla/hero/main_cam/image ── sensor_msgs/Image (CARLA native) ──►  VisionPilot (camera_subscriber)
+  /carla/hero/main_cam/image ── sensor_msgs/Image (CARLA native) ──►  VisionPilot (camera_ros2_interface)
   ego_telemetry (bridge ctr, PythonAPI over TCP:2000)
       ├─ /vehicle/speed (Float64 m/s) ──► VisionPilot planner + bridge watchdog
       └─ /carla_bridge/max_steer_angle (latched, rad) ──► bridge
@@ -50,8 +51,8 @@ feeding VisionPilot the real speed is safe at any `speed_limit`.
 | `config/visionpilot.carla.conf`, `config/visionpilot_ros2.carla.conf` | VisionPilot run-config overlay (ros2 source, sim `speed_limit`/`Lf`, `/vehicle/*` topics)                                                                                                                  |
 | `config/H_carla.yaml`                                                 | main_cam ground homography (camera → world)                                                                                                                                                                |
 | `gen_carla_C_matrix.py`                                               | derive preprocess C from `H_carla.yaml` (reuses VisionPilot logic) → `config/homography_C_matrix.yaml` (gitignored)                                                                                        |
-| `run_visionpilot.sh`                                                  | run VisionPilot in the dev container, bind-mounting the CARLA config over the paths the binary reads                                                                                                       |
-| `build_bridge.sh`                                                     | colcon-build the bridge (`carla_msgs` + `visionpilot_carla_bridge`)                                                                                                                                        |
+| `run_visionpilot.sh`                                                  | run VisionPilot from the official image (`visionpilot:gpu-ros2`), bind-mounting the CARLA config over the paths the binary reads                                                                           |
+| `build_bridge.sh`                                                     | colcon-build the bridge (`carla_msgs` + `visionpilot_carla_bridge`) — host ROS 2 Jazzy or a `ros:jazzy` container                                                                                          |
 | `carla_speed_monitor.py`                                              | optional debug tool: ground-truth speed + collision printer (PythonAPI)                                                                                                                                    |
 
 > **Camera FOV is 60°, not the model's ~42° view.** The homography warp reprojects the camera
@@ -67,9 +68,13 @@ feeding VisionPilot the real speed is safe at any `speed_limit`.
    **no ROS needed on the host**. The wheel is staged onto `PYTHONPATH` automatically and
    shadows any other installed `carla` package (also staged for the container's python 3.12,
    which runs `ego_telemetry`).
-3. The dev image `autoware-visionpilot-dev:cuda` (`Docker/build.sh`).
-4. VisionPilot built with the ROS 2 interface, inside the container:
-   `Docker/run.sh --test` (builds `VisionPilot/build_docker_ros2/`).
+3. The official VisionPilot image with ROS 2 + GPU support:
+   `cd VisionPilot/docker && ./build.sh --gpu --ros2` → `visionpilot:gpu-ros2`
+   (compiles the binary with `-DENABLE_ROS2_INTERFACE=ON` and bakes it at
+   `/usr/bin/VisionPilot` together with the config and the model weights — make sure the
+   `.onnx` weights are present under `VisionPilot/modules/models/weights/` **before** building).
+4. `docker` able to pull `ros:jazzy` (used once by `drive.sh` to colcon-build the bridge —
+   the official image ships no build tools).
 5. An X display for the CARLA + VisionPilot windows (default `:1`; live runs are always windowed).
 
 ## Run
@@ -80,12 +85,12 @@ feeding VisionPilot the real speed is safe at any `speed_limit`.
 ./drive.sh down      # ALWAYS run between experiments — stale actors/DDS topics corrupt the next run
 ```
 
-Knobs (env): `CARLA_ROOT`, `RIG_JSON`, `SPAWN_PYTHON`, `SPAWN_INDEX`, `DISPLAY`, `IMAGE`.
-Drive speed: `speed_limit` in `config/visionpilot.carla.conf` (m/s).
+Knobs (env): `CARLA_ROOT`, `RIG_JSON`, `SPAWN_PYTHON`, `SPAWN_INDEX`, `DISPLAY`, `IMAGE`,
+`BRIDGE_IMAGE`. Drive speed: `speed_limit` in `config/visionpilot.carla.conf` (m/s).
 
-The CARLA run config is **bind-mounted** into the container over the fixed CWD-relative paths the
-binary reads (`config/vision_pilot.conf`, `config/vision_pilot_ros2.conf`,
-`config/homography_C_matrix.yaml`, and `H_carla.yaml` over `config/H.yaml` — without that last
+The CARLA run config is **bind-mounted** into the container over the official-image paths the
+binary reads (`/usr/share/visionpilot/config/vision_pilot.conf`, `.../vision_pilot_ros2.conf`,
+`.../homography_C_matrix.yaml`, and `H_carla.yaml` over `.../H.yaml` — without that last
 mount AutoSteer fits 0 lane points); the tracked `VisionPilot/` tree is left pristine.
 
 All ROS 2 processes run with `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` (host↔container Fast-DDS shared
