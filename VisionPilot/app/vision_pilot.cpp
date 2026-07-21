@@ -47,6 +47,7 @@ int main(int argc, char** argv)
     {
         const std::string arg(argv[i]);
         if (arg == "--debug-viz") debug_viz = true;
+        else if (arg == "--no-window") show_window = false;
     }
 
     std::shared_ptr<CameraInterface> camera_interface;
@@ -99,7 +100,7 @@ int main(int argc, char** argv)
     }
 
     // ── Initialize display ────────────────────────────────────────────────────
-    visualization::Visualization visualization({cfg.webrtc_on, cfg.webrtc_port});
+    visualization::Visualization visualization({cfg.webrtc_on, cfg.webrtc_port, show_window});
 
     const cv::Size net_size(vm::AutoDrive::NET_W, vm::AutoDrive::NET_H);
     cv::Mat frame, warped, resized;
