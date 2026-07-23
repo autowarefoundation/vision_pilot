@@ -4,9 +4,11 @@
 
 namespace visualization
 {
-    LocalDisplay::LocalDisplay()
+    LocalDisplay::LocalDisplay(bool show_window)
+        : show_window_(show_window)
     {
-        cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
+        if (show_window_)
+            cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
     }
 
     LocalDisplay::~LocalDisplay()
@@ -16,6 +18,8 @@ namespace visualization
 
     bool LocalDisplay::render_frame(const cv::Mat& display_frame)
     {
+        if (!show_window_)
+            return true;
         cv::resizeWindow("VisionPilot", display_frame.cols, display_frame.rows);
         cv::imshow("VisionPilot", display_frame);
         cv::waitKey(1);

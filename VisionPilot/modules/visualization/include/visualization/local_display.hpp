@@ -8,11 +8,17 @@ namespace visualization
     class LocalDisplay : public VisualInterface
     {
     public:
-        LocalDisplay();
+        // show_window == false runs headless: no OpenCV window is created and
+        // render_frame() becomes a no-op. This keeps VisionPilot usable in
+        // environments without a display (e.g. containers, CI).
+        explicit LocalDisplay(bool show_window = true);
         ~LocalDisplay();
 
         bool render_frame(const cv::Mat& display_frame) override;
         bool stop() override;
+
+    private:
+        bool show_window_;
     };
 }
 

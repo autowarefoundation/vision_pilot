@@ -82,6 +82,7 @@ struct Config
 {
     bool webrtc_on = false;
     int webrtc_port;
+    bool show_window = true;   // false → LocalDisplay runs headless (no window)
 };
 
 void init_production_assets(const std::string& icons_dir = "");

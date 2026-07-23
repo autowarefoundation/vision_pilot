@@ -621,7 +621,7 @@ Visualization::Visualization(Config cfg)
         static_cast<WebRTCStreamer*>(visual_interface.get())->init(cfg.webrtc_port);
     } else
     {
-        visual_interface = std::make_unique<LocalDisplay>();
+        visual_interface = std::make_unique<LocalDisplay>(cfg.show_window);
     }
 }
 
