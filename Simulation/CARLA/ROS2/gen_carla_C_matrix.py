@@ -4,7 +4,7 @@
 Reuses VisionPilot's committed C-derivation (the fixed model-view V and
 find_homography_C_matrix) without modifying VisionPilot. Writes the result next to
 this script's config/, which the drive bind-mounts (read-only) over
-/workspace/VisionPilot/config/homography_C_matrix.yaml.
+/usr/share/visionpilot/config/homography_C_matrix.yaml in the official image.
 
     python3 gen_carla_C_matrix.py            # config/H_carla.yaml -> config/homography_C_matrix.yaml
 """
@@ -16,7 +16,10 @@ import cv2
 
 ROOT = Path(__file__).resolve().parents[3]  # repo root
 sys.path.insert(0, str(ROOT / "VisionPilot" / "scripts"))
-from find_homography_C_matrix import find_homography_C_matrix, load_homography_H_matrix  # noqa: E402
+from find_homography_C_matrix import (  # noqa: E402
+    find_homography_C_matrix,
+    load_homography_H_matrix,
+)
 
 
 def main() -> None:

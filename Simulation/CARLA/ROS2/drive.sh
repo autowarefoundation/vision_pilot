@@ -6,8 +6,11 @@
 #             1. CARLA server  — on the HOST, from $CARLA_ROOT, WINDOWED (never offscreen)
 #             2. spawn helper  — on the HOST (ros_carla_config.py: ego + main_cam; pure
 #                                PythonAPI, NO ROS — host needs no rclpy)
-#             3. bridge build  — one-shot colcon build of visionpilot_carla_bridge
-#             4. VisionPilot + bridge — ONE dev container, graphic mode (run_visionpilot.sh
+#             3. bridge build  — one-shot colcon build of visionpilot_carla_bridge in a
+#                                ros:jazzy container (the official VisionPilot image ships
+#                                no colcon)
+#             4. VisionPilot + bridge — ONE container from the OFFICIAL VisionPilot image
+#                                (visionpilot:gpu-ros2), graphic mode (run_visionpilot.sh
 #                                launches the control relay + ego_telemetry beside the binary:
 #                                cross-container DDS delivery proved unreliable, so every ROS 2
 #                                node we own shares a single container)
@@ -23,7 +26,8 @@
 #                 is staged automatically from $CARLA_ROOT (default: python3)
 #   DISPLAY       X display for CARLA + VisionPilot windows (default: :1)
 #   SPAWN_INDEX   spawn-point override (default: "spawn_index" in RIG_JSON)
-#   IMAGE         dev-container image            (default: autoware-visionpilot-dev:cuda)
+#   IMAGE         official VisionPilot image     (default: visionpilot:gpu-ros2)
+#   BRIDGE_IMAGE  colcon-capable image for the bridge build (default: ros:jazzy)
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # .../Simulation/CARLA/ROS2
 ROOT="$(cd "$HERE/../../.." && pwd)"                 # repo root
@@ -31,7 +35,8 @@ CARLA_ROOT="${CARLA_ROOT:-$HOME/CARLA_0.9.16}"
 RIG_JSON="${RIG_JSON:-$HERE/config/VisionPilot_carla916.json}"
 SPAWN_PYTHON="${SPAWN_PYTHON:-python3}"
 DISPLAY="${DISPLAY:-:1}"
-IMAGE="${IMAGE:-autoware-visionpilot-dev:cuda}"
+IMAGE="${IMAGE:-visionpilot:gpu-ros2}"
+BRIDGE_IMAGE="${BRIDGE_IMAGE:-ros:jazzy}"
 PKG_DIR="$HERE/.carla_pkg" # staged CARLA wheel (gitignored)
 CARLA_LOG=/tmp/carla_server.log
 SPAWN_LOG=/tmp/carla_spawn.log
@@ -81,7 +86,7 @@ stage_carla_wheel() {
     fi
 }
 
-# Python tag of the dev container (Ubuntu 24.04 -> 3.12); ego_telemetry runs there.
+# Python tag of the official image (Ubuntu 24.04 -> 3.12); ego_telemetry runs there.
 CONTAINER_PYTAG=cp312
 
 up() {
@@ -94,7 +99,8 @@ up() {
         launcher="$CARLA_ROOT/CarlaUnreal.sh" # 0.10
     else die "no CarlaUE4.sh / CarlaUnreal.sh in $CARLA_ROOT"; fi
     [ -f "$RIG_JSON" ] || die "rig json '$RIG_JSON' not found"
-    docker image inspect "$IMAGE" >/dev/null 2>&1 || die "image '$IMAGE' missing — Docker/build.sh"
+    docker image inspect "$IMAGE" >/dev/null 2>&1 ||
+        die "image '$IMAGE' missing — build it: cd VisionPilot/docker && ./build.sh --gpu --ros2"
     local host_pytag
     host_pytag="$("$SPAWN_PYTHON" -c 'import sys; print("cp%d%d" % sys.version_info[:2])')"
     stage_carla_wheel "$host_pytag"      # spawn helper (host)
@@ -113,17 +119,19 @@ up() {
     sleep 5 # let the world settle before API connections
 
     echo "[up] 2/4 spawn helper (host, pure PythonAPI) — rig $(basename "$RIG_JSON") — log: $SPAWN_LOG"
+    # env(1) is required: assignments produced by ${VAR:+...} expansion are not
+    # recognized as prefix assignments by the shell (they become command words).
     (cd "$HERE" &&
-        PYTHONPATH="$PKG_DIR/$host_pytag${PYTHONPATH:+:$PYTHONPATH}" \
-            ${SPAWN_INDEX:+SPAWN_INDEX=$SPAWN_INDEX} \
+        env PYTHONPATH="$PKG_DIR/$host_pytag${PYTHONPATH:+:$PYTHONPATH}" \
+            ${SPAWN_INDEX:+SPAWN_INDEX="$SPAWN_INDEX"} \
             "$SPAWN_PYTHON" ros_carla_config.py -f "$RIG_JSON" >"$SPAWN_LOG" 2>&1) &
     sleep 6
     pgrep -f ros_carla_config.py >/dev/null || die "spawn helper died — see $SPAWN_LOG"
 
-    echo "[up] 3/4 building the bridge (one-shot container)"
+    echo "[up] 3/4 building the bridge (one-shot $BRIDGE_IMAGE container)"
     docker run --rm --name vp_bridge_build \
         -v "$ROOT":/workspace -w /workspace/Simulation/CARLA/ROS2 \
-        "$IMAGE" bash -lc 'source /opt/ros/jazzy/setup.bash && ./build_bridge.sh' >/dev/null
+        "$BRIDGE_IMAGE" bash -lc './build_bridge.sh' >/dev/null
 
     echo "[up] 4/4 VisionPilot + bridge (one container vp_drive, graphic) — ./drive.sh down to stop"
     DISPLAY="$DISPLAY" "$HERE/run_visionpilot.sh"
@@ -134,7 +142,7 @@ up) up ;;
 down) down ;;
 status) status ;;
 *)
-    echo "usage: $0 {up|down|status}   (env: CARLA_ROOT RIG_JSON SPAWN_PYTHON DISPLAY SPAWN_INDEX IMAGE)"
+    echo "usage: $0 {up|down|status}   (env: CARLA_ROOT RIG_JSON SPAWN_PYTHON DISPLAY SPAWN_INDEX IMAGE BRIDGE_IMAGE)"
     exit 2
     ;;
 esac
