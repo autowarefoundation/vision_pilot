@@ -144,12 +144,48 @@ void Rerun::log_inference(uint64_t frame_id, const visionpilot::models::Inferenc
 
 	// LateralFusion
 	meta << "  \"lateral\": {\n";
+	meta << "    \"valid\": " << (r.lateral.valid ? "true" : "false") << ",\n";
 	meta << "    \"path_valid\": " << (r.lateral.path_valid ? "true" : "false") << ",\n";
 	meta << "    \"path_a\": " << r.lateral.path_a << ",\n";
 	meta << "    \"path_b\": " << r.lateral.path_b << ",\n";
 	meta << "    \"path_c\": " << r.lateral.path_c << ",\n";
+	// Fused (tracked) scalars ready for planning
+	meta << "    \"cte_m\": " << r.lateral.cte_m << ",\n";
+	meta << "    \"yaw_rad\": " << r.lateral.yaw_rad << ",\n";
+	meta << "    \"curvature\": " << r.lateral.curvature << ",\n";
+	meta << "    \"cte_stddev_m\": " << r.lateral.cte_stddev_m << ",\n";
+	meta << "    \"yaw_stddev_rad\": " << r.lateral.yaw_stddev_rad << ",\n";
+	meta << "    \"curv_stddev\": " << r.lateral.curv_stddev << ",\n";
+	// Raw auxiliaries
 	meta << "    \"raw_cte_m\": " << r.lateral.raw_cte_m << ",\n";
-	meta << "    \"cte_m\": " << r.lateral.cte_m << "\n";
+	meta << "    \"raw_yaw_rad\": " << r.lateral.raw_yaw_rad << ",\n";
+	meta << "    \"raw_path_curvature\": " << r.lateral.raw_path_curvature << ",\n";
+	meta << "    \"raw_ad_curvature\": " << r.lateral.raw_ad_curvature << ",\n";
+	meta << "    \"path_x_min_m\": " << r.lateral.path_x_min_m << ",\n";
+	meta << "    \"path_x_max_m\": " << r.lateral.path_x_max_m << ",\n";
+	// BEV coords of filtered path, sampled from y = ax^2 + bx + c in
+	// world/BEV frame (x = forward (m), y = lateral (m, left as +)).
+	meta << "    \"path_bev\": [";
+	{
+		const float a = r.lateral.path_a;
+		const float b = r.lateral.path_b;
+		const float c = r.lateral.path_c;
+		float x0 = r.lateral.path_x_min_m;
+		float x1 = r.lateral.path_x_max_m;
+		// Fallback range when extent unknown
+		if (!(x1 > x0)) { 
+			x0 = 2.f; 
+			x1 = 40.f; 
+		}
+		constexpr int N = 30;
+		for (int i = 0; i < N; ++i) {
+			const float x = x0 + (x1 - x0) * (static_cast<float>(i) / (N - 1));
+			const float y = a * x * x + b * x + c;
+			if (i) meta << ", ";
+			meta << "[" << x << ", " << y << "]";
+		}
+	}
+	meta << "]\n";
 	meta << "  }\n";
 
 	meta << "}\n";
@@ -177,6 +213,39 @@ void Rerun::log_plan(uint64_t frame_id, const Plan& p) {
 	}
 	meta << "]\n";
 	meta << "}\n";
+}
+
+void Rerun::log_ego_speed(
+	uint64_t frame_id, 
+	double ego_speed_ms
+) {
+	std::lock_guard<std::mutex> lk(g_mutex);
+	if (g_base_dir.empty()) init();
+	const std::string dir = make_frame_dir(frame_id);
+	fs::create_directories(dir);
+
+	std::ofstream meta(fs::path(dir) / "vehicle.json");
+	meta << "{\n";
+	meta << "  \"ego_speed_ms\": " << ego_speed_ms << "\n";
+	meta << "}\n";
+}
+
+void Rerun::log_visualization(
+	uint64_t frame_id, 
+	const cv::Mat& viz
+) {
+	std::lock_guard<std::mutex> lk(g_mutex);
+	if (viz.empty()) return;
+	if (g_base_dir.empty()) init();
+	const std::string dir = make_frame_dir(frame_id);
+	fs::create_directories(dir + "/images");
+
+	std::vector<uchar> buf;
+	std::vector<int> params = {cv::IMWRITE_PNG_COMPRESSION, 3};
+	cv::Mat bgr = viz;
+	if (viz.channels() == 4) cv::cvtColor(viz, bgr, cv::COLOR_BGRA2BGR);
+	cv::imencode(".png", bgr, buf, params);
+	write_bytes(fs::path(dir) / "images" / "visualization.png", buf);
 }
 
 void Rerun::shutdown() {
