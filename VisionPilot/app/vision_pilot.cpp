@@ -178,5 +178,8 @@ int main(int argc, char** argv)
         }
     }
 
-    return visualization.stop();
+    // stop() returns true on a clean shutdown; translate that to a 0 exit code
+    // so VisionPilot can be supervised as a batch/oneshot job (a successful run
+    // must not exit non-zero).
+    return visualization.stop() ? 0 : 1;
 }
