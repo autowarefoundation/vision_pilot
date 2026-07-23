@@ -15,6 +15,8 @@
 //   logging::Rerun::log_frame_images(frame_id, frame, warped, resized);
 //   logging::Rerun::log_inference(frame_id, inference_result);
 //   logging::Rerun::log_plan(frame_id, plan);
+//   logging::Rerun::log_ego_speed(frame_id, ego_speed_ms);
+//   logging::Rerun::log_visualization(frame_id, viz_image);
 //   logging::Rerun::shutdown();
 
 namespace cv { class Mat; }
@@ -47,6 +49,12 @@ public:
 
 	// Log plan / control output
 	static void log_plan(uint64_t frame_id, const Plan& p);
+
+	// Log ego vehicle speed (m/s)
+	static void log_ego_speed(uint64_t frame_id, double ego_speed_ms);
+
+	// Log output vis image
+	static void log_visualization(uint64_t frame_id, const cv::Mat& viz);
 
 	// Flush & close
 	static void shutdown();
