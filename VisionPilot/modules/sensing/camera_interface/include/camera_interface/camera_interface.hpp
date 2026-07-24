@@ -29,6 +29,10 @@ public:
     // {false, {}} = no frame yet (live) or stream ended (video, no loop).
     virtual std::tuple<bool, cv::Mat> get_latest_frame() = 0;
     virtual std::vector<std::string> get_overlay() const = 0;
+
+    // Sim-time stamp [s] of the frame returned by the last get_latest_frame().
+    // Negative when the source carries no timestamps (V4L2 / video file).
+    virtual double get_latest_frame_stamp_sec() const { return -1.0; }
 };
 
 #endif //VISIONPILOT_CAMERA_INTERFACE_HPP

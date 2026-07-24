@@ -13,6 +13,15 @@ public:
 
     // Send steering and acceleration via CAN frame
     virtual void write(double steering, double acceleration) = 0;
+
+    // Publish the fused lane-center geometry (middleware-specific; default: none).
+    // Args mirror LateralFusionEstimate: cte_m +ve = ego right of path,
+    // yaw_rad +ve = path heading left, curvature +ve = left turn;
+    // stamp_sec = source-image time (negative = unknown).
+    virtual void publish_lane_path(double /*stamp_sec*/, bool /*valid*/,
+                                   double /*cte_m*/, double /*yaw_rad*/,
+                                   double /*curvature*/, bool /*path_valid*/,
+                                   double /*path_x_max*/) {}
 };
 
 

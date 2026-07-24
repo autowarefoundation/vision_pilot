@@ -161,6 +161,12 @@ int main(int argc, char** argv)
                 cipo_dist,
                 r->cipo.velocity_ms);
 
+            vehicle_interface->publish_lane_path(
+                camera_interface->get_latest_frame_stamp_sec(),
+                r->lateral.valid,
+                r->lateral.cte_m, r->lateral.yaw_rad, r->lateral.curvature,
+                r->lateral.path_valid, r->lateral.path_x_max_m);
+
             vehicle_interface->write(
                 plan.steering.empty() ? 0.0 : plan.steering[0],
                 plan.acceleration);
