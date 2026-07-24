@@ -268,6 +268,11 @@ Input directory can be modified in the source by using `run.sh` script switch
 
 </details>
 
+## Running Vision Pilot in a Simulator
+
+[![Watch the Video](/Media/Vision_Pilot_CARLA.jpg)](https://drive.google.com/file/d/1DCtXkKnhGTcU-YRiBCTTbCYkixUw8FZW/view?usp=sharing)
+We support the CARLA simulator for closed-loop testing of Vision Pilot in a virtual environment
+
 ## Running Vision Pilot with your own camera
 In order to run Vision Pilot with your own camera, you will need to calibrate your camera and provide the calibraiton information to the Vision Pilot app - this is important for Vision Pilot to accurately measure the shape of the road and the distance to objects.
 
