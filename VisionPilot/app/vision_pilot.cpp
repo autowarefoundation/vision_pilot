@@ -77,6 +77,7 @@ int main(int argc, char** argv)
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
     Planner planner(cfg.speed_limit, cfg.Lf);
+    logging::Rerun::init("rerun_logs");
 
     // ── Init visualization assets once based on mode ──────────────────────────
     if (debug_viz)
@@ -164,6 +165,10 @@ int main(int argc, char** argv)
             vehicle_interface->write(
                 plan.steering.empty() ? 0.0 : plan.steering[0],
                 plan.acceleration);
+            logging::Rerun::log_frame_images(r->frame_id, frame, warped, resized);
+            logging::Rerun::log_inference(r->frame_id, *r);
+            logging::Rerun::log_plan(r->frame_id, plan);
+            logging::Rerun::log_ego_speed(r->frame_id, ego_v);
 
             if (cfg.visualization_on)
             {
@@ -171,6 +176,7 @@ int main(int argc, char** argv)
                     vd::visualize(resized, *r, source_label(cfg.source), cfg.wheel_dir, pipeline.H_world2resized());
                 else
                     display_frame = visualization.build_frame(resized, *r, plan, ego_v, pipeline.H_resized(), cfg.speed_limit);
+                logging::Rerun::log_visualization(r->frame_id, display_frame);
             }
         }
         if (cfg.visualization_on)
