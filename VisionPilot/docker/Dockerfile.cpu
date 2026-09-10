@@ -2,6 +2,8 @@
 
 # Build:
 #   docker build -t visionpilot:cpu -f docker/Dockerfile.cpu .     (run from inside VisionPilot/)
+# Unit tests (builds and runs models_tests, does not need the app target):
+#   docker build --target tests -f docker/Dockerfile.cpu .
 # Run:
 #   docker run --rm -it -v <TEST_DATA_DIR>:<CONFIG_TEST_DATA_DIR>:ro -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw visionpilot:cpu
 
@@ -28,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git wget ca-certificates gnupg \
         python3 python3-pip \
+        libgtest-dev \
         libopencv-dev \
         libgstreamer1.0-dev \
         libgstreamer-plugins-base1.0-dev \
@@ -100,8 +103,14 @@ RUN mkdir build && cd build \
     && cmake -DONNXRUNTIME_ROOT=/usr/share/visionpilot/onnxruntime -DGPU=OFF \
              -DENABLE_ROS2_INTERFACE=${ENABLE_ROS2} \
              -DENABLE_OCCUPANCY=${ENABLE_OCCUPANCY} \
+             -DBUILD_TESTING=ON \
              -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib" .. \
-    && make -j"$(nproc)" VisionPilot
+    && make -j"$(nproc)" VisionPilot models_tests
+
+
+# tests -- `docker build --target tests` is the unit-test gate.
+FROM builder AS tests
+RUN /opt/visionpilot/build/models_tests
 
 # runtime
 FROM ubuntu:${UBUNTU_VERSION} AS runtime

@@ -2,14 +2,11 @@
 
 #include <common/utils.hpp>
 #include <logging/logger.hpp>
-#include <models/backend.hpp>
-#include <models/merged_backend.hpp>
-#include <models/split_backend.hpp>
 #include <models/tensor_prep.hpp>
 
-#include <cctype>
 #include <chrono>
-#include <stdexcept>
+#include <future>
+#include <utility>
 #include <vector>
 
 namespace visionpilot::models {
@@ -18,18 +15,14 @@ namespace {
 
 constexpr int CHW_SIZE = AutoDrive::CHW_SIZE;
 
-// Case-insensitive match against a sentinel that is itself lower-case, so a
-// typo like "Auto" or "NONE" is recognised as the sentinel rather than
-// silently falling through to the explicit-path branch and failing later
-// with a message that names neither the real mistake nor the valid choices.
-bool ieq_sentinel(const std::string& value, const char* sentinel)
-{
-    size_t i = 0;
-    for (; i < value.size() && sentinel[i] != '\0'; ++i) {
-        if (std::tolower(static_cast<unsigned char>(value[i])) != sentinel[i])
-            return false;
-    }
-    return i == value.size() && sentinel[i] == '\0';
+std::string find_model(const std::string& filename) {
+    const std::string local  = "modules/models/weights/" + filename;
+    const std::string system = "/usr/share/visionpilot/modules/models/weights/" + filename;
+
+    if (std::filesystem::exists(local))  return local;
+    if (std::filesystem::exists(system)) return system;
+
+    throw std::runtime_error("Config file not found: " + filename);
 }
 
 }  // namespace
@@ -42,69 +35,18 @@ void LatencyStats::update(double pre_, double ad_, double as_, double asp_, doub
 void LatencyStats::print() const
 {
     const double total = pre + wall;
-    const double fps   = total > 0 ? 1000.0 / total : 0.0;
-
-    // A merged backend runs one fused session, so per-branch times do not
-    // exist; ad carries the whole Run.
-    if (as == 0.0 && asp == 0.0) {
-        VP_INFO("Latency  pre=%.1f ms  merged=%.1f ms  wall=%.1f ms  %.0f fps",
-                pre, ad, total, fps);
-        return;
-    }
     VP_INFO("Latency  pre=%.1f ms  AD=%.1f ms  AS=%.1f ms  ASp=%.1f ms  "
             "parallel=%.1f ms  wall=%.1f ms  %.0f fps",
-            pre, ad, as, asp, wall, total, fps);
+            pre, ad, as, asp, wall, total, total > 0 ? 1000.0 / total : 0.0);
 }
 
 void LatencyStats::reset() { *this = {}; }
 
-std::optional<MergedTarget> resolve_merged_target(const engine::Config& engine_cfg,
-                                                   const Config&         cfg)
-{
-    if (!cfg.merged) {
-        if (engine_cfg.provider == "renesas") {
-            throw std::runtime_error(
-                "[InferencePipeline] engine.provider = renesas requires "
-                "model.merged = true. The Renesas execution provider permits "
-                "one NPU session per process, so a three-session split would "
-                "place two of the three networks on a silent CPU fallback.");
-        }
-        return std::nullopt;
-    }
-
-    const bool renesas = engine_cfg.provider == "renesas";
-    const std::string model_or_dir =
-        renesas ? engine_cfg.artifacts_dir : cfg.merged_path;
-    if (model_or_dir.empty()) {
-        throw std::runtime_error(
-            renesas
-                ? "[InferencePipeline] engine.artifacts_dir is required "
-                  "when engine.provider = renesas"
-                : "[InferencePipeline] model.merged_path is required when "
-                  "model.merged = true");
-    }
-
-    std::string contract_path;
-    if (ieq_sentinel(cfg.contract, "auto")) {
-        contract_path = resolve_contract_path(
-            renesas ? std::string{} : model_or_dir,
-            renesas ? model_or_dir : std::string{});
-    } else if (!ieq_sentinel(cfg.contract, "none")) {
-        contract_path = cfg.contract;
-    }
-
-    return MergedTarget{model_or_dir, contract_path};
-}
-
 InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& cfg)
+    : auto_drive_(engine, find_model("autodrive_" + cfg.precision + ".onnx"))
+    , auto_steer_(engine, find_model("autosteer_" + cfg.precision + ".onnx"))
+    , auto_speed_(engine, find_model("autospeed_" + cfg.precision + ".onnx"))
 {
-    if (auto target = resolve_merged_target(engine.config(), cfg)) {
-        backend_ = std::make_unique<MergedBackend>(engine, target->model_or_dir,
-                                                   target->contract_path);
-    } else {
-        backend_ = std::make_unique<SplitBackend>(engine, cfg.precision);
-    }
-
     fusion::LongitudinalFusion::Config lc = cfg.long_fusion;
     lc.debug = cfg.fusion_debug;
     long_fusion_ = fusion::LongitudinalFusion{lc};
@@ -115,7 +57,7 @@ InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& c
     lat_fusion_ = fusion::LateralFusion{latc};
 
     // Allocate the input tensors once. Each is 6 MB, and process() hands the
-    // backend raw pointers into them, so they must not be reallocated.
+    // networks raw pointers into them, so they must not be reallocated.
     imn_[0].resize(CHW_SIZE);
     imn_[1].resize(CHW_SIZE);
     unit_.resize(CHW_SIZE);
@@ -203,40 +145,47 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
     to_chw_unit(as_input, curr_01_as, unit_.size());
 
     // This frame's curr tensor is next frame's prev. Swap now, while the state
-    // still matches the frame buffers -- a backend failure below does not
-    // invalidate the conversion that has already happened.
+    // still matches the frame buffers -- a failure below does not invalidate
+    // the conversion that has already happened.
     imn_curr_     = prev_slot;
     imn_prev_src_ = curr_frame_.data;
 
     const double ms_pre = Ms(Clock::now() - t0).count();
 
-    if (!offload_verified_) {
-        if (auto* merged = dynamic_cast<MergedBackend*>(backend_.get())) {
-            merged->verify_offload(prev_imn, curr_imn, curr_01_as);
-        }
-        // Set only once the gate has actually passed. Setting it first would
-        // let any caller that catches per-frame exceptions skip the gate for
-        // the rest of the run and drive on exactly the silent CPU fallback
-        // the gate exists to catch.
-        offload_verified_ = true;
-    }
-
     auto t_wall = Clock::now();
-    const BackendOutputs r = backend_->run(prev_imn, curr_imn, curr_01_as);
+    auto f_drive = std::async(std::launch::async, [&] {
+        auto t = Clock::now();
+        auto r = auto_drive_.infer(prev_imn, curr_imn);
+        return std::make_pair(std::move(r), Ms(Clock::now() - t).count());
+    });
+    auto f_steer = std::async(std::launch::async, [&] {
+        auto t = Clock::now();
+        auto r = auto_steer_.infer(curr_01_as);
+        return std::make_pair(std::move(r), Ms(Clock::now() - t).count());
+    });
+    auto f_speed = std::async(std::launch::async, [&] {
+        auto t = Clock::now();
+        auto r = auto_speed_.infer(curr_01_as);
+        return std::make_pair(std::move(r), Ms(Clock::now() - t).count());
+    });
+
+    auto [res_drive, ms_drive] = f_drive.get();
+    auto [res_steer, ms_steer] = f_steer.get();
+    auto [res_speed, ms_speed] = f_speed.get();
     const double ms_wall = Ms(Clock::now() - t_wall).count();
 
     InferenceFrameResult out;
     out.frame_id   = frame_count_;
     out.wall_ms    = ms_wall;
     out.pre_ms     = ms_pre;
-    out.ad_ms      = r.ad_ms;
-    out.as_ms      = r.as_ms;
-    out.asp_ms     = r.asp_ms;
-    out.auto_drive = r.drive;
-    out.auto_steer = r.steer;
-    out.auto_speed = r.speed;
+    out.ad_ms      = ms_drive;
+    out.as_ms      = ms_steer;
+    out.asp_ms     = ms_speed;
+    out.auto_drive = res_drive;
+    out.auto_steer = res_steer;
+    out.auto_speed = res_speed;
 
-    out.lateral = lat_fusion_.update(r.steer, r.drive);
+    out.lateral = lat_fusion_.update(res_steer, res_drive);
 
     const bool radar_on = long_fusion_.config().radar_enabled;
     fusion::PathPoly path;
@@ -247,14 +196,14 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
         path.c = out.lateral.path_c;
         path.x_max_m = out.lateral.path_x_max_m;
     }
-    const std::vector<RadarPoint>* radar_ptr =
+    const std::vector<fusion::RadarPoint>* radar_ptr =
         radar_on ? &radar_points_ : nullptr;
     const fusion::PathPoly* path_ptr =
         (radar_on && path.valid) ? &path : nullptr;
     const float* ego_ptr = has_ego_speed ? &ego_speed_ms : nullptr;
-    out.cipo = long_fusion_.update(r.drive, r.speed, warped, 0.f, radar_ptr, path_ptr, ego_ptr);
+    out.cipo = long_fusion_.update(res_drive, res_speed, warped, 0.f, radar_ptr, path_ptr, ego_ptr);
 
-    stats_.update(ms_pre, r.ad_ms, r.as_ms, r.asp_ms, ms_wall);
+    stats_.update(ms_pre, ms_drive, ms_steer, ms_speed, ms_wall);
     return out;
 }
 

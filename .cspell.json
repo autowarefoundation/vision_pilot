@@ -22,6 +22,7 @@
     "imgproc",
     "keyout",
     "libglib",
+    "libgtest",
     "libopencv",
     "libyaml",
     "logits",
