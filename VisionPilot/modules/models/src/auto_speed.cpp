@@ -73,33 +73,71 @@ AutoSpeedOutput AutoSpeed::infer(
     return post_process(results[0], conf_thres, iou_thres);
 }
 
+// ─── NMS helpers ─────────────────────────────────────────────────────────────
+
+namespace {
+
+float iou(const Detection& a, const Detection& b)
+{
+    const float ix1   = std::max(a.x1, b.x1);
+    const float iy1   = std::max(a.y1, b.y1);
+    const float ix2   = std::min(a.x2, b.x2);
+    const float iy2   = std::min(a.y2, b.y2);
+    const float inter = std::max(0.f, ix2 - ix1) * std::max(0.f, iy2 - iy1);
+    const float area_a = (a.x2 - a.x1) * (a.y2 - a.y1);
+    const float area_b = (b.x2 - b.x1) * (b.y2 - b.y1);
+    return inter / (area_a + area_b - inter + 1e-6f);
+}
+
+std::vector<Detection> nms(std::vector<Detection> dets, float iou_thres)
+{
+    std::sort(dets.begin(), dets.end(),
+              [](const Detection& a, const Detection& b) {
+                  return a.score > b.score;
+              });
+
+    std::vector<bool>      suppressed(dets.size(), false);
+    std::vector<Detection> keep;
+    keep.reserve(dets.size());
+
+    for (size_t i = 0; i < dets.size(); ++i) {
+        if (suppressed[i]) continue;
+        keep.push_back(dets[i]);
+        for (size_t j = i + 1; j < dets.size(); ++j) {
+            if (!suppressed[j] && iou(dets[i], dets[j]) > iou_thres)
+                suppressed[j] = true;
+        }
+    }
+    return keep;
+}
+
+}  // namespace
+
 // ─── Post-processing ─────────────────────────────────────────────────────────
 
-AutoSpeedOutput AutoSpeed::post_process(
-    const Ort::Value& tensor, float conf_thres, float iou_thres) const
+AutoSpeedOutput decode_detections(const float* data,
+                                  int64_t channels,
+                                  int64_t anchors,
+                                  bool    cls_is_probability,
+                                  float   conf_thres,
+                                  float   iou_thres)
 {
     AutoSpeedOutput out;
-    const auto shape = tensor.GetTensorTypeAndShapeInfo().GetShape();
 
-    // Expected layout: [1, C, N]  where C = 4 + num_classes
-    if (shape.size() < 3) {
-        printf("[AutoSpeed] Unexpected output rank: %zu\n", shape.size());
+    if (data == nullptr) {
+        printf("[AutoSpeed] Null detection buffer\n");
         return out;
     }
 
-    const int64_t C           = shape[1];
-    const int64_t N           = shape[2];
-    const int     num_classes = static_cast<int>(C) - 4;
+    const int num_classes = static_cast<int>(channels) - 4;
 
     if (num_classes <= 0) {
         printf("[AutoSpeed] Invalid channel count C=%lld\n",
-               static_cast<long long>(C));
+               static_cast<long long>(channels));
         return out;
     }
 
-    // data[c * N + n] gives channel c for anchor n
-    const float* data = tensor.GetTensorData<float>();
-
+    const int64_t N = anchors;
     std::vector<Detection> candidates;
     candidates.reserve(256);
 
@@ -112,7 +150,10 @@ AutoSpeedOutput AutoSpeed::post_process(
         float best_prob = -1.f;
         int   best_cls  =  0;
         for (int c = 0; c < num_classes; ++c) {
-            const float prob = 1.f / (1.f + std::exp(-data[(4 + c) * N + n]));
+            const float raw = data[(4 + c) * N + n];
+            const float prob = cls_is_probability
+                                   ? raw
+                                   : 1.f / (1.f + std::exp(-raw));
             if (prob > best_prob) { best_prob = prob; best_cls = c; }
         }
 
@@ -133,41 +174,22 @@ AutoSpeedOutput AutoSpeed::post_process(
     return out;
 }
 
-// ─── NMS helpers ─────────────────────────────────────────────────────────────
-
-float AutoSpeed::iou(const Detection& a, const Detection& b)
+AutoSpeedOutput AutoSpeed::post_process(
+    const Ort::Value& tensor, float conf_thres, float iou_thres) const
 {
-    const float ix1   = std::max(a.x1, b.x1);
-    const float iy1   = std::max(a.y1, b.y1);
-    const float ix2   = std::min(a.x2, b.x2);
-    const float iy2   = std::min(a.y2, b.y2);
-    const float inter = std::max(0.f, ix2 - ix1) * std::max(0.f, iy2 - iy1);
-    const float area_a = (a.x2 - a.x1) * (a.y2 - a.y1);
-    const float area_b = (b.x2 - b.x1) * (b.y2 - b.y1);
-    return inter / (area_a + area_b - inter + 1e-6f);
-}
+    const auto shape = tensor.GetTensorTypeAndShapeInfo().GetShape();
 
-std::vector<Detection> AutoSpeed::nms(
-    std::vector<Detection> dets, float iou_thres)
-{
-    std::sort(dets.begin(), dets.end(),
-              [](const Detection& a, const Detection& b) {
-                  return a.score > b.score;
-              });
-
-    std::vector<bool>      suppressed(dets.size(), false);
-    std::vector<Detection> keep;
-    keep.reserve(dets.size());
-
-    for (size_t i = 0; i < dets.size(); ++i) {
-        if (suppressed[i]) continue;
-        keep.push_back(dets[i]);
-        for (size_t j = i + 1; j < dets.size(); ++j) {
-            if (!suppressed[j] && iou(dets[i], dets[j]) > iou_thres)
-                suppressed[j] = true;
-        }
+    // Expected layout: [1, C, N]  where C = 4 + num_classes
+    if (shape.size() < 3) {
+        printf("[AutoSpeed] Unexpected output rank: %zu\n", shape.size());
+        return {};
     }
-    return keep;
+
+    // The standalone graph emits class logits, so sigmoid is applied here.
+    return decode_detections(tensor.GetTensorData<float>(),
+                             shape[1], shape[2],
+                             /*cls_is_probability=*/false,
+                             conf_thres, iou_thres);
 }
 
 }  // namespace visionpilot::models
