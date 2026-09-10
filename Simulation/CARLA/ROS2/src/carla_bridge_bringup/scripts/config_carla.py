@@ -45,6 +45,19 @@ def _setup_vehicle(world, config):
     bp.set_attribute("role_name", config.get("id"))
     bp.set_attribute("ros_name", config.get("id"))
 
+    # Extra blueprint attributes from the rig JSON. On CARLA 0.10 the ego must
+    # carry ros2_ackermann_control=True, otherwise the server binds the
+    # CarlaEgoVehicleControl subscriber instead of the Ackermann one and every
+    # /carla/<id>/ackermann_control_cmd message is silently ignored.
+    for key, value in config.get("attributes", {}).items():
+        if bp.has_attribute(str(key)):
+            bp.set_attribute(str(key), str(value))
+            logging.info("vehicle attribute %s = %s", key, value)
+        else:
+            logging.warning(
+                "vehicle blueprint %s has no attribute '%s'; skipping", bp.id, key
+            )
+
     spawn_points = map_.get_spawn_points()
     for i in range(len(spawn_points)):
         waypt = map_.get_waypoint(spawn_points[i].location)
@@ -184,10 +197,17 @@ def main(args):
         client.set_timeout(60.0)
         _check_versions(client)
 
-        # if args.map and "Town06" not in client.get_world().get_map().name:
-        #     logging.info("Loading Town06 map")
-        client.load_world("Town04")
-        # client.load_world("Town06")
+        with open(args.file) as f:
+            config = json.load(f)
+
+        # Map comes from the rig JSON ("map"); CARLA_MAP env overrides. CARLA 0.10
+        # ships the *_Opt variants (Town04_Opt), not the 0.9.16 names (Town04).
+        town = os.environ.get("CARLA_MAP", config.get("map", "Town04"))
+        if town not in client.get_world().get_map().name:
+            logging.info("Loading map %s", town)
+            client.load_world(town)
+        else:
+            logging.info("Map %s already loaded", town)
 
         world = client.get_world()
 
@@ -204,9 +224,6 @@ def main(args):
 
         traffic_manager = client.get_trafficmanager()
         traffic_manager.set_synchronous_mode(True)
-
-        with open(args.file) as f:
-            config = json.load(f)
 
         vehicle = _setup_vehicle(world, config)
         sensors = _setup_sensors(world, vehicle, config.get("sensors", []))
