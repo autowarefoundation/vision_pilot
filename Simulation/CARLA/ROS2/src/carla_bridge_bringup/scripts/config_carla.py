@@ -308,7 +308,6 @@ if __name__ == "__main__":
         dest="autopilot",
         help="turn on autopilot for the vehicle",
     )
-    argparser.add_argument("-m", "--map", action="store_true", dest="map", help="load Town06 map")
 
     args = argparser.parse_args()
 
