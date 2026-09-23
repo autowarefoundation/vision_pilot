@@ -49,7 +49,7 @@ std::unique_ptr<Ort::Session> OnnxEngine::create_cpu_session(
     const std::string& model_path) const
 {
     Ort::SessionOptions opts;
-    opts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+    opts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
     printf("[OnnxEngine] Creating CPU session → %s\n", model_path.c_str());
     return std::make_unique<Ort::Session>(env_, model_path.c_str(), opts);
