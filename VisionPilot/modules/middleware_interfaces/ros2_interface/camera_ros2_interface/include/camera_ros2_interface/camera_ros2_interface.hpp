@@ -71,6 +71,19 @@ public:
     std::tuple<bool, cv::Mat> get_latest_frame();
 
 
+    /**
+    * @brief Get latest frame together with its source capture stamp
+    *
+    * The stamp is the incoming image header stamp (for the CARLA rig: the
+    * simulated capture time), so downstream outputs can keep the same
+    * camera cycle instead of substituting their own publication time.
+    *
+    * @return {has_frame, frame, stamp}; stamp.has_stamp is false when the
+    *         received image carried no usable (non-zero) stamp.
+    */
+    std::tuple<bool, cv::Mat, FrameStamp> get_latest_frame_with_stamp() override;
+
+
     // /**
     // * @brief Get latest frame with frame metadata, via timestamp and frame index
     // *
@@ -154,6 +167,7 @@ private:
     // Single latest-frame slot with thread safety
     mutable std::mutex frame_mutex;
     cv::Mat latest_frame;
+    FrameStamp latest_stamp;
     bool has_latest_frame = false;
 
     // QoS settings for subscription

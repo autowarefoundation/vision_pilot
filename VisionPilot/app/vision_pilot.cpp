@@ -131,9 +131,17 @@ int main(int argc, char** argv)
     cv::Mat frame, warped, resized;
     bool h_resized_set = false;
     cv::Mat H = load_matrix("H.yaml", "H");
+
+    // Output identity: a session id that changes when this process restarts
+    // and a strictly increasing cycle counter, so consumers can detect
+    // restarts, duplicates and reordering.
+    const uint32_t vp_session = static_cast<uint32_t>(
+        std::chrono::system_clock::now().time_since_epoch().count() & 0xFFFFFFFFu);
+    uint64_t vp_cycle = 0;
+
     while (true)
     {
-        auto [ok, frame] = camera_interface->get_latest_frame();
+        auto [ok, frame, source_stamp] = camera_interface->get_latest_frame_with_stamp();
         if (!ok || frame.empty())
         {
             if (cfg.source.mode == SourceMode::Video && !cfg.source.video_loop) break;
@@ -200,6 +208,44 @@ int main(int argc, char** argv)
             vehicle_interface->write(
                 plan.steering.empty() ? 0.0 : plan.steering[1],
                 plan.acceleration);
+
+            // Compound outputs: one command and one path + speed reference
+            // per camera cycle, both carrying the source capture stamp.
+            const double applied_steering =
+                plan.steering.empty() ? 0.0 : plan.steering[1];
+            ++vp_cycle;
+
+            DrivingCommandData command;
+            command.has_source_stamp = source_stamp.has_stamp;
+            command.source_stamp_sec = source_stamp.sec;
+            command.source_stamp_nanosec = source_stamp.nanosec;
+            command.session = vp_session;
+            command.cycle = vp_cycle;
+            command.valid = true;
+            command.steering_tire_angle_rad = applied_steering;
+            // VP-selected target speed: the speed the current plan reaches
+            // at the end of its 1 s schedule (dt = 0.05 s, N = 20).
+            command.target_speed_mps =
+                plan.speed_horizon.empty() ? 0.0 : plan.speed_horizon.back();
+            command.acceleration_mps2 = plan.acceleration;
+            vehicle_interface->publish_driving_command(command);
+
+            DrivingReferenceData reference;
+            reference.has_source_stamp = source_stamp.has_stamp;
+            reference.source_stamp_sec = source_stamp.sec;
+            reference.source_stamp_nanosec = source_stamp.nanosec;
+            reference.session = vp_session;
+            reference.cycle = vp_cycle;
+            reference.valid = true;
+            reference.path_valid = r->lateral.path_valid;
+            reference.path_a = r->lateral.path_a;
+            reference.path_b = r->lateral.path_b;
+            reference.path_c = r->lateral.path_c;
+            reference.path_x_max_m = r->lateral.path_x_max_m;
+            reference.horizon_dt_s = dt;
+            reference.speed_horizon_mps = plan.speed_horizon;
+            vehicle_interface->publish_driving_reference(reference);
+
             cv::Mat viz; // output visualization image (empty when viz is off)
             if (cfg.visualization_on)
             {

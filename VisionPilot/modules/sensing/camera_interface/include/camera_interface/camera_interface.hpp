@@ -10,6 +10,16 @@ class CameraInterface
 public:
     virtual ~CameraInterface() = default;
 
+    // Source capture stamp of a frame. has_stamp=false for backends that
+    // cannot provide one (e.g. a file player); live ROS2 captures carry the
+    // image header stamp so downstream consumers can keep the same cycle.
+    struct FrameStamp
+    {
+        int32_t sec = 0;
+        uint32_t nanosec = 0;
+        bool has_stamp = false;
+    };
+
     struct CaptureStats
     {
         uint64_t frames_captured = 0; // Total frames successfully captured
@@ -28,6 +38,13 @@ public:
     virtual bool is_device_open() const = 0;
     // {false, {}} = no frame yet (live) or stream ended (video, no loop).
     virtual std::tuple<bool, cv::Mat> get_latest_frame() = 0;
+    // Same contract as get_latest_frame(), plus the frame's source capture
+    // stamp. Default preserves the old behaviour (no stamp).
+    virtual std::tuple<bool, cv::Mat, FrameStamp> get_latest_frame_with_stamp()
+    {
+        auto [ok, frame] = get_latest_frame();
+        return {ok, frame, FrameStamp{}};
+    }
     virtual std::vector<std::string> get_overlay() const = 0;
 };
 

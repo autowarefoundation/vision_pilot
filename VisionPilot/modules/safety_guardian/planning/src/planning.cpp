@@ -120,5 +120,7 @@ Plan Planner::compute_plan(
         warnings.push_back(Warning::AEB);
     }
 
-    return {acceleration, steering, warnings};
+    // Export the predicted speed schedule as the native longitudinal intent.
+    std::vector<double> speed_horizon(v_schedule.data(), v_schedule.data() + v_schedule.size());
+    return {acceleration, steering, speed_horizon, warnings};
 }
