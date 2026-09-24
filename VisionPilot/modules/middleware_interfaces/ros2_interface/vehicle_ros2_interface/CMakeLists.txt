@@ -19,4 +19,5 @@ target_link_libraries(vehicle_ros2_interface
         rclcpp::rclcpp
         std_msgs::std_msgs__rosidl_generator_cpp
         visionpilot_msgs::visionpilot_msgs__rosidl_generator_cpp
+        visionpilot_msgs::visionpilot_msgs__rosidl_typesupport_cpp
 )
