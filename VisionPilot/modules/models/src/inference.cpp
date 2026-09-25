@@ -89,8 +89,12 @@ InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& c
     lc.debug = cfg.fusion_debug;
     long_fusion_ = fusion::LongitudinalFusion{lc};
 
-    fusion::LateralFusion::Config latc;
+    fusion::LateralFusion::Config latc = cfg.lat_fusion;
     latc.debug      = cfg.fusion_debug;
+    VP_INFO("[Pipeline] lateral fusion noise: proc cte=%.3f cte_rate=%.3f yaw=%.4f yaw_rate=%.3f"
+            " | meas cte=%.3f yaw=%.3f",
+            latc.proc_noise_cte_m, latc.proc_noise_cte_rate_mps, latc.proc_noise_yaw_rad,
+            latc.proc_noise_yaw_rate_rps, latc.meas_noise_cte_m, latc.meas_noise_yaw_rad);
     latc.cte_bias_m = cfg.cte_bias_m;
     lat_fusion_ = fusion::LateralFusion{latc};
 }

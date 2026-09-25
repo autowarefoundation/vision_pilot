@@ -124,6 +124,20 @@ Config load_vision_pilot_config()
     cfg.inference.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
     cfg.inference.cte_bias_m   = static_cast<float>(
         parse_double(optional(kv, "fusion.cte_bias_m", "0.0"), "fusion.cte_bias_m"));
+    // Lateral particle-filter noise; defaults are the LateralFusion::Config values.
+    {
+        auto& lat = cfg.inference.lat_fusion;
+        const auto lat_key = [&](const char* key, float& value) {
+            value = static_cast<float>(
+                parse_double(optional(kv, key, std::to_string(value)), key));
+        };
+        lat_key("fusion.lat.proc_noise_cte_m",        lat.proc_noise_cte_m);
+        lat_key("fusion.lat.proc_noise_cte_rate_mps", lat.proc_noise_cte_rate_mps);
+        lat_key("fusion.lat.proc_noise_yaw_rad",      lat.proc_noise_yaw_rad);
+        lat_key("fusion.lat.proc_noise_yaw_rate_rps", lat.proc_noise_yaw_rate_rps);
+        lat_key("fusion.lat.meas_noise_cte_m",        lat.meas_noise_cte_m);
+        lat_key("fusion.lat.meas_noise_yaw_rad",      lat.meas_noise_yaw_rad);
+    }
     cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
 
     cfg.source.v4l2_device   = optional(kv, "source.v4l2_device", "/dev/video0");
