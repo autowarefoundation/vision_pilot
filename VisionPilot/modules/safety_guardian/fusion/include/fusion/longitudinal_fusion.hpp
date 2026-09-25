@@ -92,6 +92,12 @@ public:
         // Reinitialise filter when a measurement jumps this far from the
         // particle cloud (genuine cut-in / cut-out only).
         float reset_gate_m          = 25.f;
+        // Camera-only path: an AutoDrive-only CIPO (flag >= 0.40, no AutoSpeed
+        // vehicle box) may continue a track that an in-path AutoSpeed vehicle
+        // started (close range, where the box is lost), but may not start one.
+        // On the CARLA rig AD-only CIPOs with no vehicle present came from the
+        // guardrail ahead on curves and commanded up to -7.5 m/s^2.
+        bool  ad_only_needs_as_track = true;
         bool  debug                = false;
 
         bool  radar_enabled        = false;
@@ -176,6 +182,7 @@ private:
     std::vector<Particle> particles_;
     bool   initialised_ = false;
     bool   prev_cut_in_ = false;
+    bool   as_track_    = false;  // current track was started by an in-path AS vehicle
     TrackSrc track_src_ = TrackSrc::None;
     std::mt19937 rng_;
     // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
