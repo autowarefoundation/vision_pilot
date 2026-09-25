@@ -222,7 +222,15 @@ int main(int argc, char** argv)
             command.session = vp_session;
             command.cycle = vp_cycle;
             command.valid = true;
-            command.steering_tire_angle_rad = applied_steering;
+            // The internal lateral plan produces the opposite steering sign
+            // from the published contract. DrivingCommand declares
+            // "positive = left" (the SI/Autoware actuator convention); sending
+            // the raw plan value made VP_CONTROL steer against the lateral
+            // error and leave the lane at the first curve (rig evidence
+            // 2026-09-25: wall contact at ~35 m without this negation, clean
+            // lane keeping with it). Negate only at this publish boundary; the
+            // CAN write path keeps the internal convention.
+            command.steering_tire_angle_rad = -applied_steering;
             // VP-selected target speed: the speed the current plan reaches
             // at the end of its 1 s schedule (dt = 0.05 s, N = 20).
             command.target_speed_mps =
