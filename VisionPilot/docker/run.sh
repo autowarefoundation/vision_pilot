@@ -96,6 +96,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 # Default tag matches build.sh's naming convention (an explicit --tag wins)
+TAG_GIVEN="$TAG"
 if [ -z "$TAG" ]; then
     TAG="visionpilot:${VARIANT}"
     if [ "$ENABLE_ROS2" = "ON" ]; then
@@ -109,7 +110,7 @@ fi
 
 if ! docker image inspect "$TAG" >/dev/null 2>&1; then
     echo "Error: image '$TAG' not found locally." >&2
-    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )$( [ "$ENABLE_RADAR" = "ON" ] && echo " --radar" )" >&2
+    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )$( [ "$ENABLE_RADAR" = "ON" ] && echo " --radar" )$( [ -n "$TAG_GIVEN" ] && echo " --tag $TAG" )" >&2
     exit 1
 fi
 

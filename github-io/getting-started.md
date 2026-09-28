@@ -144,7 +144,7 @@ Run it:
 ./run.sh --cpu
 ./run.sh --gpu --ros2
 ./run.sh --gpu --radar           # tag must match the build (-radar suffix)
-./run.sh --gpu --tag myimg:latest   # image built with build.sh --tag
+./run.sh --gpu --tag myimg:latest   # image built with build.sh --tag (pass --ros2 too for a ROS 2 image)
 ```
 
 To mount your own data directory into the container:
