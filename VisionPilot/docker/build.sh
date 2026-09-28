@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Build the VisionPilot Docker image, choosing GPU or CPU variant and
-# optionally enabling ROS2 and/or Occupancy BEV support.
+# optionally enabling ROS2, Radar and/or Occupancy BEV support.
 #
 # Usage:
 #   ./build.sh [--gpu|--cpu] [--ros2] [--radar] [--occupancy] [--no-cache] [--tag <name>]

@@ -110,7 +110,7 @@ fi
 
 if ! docker image inspect "$TAG" >/dev/null 2>&1; then
     echo "Error: image '$TAG' not found locally." >&2
-    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )$( [ "$ENABLE_RADAR" = "ON" ] && echo " --radar" )$( [ -n "$TAG_GIVEN" ] && echo " --tag $TAG" )" >&2
+    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )$( [ "$ENABLE_RADAR" = "ON" ] && [ -z "$TAG_GIVEN" ] && echo " --radar" )$( [ -n "$TAG_GIVEN" ] && echo " --tag $TAG" )" >&2
     exit 1
 fi
 

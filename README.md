@@ -290,6 +290,11 @@ to enable the optional radar interface (pass alongside `--gpu` or `--cpu`):
   ./build.sh --gpu --radar
 ```
 
+The radar interface is currently only supported for the non-ROS2 build in video (file) mode. A `--radar` image requires
+`source.input_radar_file` to be set to an existing radar file in the config, even while `radar_on = false`;
+`radar_on = true` in `config/vision_pilot.conf` then turns the radar on. With ROS2 or V4L2/CAN sources no radar interface is
+created, so keep `radar_on = false` there.
+
 The image is tagged after the chosen options (e.g. `visionpilot:gpu-ros2-radar`), which is the tag `run.sh` looks for.
 To use your own tag, pass `--tag` to `build.sh` and to `run.sh`:
 
@@ -298,9 +303,9 @@ To use your own tag, pass `--tag` to `build.sh` and to `run.sh`:
   ./run.sh --gpu --tag myimg:latest
 ```
 
-With `--tag`, `run.sh` no longer infers anything from the image name: `--radar` is ignored, and `--ros2` still has to be passed
-to `run.sh` for a ROS2 image (it selects host networking and the ROS2 config mount). Note that `--radar` only compiles the
-radar interface in; it is switched on at run time with `radar_on = true` in `config/vision_pilot.conf`.
+With `--tag`, `run.sh` no longer infers anything from the image name, so repeat the options that describe the image:
+`--cpu` for a CPU image (otherwise `--gpus all` is added) and `--ros2` for a ROS2 image (it selects host networking and the
+ROS2 config mount). `--radar` has no effect on `run.sh` when `--tag` is given.
 
 To run the container use the `run.sh` script. For example to run the container with CPU support
 

@@ -134,7 +134,7 @@ cd VisionPilot/docker
 ./build.sh --gpu --ros2          # GPU + ROS 2
 ./build.sh --cpu                 # CPU only
 ./build.sh --gpu --occupancy     # add the Occupancy BEV window
-./build.sh --gpu --radar         # add the radar interface
+./build.sh --gpu --radar         # add the radar interface (video/file mode only, needs source.input_radar_file)
 ./build.sh --gpu --tag myimg:latest   # custom image tag (default: visionpilot:<variant>[-ros2][-radar])
 ```
 
@@ -144,7 +144,7 @@ Run it:
 ./run.sh --cpu
 ./run.sh --gpu --ros2
 ./run.sh --gpu --radar           # tag must match the build (-radar suffix)
-./run.sh --gpu --tag myimg:latest   # image built with build.sh --tag (pass --ros2 too for a ROS 2 image)
+./run.sh --gpu --tag myimg:latest   # image built with build.sh --tag (repeat --cpu / --ros2 to match the image)
 ```
 
 To mount your own data directory into the container:
