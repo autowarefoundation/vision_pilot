@@ -7,7 +7,7 @@
 #   ./build.sh [--gpu|--cpu] [--ros2] [--radar] [--occupancy] [--no-cache] [--tag <name>]
 #
 # Examples:
-#   ./build.sh                         # CPU build, ROS2 off, Radar off, Occupancy off (defaults)
+#   ./build.sh                         # GPU build, ROS2 off, Radar off, Occupancy off (defaults)
 #   ./build.sh --gpu                   # GPU build, ROS2 off
 #   ./build.sh --gpu --ros2            # GPU build, ROS2 on
 #   ./build.sh --gpu --occupancy       # GPU build with Occupancy BEV window
@@ -55,6 +55,14 @@ while [ $# -gt 0 ]; do
             NO_CACHE="--no-cache"
             shift
             ;;
+        --tag)
+            if [ $# -lt 2 ]; then
+                echo "Error: --tag requires a value." >&2
+                usage
+            fi
+            TAG="$2"
+            shift 2
+            ;;
         -h|--help)
             usage
             ;;
@@ -89,13 +97,15 @@ if [ ! -f "$DOCKERFILE" ]; then
 fi
 
 # Default tag reflects the chosen options, e.g. visionpilot:gpu-ros2
-
-TAG="visionpilot:${VARIANT}"
-if [ "$ENABLE_ROS2" = "ON" ]; then
-    TAG="${TAG}-ros2"
-fi
-if [ "$ENABLE_RADAR" = "ON" ]; then
-    TAG="${TAG}-radar"
+# (an explicit --tag wins)
+if [ -z "$TAG" ]; then
+    TAG="visionpilot:${VARIANT}"
+    if [ "$ENABLE_ROS2" = "ON" ]; then
+        TAG="${TAG}-ros2"
+    fi
+    if [ "$ENABLE_RADAR" = "ON" ]; then
+        TAG="${TAG}-radar"
+    fi
 fi
 
 echo "=================================================="
