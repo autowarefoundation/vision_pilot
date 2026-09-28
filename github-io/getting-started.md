@@ -126,7 +126,7 @@ For a package install, the config files live in:
 ## Option 3 — Docker
 
 The Dockerfiles in `VisionPilot/docker/` build GPU or CPU images, with or without ROS 2, and with
-the optional Occupancy window.
+the optional Radar interface and Occupancy window.
 
 ```bash
 cd VisionPilot/docker
@@ -134,6 +134,8 @@ cd VisionPilot/docker
 ./build.sh --gpu --ros2          # GPU + ROS 2
 ./build.sh --cpu                 # CPU only
 ./build.sh --gpu --occupancy     # add the Occupancy BEV window
+./build.sh --gpu --radar         # add the radar interface
+./build.sh --gpu --tag myimg:latest   # custom image tag (default: visionpilot:<variant>[-ros2][-radar])
 ```
 
 Run it:
@@ -141,6 +143,8 @@ Run it:
 ```bash
 ./run.sh --cpu
 ./run.sh --gpu --ros2
+./run.sh --gpu --radar           # tag must match the build (-radar suffix)
+./run.sh --gpu --tag myimg:latest   # image built with build.sh --tag
 ```
 
 To mount your own data directory into the container:

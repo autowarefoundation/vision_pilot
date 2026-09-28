@@ -256,14 +256,20 @@ VisionPilot
 
 To run Vision Pilot inside a Docker container, build the container using the Dockerfiles provided in the docker
 directory of the repository.
-Docker containers can be built with GPU/CPU support, NO_ROS2/ROS2 support, and optional Occupancy BEV support.
+Docker containers can be built with GPU/CPU support, NO_ROS2/ROS2 support, and optional Radar and Occupancy BEV support.
 
 To build the container, go to the docker subdirectory and run the following commands:
 
-Default is GPU support NO ROS2 support
+Default is GPU support, no ROS2 support, no Radar, no Occupancy BEV
 
 ```bash
-  ./build.sh --gpu --ros2 
+  ./build.sh
+```
+
+to build with ROS2 support
+
+```bash
+  ./build.sh --gpu --ros2
 ```
 
 to build with CPU support
@@ -276,6 +282,20 @@ to enable the optional Occupancy BEV window (pass alongside `--gpu` or `--cpu`):
 
 ```bash
   ./build.sh --gpu --occupancy
+```
+
+to enable the optional radar interface (pass alongside `--gpu` or `--cpu`):
+
+```bash
+  ./build.sh --gpu --radar
+```
+
+The image is tagged after the chosen options (e.g. `visionpilot:gpu-ros2-radar`), which is the tag `run.sh` looks for.
+To use your own tag, pass `--tag` to `build.sh` and to `run.sh`:
+
+```bash
+  ./build.sh --gpu --tag myimg:latest
+  ./run.sh --gpu --tag myimg:latest
 ```
 
 To run the container use the `run.sh` script. For example to run the container with CPU support
