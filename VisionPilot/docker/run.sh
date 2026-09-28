@@ -4,7 +4,7 @@
 #
 #
 # Usage:
-#   ./run.sh [--gpu|--cpu] [--ros2] [--v4l2 <host_device>[:<container_device>]] [--data <host_dir>[:<container_dir>]] [--no-display] [--no-xhost]
+#   ./run.sh [--gpu|--cpu] [--ros2] [--radar] [--tag <name>] [--v4l2 <host_device>[:<container_device>]] [--data <host_dir>[:<container_dir>]] [--no-display] [--no-xhost]
 #
 # Examples:
 #   ./run.sh                                  # GPU build, no test data/display
@@ -13,6 +13,8 @@
 #   ./run.sh --data /data                     # same path in container
 #   ./run.sh --data /host/data:/data          # mounted at a different path
 #   ./run.sh --gpu --ros2                     # matches the -ros2 tag suffix from build.sh
+#   ./run.sh --gpu --radar                    # matches the -radar tag suffix from build.sh
+#   ./run.sh --gpu --tag myimg:latest         # image built with build.sh --tag
 #
 # Anything after a literal `--` is passed through as extra arguments to
 # VisionPilot itself:
@@ -57,6 +59,14 @@ while [ $# -gt 0 ]; do
             ENABLE_ROS2="ON"
             shift
             ;;
+        --tag)
+            if [ $# -lt 2 ] || [ -z "$2" ] || [[ "$2" == -* ]]; then
+                echo "Error: --tag requires a value" >&2
+                exit 1
+            fi
+            TAG="$2"
+            shift 2
+            ;;
         --data)
             [ $# -ge 2 ] || { echo "Error: --data requires a value" >&2; exit 1; }
             DATA_DIR="$2"
@@ -85,13 +95,15 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
-# Default tag matches build.sh's naming convention
-TAG="visionpilot:${VARIANT}"
-if [ "$ENABLE_ROS2" = "ON" ]; then
-    TAG="${TAG}-ros2"
-fi
-if [ "$ENABLE_RADAR" = "ON" ]; then
-    TAG="${TAG}-radar"
+# Default tag matches build.sh's naming convention (an explicit --tag wins)
+if [ -z "$TAG" ]; then
+    TAG="visionpilot:${VARIANT}"
+    if [ "$ENABLE_ROS2" = "ON" ]; then
+        TAG="${TAG}-ros2"
+    fi
+    if [ "$ENABLE_RADAR" = "ON" ]; then
+        TAG="${TAG}-radar"
+    fi
 fi
 
 

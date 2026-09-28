@@ -56,7 +56,7 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         --tag)
-            if [ $# -lt 2 ]; then
+            if [ $# -lt 2 ] || [ -z "$2" ] || [[ "$2" == -* ]]; then
                 echo "Error: --tag requires a value." >&2
                 usage
             fi
