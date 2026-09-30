@@ -6,14 +6,9 @@
 
 #include <random>
 #include <vector>
+#include <common/types.hpp>
 
 namespace visionpilot::fusion {
-
-struct RadarPoint {
-    float range_m     = 0.f;
-    float azimuth_rad = 0.f;
-    float range_rate  = 0.f;  // relative; negative = closing
-};
 
 struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
     bool  valid = false;

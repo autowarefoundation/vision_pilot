@@ -124,9 +124,30 @@ Config load_vision_pilot_config()
     cfg.inference.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
     cfg.inference.cte_bias_m   = static_cast<float>(
         parse_double(optional(kv, "fusion.cte_bias_m", "0.0"), "fusion.cte_bias_m"));
-    cfg.inference.long_fusion.radar_enabled = parse_bool(optional(kv, "radar.enabled", "false"), "radar.enabled");
-    cfg.inference.long_fusion.radar_hfov_deg = static_cast<float>(
-        parse_double(optional(kv, "radar.hfov_deg", "50"), "radar.hfov_deg"));
+    cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
+
+    cfg.source.v4l2_device   = optional(kv, "source.v4l2_device", "/dev/video0");
+    cfg.source.v4l2_fps      = parse_int(optional(kv, "source.v4l2_fps", "10"), "source.v4l2_fps");
+    // cfg.pipeline.initial_inference_check = parse_bool(
+    //     optional(kv, "pipeline.initial_inference_check", "true"),
+    //     "pipeline.initial_inference_check");
+
+    cfg.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
+
+    cfg.speed_limit = parse_double(optional(kv, "speed_limit", ""), "speed_limit");
+    cfg.L = parse_double(optional(kv, "L", ""), "L");
+
+    cfg.visualization_on = parse_bool(optional(kv, "visualization_on", "false"), "visualization_on");
+    cfg.webrtc_on = parse_bool(optional(kv, "webrtc_on", "false"), "webrtc_on");
+    cfg.webrtc_port =  parse_int(optional(kv, "webrtc_port", "8080"), "webrtc_port");
+
+    cfg.rrd_on  = parse_bool(optional(kv, "rrd_on", "false"), "rrd_on");
+    cfg.rrd_log = optional(kv, "rrd_log", "visionpilot.rrd");
+
+#if ENABLE_RADAR_INTERFACE
+    cfg.radar_on = parse_bool(optional(kv, "radar_on", "false"), "radar_on");
+    cfg.radar_hfov_deg = static_cast<float>(
+        parse_double(optional(kv, "radar_hfov_deg", "50"), "radar_hfov_deg"));
     cfg.inference.long_fusion.radar_lat_buffer_m = static_cast<float>(
         parse_double(optional(kv, "radar.lat_buffer_m", "0.5"), "radar.lat_buffer_m"));
     cfg.inference.long_fusion.radar_path_buffer_m = static_cast<float>(
@@ -149,26 +170,7 @@ Config load_vision_pilot_config()
                 cfg.inference.long_fusion.radar_T(r, c) = radar.at<double>(r, c);
             }
     }
-
-    cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
-
-    cfg.source.v4l2_device   = optional(kv, "source.v4l2_device", "/dev/video0");
-    cfg.source.v4l2_fps      = parse_int(optional(kv, "source.v4l2_fps", "10"), "source.v4l2_fps");
-    // cfg.pipeline.initial_inference_check = parse_bool(
-    //     optional(kv, "pipeline.initial_inference_check", "true"),
-    //     "pipeline.initial_inference_check");
-
-    cfg.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
-
-    cfg.speed_limit = parse_double(optional(kv, "speed_limit", ""), "speed_limit");
-    cfg.L = parse_double(optional(kv, "L", ""), "L");
-
-    cfg.visualization_on = parse_bool(optional(kv, "visualization_on", "false"), "visualization_on");
-    cfg.webrtc_on = parse_bool(optional(kv, "webrtc_on", "false"), "webrtc_on");
-    cfg.webrtc_port =  parse_int(optional(kv, "webrtc_port", "8080"), "webrtc_port");
-
-    cfg.rrd_on  = parse_bool(optional(kv, "rrd_on", "false"), "rrd_on");
-    cfg.rrd_log = optional(kv, "rrd_log", "visionpilot.rrd");
+#endif
 
     { const std::string raw = optional(kv, "debug.wheel_dir", "");
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }
@@ -202,6 +204,12 @@ Config load_vision_pilot_config()
             throw std::runtime_error("source.mode=video requires source.input_vehicle_speed");
         if (!file_ok(cfg.source.input_vehicle_speed))
             throw std::runtime_error("source.video_path not found: " + cfg.source.input_vehicle_speed);
+#if ENABLE_RADAR_INTERFACE
+        cfg.source.input_radar_file = optional(kv, "source.input_radar_file", "");
+        if (cfg.source.input_radar_file.empty())
+            throw std::runtime_error("source.mode=video requires source.input_radar_file");
+#endif
+
         // Load dataset config
         cfg.source.dataset = optional(kv, "source.dataset", "");
         if (cfg.source.dataset.empty())

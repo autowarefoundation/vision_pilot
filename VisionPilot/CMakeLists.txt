@@ -2,6 +2,21 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(VisionPilot VERSION 1.0 LANGUAGES CXX)
 
+# An unset build type is not a neutral default: CMake then passes no -O flag at
+# all, so the binary is built -O0. That is what shipped, and it cost real
+# latency -- the per-frame input tensor conversion ran as scalar code with a
+# division per element, 14.4 ms per 1024x512 image on a Cortex-A720 instead of
+# 0.6 ms once vectorised. Pick Release for anyone who did not ask for something
+# else. Release is -O3, which matters: at -O2 that conversion stays entirely
+# scalar.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING
+        "Build type (Debug, Release, RelWithDebInfo, MinSizeRel)" FORCE)
+endif()
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY
+        STRINGS Debug Release RelWithDebInfo MinSizeRel)
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -18,6 +33,9 @@ option(GPU "Enable GPU support" ON)
 
 # ROS2 packages
 option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
+
+# Radar packages
+option(ENABLE_RADAR_INTERFACE "Enable Radar support" OFF)
 
 # Build testing code
 option(BUILD_TESTING "Build the testing tree" OFF)
@@ -46,11 +64,6 @@ add_subdirectory(modules/common)
 
 add_subdirectory(modules/sensing/image_preprocessing)
 
-if(ENABLE_ROS2_INTERFACE)
-    add_subdirectory(modules/middleware_interfaces/ros2_interface/camera_ros2_interface)
-    add_subdirectory(modules/middleware_interfaces/ros2_interface/vehicle_ros2_interface)
-endif()
-
 add_subdirectory(modules/engine)
 add_subdirectory(modules/models)
 
@@ -60,12 +73,20 @@ add_subdirectory(modules/safety_guardian/planning)
 add_subdirectory(modules/sensing/vehicle_interface)
 add_subdirectory(modules/sensing/camera_interface)
 
-add_subdirectory(modules/visualization)
+if(ENABLE_RADAR_INTERFACE)
+    add_subdirectory(modules/sensing/radar_interface)
+endif ()
 
-add_subdirectory(modules/debug)
+if(ENABLE_ROS2_INTERFACE)
+    add_subdirectory(modules/middleware_interfaces/ros2_interface/camera_ros2_interface)
+    add_subdirectory(modules/middleware_interfaces/ros2_interface/vehicle_ros2_interface)
+endif()
+
+add_subdirectory(modules/visualization)
 
 # Tests
 if(BUILD_TESTING)
+    add_subdirectory(modules/debug)
     add_subdirectory(tests)
 endif()
 

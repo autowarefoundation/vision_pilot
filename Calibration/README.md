@@ -24,12 +24,12 @@ To establish a highly precise mapping from pixels to physical road coordinates, 
 
 ### Step-by-Step Ground Marker Placement:
 
-1. **Print Four 2x2 Checkerboard Targets:**
-   * A 2x2 checkerboard consists of two black and two white squares meeting in the middle.
+1. **Print Four Checkerboard Targets:**
+   * A 4x4 checkerboard consists of of a set of 16 alternating black and white squares arranged in a 4x4 matrix.
    * **Crucial Detail:** The exact intersection point at the center serves as the single pixel-accurate coordinate $(u,v)$.
    
 2. **Lay Out the Grid on the Ground:**
-   * Using an A4 papger, print out four copies of the [checkerboard grid pattern](checkerboard-bw.png), each page should have one 2x2 checkerboard pattern on it. Place the checkerboards on the flat asphalt in front of the vehicle in a rectangular pattern such that they are visible to the camera and firmly tape the pages flat to the road surface.
+   * Using an A4 papger, print out four copies of the [checkerboard grid pattern](checkerboard-bw.png), each page should have one 4x4 checkerboard pattern on it. Place the checkerboards on the flat asphalt in front of the vehicle in a rectangular pattern such that they are visible to the camera and firmly tape the pages flat to the road surface.
    * Ensure they do not slide or warp.
 
 3. **Measure Your Coordinates:**
@@ -47,7 +47,7 @@ To establish a highly precise mapping from pixels to physical road coordinates, 
 The pipeline executes through five distinct stages:
 
 1. **Sub-Pixel Corner Extraction:**
-   OpenCV’s `cv2.findChessboardCorners` is executed with a target pattern size of `(1,1)` (which detects a single 2x2 checkerboard intersection). The coordinate is then refined down to sub-pixel accuracy using `cv2.cornerSubPix`.
+   OpenCV’s `cv2.findChessboardCorners` is executed with a target pattern size of `(3,3)` (which detects 9 intersection points). The center coordinate is extracted and it is then refined down to sub-pixel accuracy using `cv2.cornerSubPix`.
    
 2. **Iterative Detection & Space Masking:**
    Because a standard image has multiple identical targets, the script searches iteratively. Once it localizes a target center, it masks that region out of the grayscale search space with a solid white circle of radius $R = \max(\text{width}, \text{height})/20$ to ensure subsequent iterations lock onto different boards.
@@ -69,10 +69,10 @@ The pipeline executes through five distinct stages:
 
 ## 3. Run the script
 
-Execute the script by feeding it your captured camera frame along with the physical coordinates measured from your real-world marker grid, an example is shown below - ensure to save your H-matrix in the [VisionPilot/config](../VisionPilot/config/) folder and **replace the default H.yaml file** with your new yaml file.
+Execute the script by feeding it your captured camera frame along with the physical coordinates measured from your real-world marker grid, an example is shown below - ensure to save your H-matrix in the [VisionPilot/config](../VisionPilot/config/) folder and **replace the default `H.yaml` file** with your new yaml file.
 
 ```bash
-python calc_homography_2x2.py --img road_frame.jpg \
+python calc_front_camera_homography.py --img road_frame.jpg \
   --out ../VisionPilot/config/H.yaml \
   --tl 0.0 15.0 \
   --tr 3.7 15.0 \
@@ -81,14 +81,15 @@ python calc_homography_2x2.py --img road_frame.jpg \
 ```
 
 ### Commandline Arguments
-- **--img** - Path to the captured source calibration image file.
+- **--img** - Path to the captured source calibration image file. If the file is a video, it extracts the first frame.
 - **--out** - Target file path where the evaluated Homography matrix should be saved.
 - **--tl** - Top-Left Marker World Coordinates: X (depth), Y (horizontal offset).
 - **--tr** - Top-Right Marker World Coordinates: X (depth), Y (horizontal offset).
 - **--bl** - Bottom-Left Marker World Coordinates: X (depth), Y (horizontal offset).
 - **--br** - Bottom-Right Marker World Coordinates: X (depth), Y (horizontal offset).
-
----
+- **--debug-ask** - Exports an image for each checkerboard that gets found and masked. Found checkerboards will have the mask on top of them.
+- **--save-frame** - Exports the captured frame from the input video as png. It has no effect when source is already and image.
+- **--hide-capture** - Turns off preview of the captured image when source is a video. It has no effect when source is already an image.
 
 ### File Output (H.yaml)
 The Homography matrix is saved and can be used by Vision Pilot
@@ -99,6 +100,25 @@ The script automatically produces an overlay visualization image saved as <your_
 **Green Lines:** Represent a uniform physical grid drawn on the road floor, projected back into perspective. If your calibration is accurate, these lines will align perfectly parallel to existing road lines, and compress correctly as they approach the horizon.
 
 **Red Circles:** Indicate the identified centers of your checkerboards, printed with text labels (Top-Left, Top-Right, etc.) confirming the correct identification pairing
+
+## 4. Scaling Homography Matrix
+
+If you are calibrating a camera inside a virtual environment, you have the option to perform the initial calibration with a higher resolution, and then downscale the resolution for the actual application. The initial higher resolution makes it easier for OpenCV to detect the checkerboard corners, but running your system with this resolution also means a higher computational requirement. By scaling the calibration to work with a lower resolution, you get the benefits of both options.
+
+In order to do this, you can simply sun `scale_H.py`. Assuming you are scaling from 2048x1024 down to 1024x512:
+
+```bash
+python scale_H.py --input H.yaml --cal-res 2048 1024 --vp-res 1024 512
+```
+### Commandline Arguments
+- **--input** - Path to the input yaml file to be scaled.
+- **--output** - (Optional) Path to the yaml file to be generated. Default value is `.\H_scaled.yaml`.
+- **--cal-res** - Camera resolution (H x V) used during the calibration
+- **--vp-res** - Camera resolution (H x V) that will be used with VisionPilot
+
+Note that *--calc-res* and *vp-res* need to have matching aspect ratios for the scaling to be performed.
+
+After calibration, replace the `H.yaml` file VisionPilot is currently using.
 
 ---
 

@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <common/types.hpp>
 
 namespace visionpilot::engine {
 class OnnxEngine;
@@ -82,7 +83,7 @@ public:
     void reset();
     const LatencyStats& latency() const { return stats_; }
 
-    void set_radar_points(std::vector<fusion::RadarPoint> pts) { radar_points_ = std::move(pts); }
+    void set_radar_points(std::vector<RadarPoint> pts) { radar_points_ = std::move(pts); }
 
 private:
     cv::Mat H_resized_;
@@ -94,7 +95,7 @@ private:
     fusion::LateralFusion      lat_fusion_;
     LatencyStats       stats_;
     uint64_t           frame_count_ = 0;
-    std::vector<fusion::RadarPoint> radar_points_;
+    std::vector<RadarPoint> radar_points_;
 
     cv::Mat prev_frame_;
     cv::Mat curr_frame_;

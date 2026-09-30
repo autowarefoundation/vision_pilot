@@ -323,7 +323,7 @@ static cv::Point world_to_bev_px(float x_fwd, float y_lat,
 // A static return's range-rate is -v_ego·cos(azimuth), and on a highway most
 // returns are static world (ground, barriers, signs).  The median of the
 // de-projected rate is therefore -v_ego, robust to the few moving targets.
-static float ego_speed_from_radar(const std::vector<fusion::RadarPoint>& pts)
+static float ego_speed_from_radar(const std::vector<RadarPoint>& pts)
 {
     std::vector<float> rr;
     rr.reserve(pts.size());

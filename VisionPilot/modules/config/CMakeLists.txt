@@ -13,6 +13,10 @@ if (ENABLE_ROS2_INTERFACE)
     target_compile_definitions(config PUBLIC ENABLE_ROS2_INTERFACE)
 endif()
 
+if (ENABLE_RADAR_INTERFACE)
+    target_compile_definitions(config PUBLIC ENABLE_RADAR_INTERFACE)
+endif()
+
 target_link_libraries(config
     PUBLIC
     engine   # for visionpilot::engine::EngineConfig in VisionPilotConfig

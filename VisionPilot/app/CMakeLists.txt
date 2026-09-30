@@ -10,6 +10,11 @@ set_target_properties(VisionPilot PROPERTIES
 
 add_dependencies(VisionPilot generate_config)
 
+if (ENABLE_RADAR_INTERFACE)
+    target_link_libraries(VisionPilot PRIVATE radar_interface)
+    target_compile_definitions(VisionPilot PRIVATE ENABLE_RADAR_INTERFACE)
+endif ()
+
 if (ENABLE_ROS2_INTERFACE)
     find_package(rclcpp REQUIRED)
     find_package(std_msgs REQUIRED)
@@ -17,6 +22,11 @@ if (ENABLE_ROS2_INTERFACE)
     target_link_libraries(VisionPilot PUBLIC rclcpp::rclcpp)
     target_link_libraries(VisionPilot PRIVATE camera_ros2_interface vehicle_ros2_interface)
     target_compile_definitions(VisionPilot PRIVATE ENABLE_ROS2_INTERFACE)
+endif ()
+
+if(BUILD_TESTING)
+    target_link_libraries(VisionPilot PRIVATE vp_debug) # Debug annotate_frame
+    target_compile_definitions(VisionPilot PRIVATE BUILD_TESTING)
 endif ()
 
 target_link_libraries(VisionPilot
@@ -32,7 +42,6 @@ target_link_libraries(VisionPilot
     camera_interface
     image_preprocessing
     visualization
-    vp_debug         # Debug annotate_frame
 )
 
 # Suppress unresolved-symbol errors from system shared libs (gdal→curl, ICU from miniforge3)

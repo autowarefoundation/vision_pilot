@@ -37,6 +37,10 @@ while [ $# -gt 0 ]; do
             VARIANT="cpu"
             shift
             ;;
+        --radar)
+            ENABLE_RADAR="ON"
+            shift
+            ;;
         --ros2)
             ENABLE_ROS2="ON"
             shift
@@ -88,11 +92,15 @@ TAG="visionpilot:${VARIANT}"
 if [ "$ENABLE_ROS2" = "ON" ]; then
     TAG="${TAG}-ros2"
 fi
+if [ "$ENABLE_RADAR" = "ON" ]; then
+    TAG="${TAG}-radar"
+fi
 
 echo "=================================================="
 echo " VisionPilot Docker build"
 echo "=================================================="
 echo " Variant:      $VARIANT"
+echo " Radar support: $ENABLE_RADAR"
 echo " ROS2 support: $ENABLE_ROS2"
 echo " Occupancy support: $ENABLE_OCCUPANCY"
 echo " Dockerfile:   $DOCKERFILE"
@@ -103,6 +111,7 @@ echo "=================================================="
 docker build $NO_CACHE \
     -t "$TAG" \
     -f "$DOCKERFILE" \
+    --build-arg ENABLE_RADAR="$ENABLE_RADAR" \
     --build-arg ENABLE_ROS2="$ENABLE_ROS2" \
     --build-arg ENABLE_OCCUPANCY="$ENABLE_OCCUPANCY" \
     ..
