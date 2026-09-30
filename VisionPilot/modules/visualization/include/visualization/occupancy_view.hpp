@@ -45,6 +45,19 @@ struct Scene
 
   bool ad_cipo_only = false;
   float ad_distance_m = 0.f;
+
+  // Radar in the same ego frame as the path (X forward, Y left).
+  // Occupancy paints returns only; vehicle boxes remain camera-derived.
+  bool radar_enabled = false;
+  struct RadarReturn
+  {
+    float x = 0.f;
+    float y = 0.f;
+    float range_rate = 0.f;
+    bool in_match = false;
+    bool moving = false;
+  };
+  std::vector<RadarReturn> radar_points;
 };
 
 // Heuristic 3D occupancy / BEV panel (separate window).
