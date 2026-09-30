@@ -170,8 +170,9 @@ int main(int argc, char** argv)
             const double epsi = r->lateral.yaw_rad;
             const double kappa = r->lateral.curvature;
 
-            // has_cipo: tracker-based — true only when filter tracks a target
-            // closer than D_MAX. cipo_raw_found alone must not gate the planner.
+            // has_cipo: tracker-based — true only after the range has agreed
+            // across confirm_frames and the filter is closer than D_MAX.
+            // A one-frame phantom stays at D_MAX. cipo_raw_found must not gate.
             static constexpr double D_MAX = 150.0;
             const bool has_cipo = r->cipo.valid && r->cipo.distance_m < D_MAX;
             const double cipo_v = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
