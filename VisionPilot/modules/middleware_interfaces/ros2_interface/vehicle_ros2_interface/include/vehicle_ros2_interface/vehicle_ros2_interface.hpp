@@ -8,13 +8,21 @@
 #include <functional>
 #include <memory>
 #include <vehicle_interface/vehicle_interface.hpp>
+#include <visionpilot_msgs/msg/driving_command.hpp>
+#include <visionpilot_msgs/msg/driving_reference.hpp>
 
 // ── Topics ────────────────────────────────────────────────────────────────────
 //
-//  Subscribe  /vehicle/speed           Float64   ego speed (m/s)
+//  Subscribe  /vehicle/speed             Float64   ego speed (m/s)
 //
-//  Publish    /vehicle/steering_cmd    Float64   tyre angle (rad)
-//             /vehicle/throttle_cmd   Float64   acceleration (m/s²)
+//  Publish    /vehicle/steering_cmd      Float64   tyre angle (rad)
+//             /vehicle/throttle_cmd      Float64   acceleration (m/s²)
+//             /vehicle/driving_command   visionpilot_msgs/DrivingCommand
+//                 One compound command per camera cycle: steering,
+//                 VP-selected target speed, signed acceleration, source
+//                 capture stamp and VP session/cycle.
+//             /vehicle/driving_reference visionpilot_msgs/DrivingReference
+//                 One compound path + speed/stop intent per camera cycle.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -32,6 +40,12 @@ public:
     // Publish tyre angle (rad) and acceleration (m/s²) to ROS2.
     void write(double steering, double acceleration) override;
 
+    // Publish one compound driving command with source capture identity.
+    void publish_driving_command(const DrivingCommandData& command) override;
+
+    // Publish one compound path + speed reference with source identity.
+    void publish_driving_reference(const DrivingReferenceData& reference) override;
+
 private:
     // Inner node — owns all ROS 2 concerns
     class VehicleRos2Node : public rclcpp::Node
@@ -46,6 +60,8 @@ private:
         rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr steering_pub_;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr throttle_pub_;
+        rclcpp::Publisher<visionpilot_msgs::msg::DrivingCommand>::SharedPtr driving_command_pub_;
+        rclcpp::Publisher<visionpilot_msgs::msg::DrivingReference>::SharedPtr driving_reference_pub_;
     };
 
     std::shared_ptr<VehicleRos2Node> node_;

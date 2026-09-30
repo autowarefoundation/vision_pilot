@@ -71,6 +71,7 @@ RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
             ros-jazzy-ros-base \
             ros-jazzy-cv-bridge \
             ros-jazzy-image-transport \
+            ros-jazzy-rosidl-default-generators \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
@@ -95,8 +96,22 @@ RUN mkdir -p /usr/share/visionpilot /opt/ort_extract \
 WORKDIR /opt/visionpilot
 COPY . .
 
+# Build the visionpilot_msgs interfaces into a dedicated prefix so the ROS2
+# vehicle interface can link them. On non-ROS2 builds the prefix is created
+# empty; the runtime copy below is then a no-op.
+RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
+        . /opt/ros/jazzy/setup.bash \
+        && cmake -S /opt/visionpilot/modules/middleware_interfaces/ros2_interface/visionpilot_msgs \
+                 -B /opt/visionpilot_msgs/build \
+                 -DCMAKE_INSTALL_PREFIX=/opt/visionpilot_msgs/install \
+        && cmake --build /opt/visionpilot_msgs/build --parallel "$(nproc)" \
+        && cmake --install /opt/visionpilot_msgs/build; \
+    else \
+        mkdir -p /opt/visionpilot_msgs/install/lib /opt/visionpilot_msgs/install/share; \
+    fi
+
 RUN mkdir build && cd build \
-    && if [ "$ENABLE_ROS2" = "ON" ]; then . /opt/ros/jazzy/setup.bash; fi \
+    && if [ "$ENABLE_ROS2" = "ON" ]; then . /opt/ros/jazzy/setup.bash; export CMAKE_PREFIX_PATH="/opt/visionpilot_msgs/install:$CMAKE_PREFIX_PATH"; fi \
     && cmake -DONNXRUNTIME_ROOT=/usr/share/visionpilot/onnxruntime -DGPU=ON \
              -DENABLE_RADAR_INTERFACE=${ENABLE_RADAR} \
              -DENABLE_ROS2_INTERFACE=${ENABLE_ROS2} \
@@ -157,6 +172,12 @@ RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
 # `setup.bash` sets LD_LIBRARY_PATH for you, but ENTRYPOINT runs the binary
 # directly with no shell in between to source it. Set it explicitly instead.
 ENV LD_LIBRARY_PATH="/opt/ros/jazzy/lib:${LD_LIBRARY_PATH}"
+
+# visionpilot_msgs interfaces built in the builder stage (ROS2 builds only).
+# The binary links the generated typesupport libraries; the message
+# definitions stay available for tooling through the ament share dir.
+COPY --from=builder /opt/visionpilot_msgs/install/lib/ /opt/ros/jazzy/lib/
+COPY --from=builder /opt/visionpilot_msgs/install/share/ /opt/ros/jazzy/share/
 
 RUN mkdir -p /usr/share/visionpilot
 

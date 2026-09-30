@@ -23,11 +23,17 @@ VehicleRos2Interface::VehicleRos2Node::VehicleRos2Node(
 
     steering_pub_ = create_publisher<std_msgs::msg::Float64>(vehicle_steering_topic, cmd_qos);
     throttle_pub_ = create_publisher<std_msgs::msg::Float64>(vehicle_acceleration_topic, cmd_qos);
+    driving_command_pub_ = create_publisher<visionpilot_msgs::msg::DrivingCommand>(
+        "/vehicle/driving_command", cmd_qos);
+    driving_reference_pub_ = create_publisher<visionpilot_msgs::msg::DrivingReference>(
+        "/vehicle/driving_reference", cmd_qos);
 
     RCLCPP_INFO(get_logger(), "VehicleRos2Interface ready");
     RCLCPP_INFO(get_logger(), "  sub  /vehicle/speed");
     RCLCPP_INFO(get_logger(), "  pub  /vehicle/steering_cmd");
     RCLCPP_INFO(get_logger(), "  pub  /vehicle/throttle_cmd");
+    RCLCPP_INFO(get_logger(), "  pub  /vehicle/driving_command");
+    RCLCPP_INFO(get_logger(), "  pub  /vehicle/driving_reference");
 }
 
 // ── VehicleRos2Interface ──────────────────────────────────────────────────────
@@ -66,4 +72,50 @@ void VehicleRos2Interface::write(const double steering, const double acceleratio
     std_msgs::msg::Float64 throttle_msg;
     throttle_msg.data = acceleration;
     node_->throttle_pub_->publish(throttle_msg);
+}
+
+void VehicleRos2Interface::publish_driving_command(const DrivingCommandData& command)
+{
+    visionpilot_msgs::msg::DrivingCommand msg;
+    msg.stamp = node_->now();
+    if (command.has_source_stamp)
+    {
+        msg.source_stamp.sec = command.source_stamp_sec;
+        msg.source_stamp.nanosec = command.source_stamp_nanosec;
+    }
+    msg.has_source_stamp = command.has_source_stamp;
+    msg.session = command.session;
+    msg.cycle = command.cycle;
+    msg.valid = command.valid;
+    msg.steering_tire_angle_rad = command.steering_tire_angle_rad;
+    msg.target_speed_mps = command.target_speed_mps;
+    msg.acceleration_mps2 = command.acceleration_mps2;
+    node_->driving_command_pub_->publish(msg);
+}
+
+void VehicleRos2Interface::publish_driving_reference(const DrivingReferenceData& reference)
+{
+    visionpilot_msgs::msg::DrivingReference msg;
+    msg.stamp = node_->now();
+    if (reference.has_source_stamp)
+    {
+        msg.source_stamp.sec = reference.source_stamp_sec;
+        msg.source_stamp.nanosec = reference.source_stamp_nanosec;
+    }
+    msg.has_source_stamp = reference.has_source_stamp;
+    msg.session = reference.session;
+    msg.cycle = reference.cycle;
+    msg.valid = reference.valid;
+    msg.path_valid = reference.path_valid;
+    msg.path_a = reference.path_a;
+    msg.path_b = reference.path_b;
+    msg.path_c = reference.path_c;
+    msg.path_x_max_m = reference.path_x_max_m;
+    msg.horizon_dt_s = reference.horizon_dt_s;
+    msg.speed_horizon_mps.reserve(reference.speed_horizon_mps.size());
+    for (const double speed : reference.speed_horizon_mps)
+    {
+        msg.speed_horizon_mps.push_back(speed);
+    }
+    node_->driving_reference_pub_->publish(msg);
 }

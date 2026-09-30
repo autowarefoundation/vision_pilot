@@ -18,9 +18,14 @@ endif ()
 if (ENABLE_ROS2_INTERFACE)
     find_package(rclcpp REQUIRED)
     find_package(std_msgs REQUIRED)
+    find_package(visionpilot_msgs REQUIRED)
 
     target_link_libraries(VisionPilot PUBLIC rclcpp::rclcpp)
-    target_link_libraries(VisionPilot PRIVATE camera_ros2_interface vehicle_ros2_interface)
+    target_link_libraries(VisionPilot PRIVATE
+            camera_ros2_interface
+            vehicle_ros2_interface
+            visionpilot_msgs::visionpilot_msgs__rosidl_typesupport_cpp
+    )
     target_compile_definitions(VisionPilot PRIVATE ENABLE_ROS2_INTERFACE)
 endif ()
 

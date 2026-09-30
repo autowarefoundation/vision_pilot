@@ -15,6 +15,7 @@ enum class Warning : uint8_t {
 struct Plan {
     double                acceleration;
     std::vector<double>   steering;
+    std::vector<double>   speed_horizon;  // m/s at 0.05 s steps; native long. intent
     std::vector<Warning>  warnings;
 };
 

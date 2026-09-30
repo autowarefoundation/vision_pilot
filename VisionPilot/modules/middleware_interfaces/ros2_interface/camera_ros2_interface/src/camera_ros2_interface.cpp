@@ -107,8 +107,12 @@ void CameraRos2Interface::image_callback(
         // Declare that stream starts
         is_stream_started = true;
 
-        // Store latest frame
+        // Store latest frame together with its source capture stamp so the
+        // application can carry the same camera cycle into its outputs.
         latest_frame = cv_image.clone(); // Clone to ensure independent memory
+        latest_stamp.sec = msg->header.stamp.sec;
+        latest_stamp.nanosec = msg->header.stamp.nanosec;
+        latest_stamp.has_stamp = (msg->header.stamp.sec != 0 || msg->header.stamp.nanosec != 0);
         has_latest_frame = true;
     }
 };
@@ -140,23 +144,34 @@ cv::Mat CameraRos2Interface::convert_ros2_image_to_opencv(
 };
 
 
-std::tuple<bool, cv::Mat> CameraRos2Interface::get_latest_frame()
+std::tuple<bool, cv::Mat, CameraInterface::FrameStamp>
+CameraRos2Interface::get_latest_frame_with_stamp()
 {
     std::lock_guard<std::mutex> lock(frame_mutex);
 
     // Check if no frame is currently available
     if (!has_latest_frame)
     {
-        return std::make_tuple(false, cv::Mat());
+        return {false, cv::Mat(), FrameStamp{}};
     }
 
     // Fetch and consume latest frame
     cv::Mat frame = latest_frame.clone();
+    FrameStamp stamp = latest_stamp;
     has_latest_frame = false;
     latest_frame.release();
+    latest_stamp = FrameStamp{};
 
     // Frame is valid
-    return std::make_tuple(true, frame);
+    return {true, frame, stamp};
+};
+
+
+std::tuple<bool, cv::Mat> CameraRos2Interface::get_latest_frame()
+{
+    auto [ok, frame, stamp] = get_latest_frame_with_stamp();
+    (void)stamp;
+    return {ok, frame};
 };
 
 
