@@ -31,6 +31,8 @@ void LongitudinalFusion::reset()
     initialised_ = false;
     prev_cut_in_ = false;
     track_src_   = TrackSrc::None;
+    pending_hits_ = 0;
+    pending_dist_m_ = 0.f;
 }
 
 CIPOFusionEstimate LongitudinalFusion::update(
@@ -150,6 +152,10 @@ CIPOFusionEstimate LongitudinalFusion::update(
                         autodrive.valid ? autodrive.flag_prob * 100.f : 0.f, D_MAX);
                 reset();
             }
+            // A gap frame breaks the confirmation streak. Otherwise a phantom,
+            // a miss, and a second phantom within the gate would count as two hits.
+            pending_hits_ = 0;
+            pending_dist_m_ = 0.f;
             est.valid      = true;
             est.distance_m = D_MAX;
             return est;
@@ -169,6 +175,8 @@ CIPOFusionEstimate LongitudinalFusion::update(
             VP_INFO("[Fusion] No relevant radar / camera CIPO — reset to %.0f m", D_MAX);
             reset();
         }
+        pending_hits_ = 0;
+        pending_dist_m_ = 0.f;
         est.valid      = true;
         est.distance_m = D_MAX;
         return est;
@@ -188,12 +196,6 @@ CIPOFusionEstimate LongitudinalFusion::update(
         } else {
             ad_f = ad_meas;
         }
-        if (track_src_ != TrackSrc::None && track_src_ != src) {
-            VP_INFO("[Fusion] Source switch %s→%s — reset filter",
-                    track_src_ == TrackSrc::Radar ? "radar" : "camera",
-                    src == TrackSrc::Radar ? "radar" : "camera");
-            reset();
-        }
     } else {
         ad_f = ad_meas;
         as_f = as_h;
@@ -205,21 +207,72 @@ CIPOFusionEstimate LongitudinalFusion::update(
     const bool cut_in_edge = est.cut_in_detected && !prev_cut_in_;
     prev_cut_in_ = est.cut_in_detected;
 
-    auto seed_from_active = [&](float cloud_mean, const char* reason) {
+    const bool have_meas = radar_f.valid || as_f.valid || ad_f.valid;
+    const float meas_d = radar_f.valid ? radar_f.distance_m
+                       : as_f.valid    ? as_f.distance_m
+                                       : ad_f.distance_m;
+
+    // Predict before the confirmation test so a real lead moving at the
+    // tracked velocity still agrees. A brand-new range has no cloud yet.
+    float cloud_mean = 0.f;
+    if (initialised_) {
+        predict(dt);
+        for (const auto& p : particles_) cloud_mean += p.distance_m;
+        cloud_mean /= static_cast<float>(particles_.size());
+    }
+
+    // New track, or a range that cannot be the same object: do not seed and
+    // do not let this frame's likelihood pull the cloud. A second agreeing
+    // frame accepts it. A measurement that still matches the cloud updates now.
+    bool accept = true;
+    if (have_meas && cfg_.confirm_frames > 1) {
+        const bool disagrees = !initialised_ || !same_candidate(meas_d, cloud_mean);
+        if (disagrees)
+            accept = note_candidate(meas_d);
+        else
+            pending_hits_ = 0;
+    }
+
+    const bool src_switch =
+        cfg_.radar_enabled && track_src_ != TrackSrc::None && track_src_ != src;
+    if (src_switch && accept) {
+        const bool cut = prev_cut_in_;
+        VP_INFO("[Fusion] Source switch %s→%s — reset filter",
+                track_src_ == TrackSrc::Radar ? "radar" : "camera",
+                src == TrackSrc::Radar ? "radar" : "camera");
+        reset();
+        prev_cut_in_ = cut;  // reset() drops the latch; this frame already consumed the edge
+    }
+
+    if (!accept) {
+        if (!initialised_) {
+            // No confirmed lead. Free-road sentinel: planner treats D_MAX as no CIPO.
+            est.valid      = true;
+            est.distance_m = cfg_.d_max_m;
+            return est;
+        }
+        // Keep the confirmed lead. Drop this frame's measurement so a
+        // one-frame closer phantom cannot reweight or reseed the cloud.
+        ad_f = {};
+        as_f = {};
+        radar_f = {};
+    }
+
+    auto seed_from_active = [&](float mean_m, const char* reason) {
         if (radar_f.valid) {
             VP_INFO("[Fusion] %s — reinit %.1f→%.1f m v=%.2f (radar)",
-                    reason, cloud_mean, radar_f.distance_m,
+                    reason, mean_m, radar_f.distance_m,
                     radar_f.has_velocity ? radar_f.velocity_ms : 0.f);
             init_from(radar_f.distance_m, cfg_.cipo_noise_m,
                       radar_f.has_velocity ? radar_f.velocity_ms : 0.f,
                       radar_f.has_velocity ? radar_f.stddev_v : 2.f);
         } else if (as_f.valid) {
             VP_INFO("[Fusion] %s — reinit %.1f→%.1f m (AS+H)",
-                    reason, cloud_mean, as_f.distance_m);
+                    reason, mean_m, as_f.distance_m);
             init_from(as_f.distance_m, as_f.stddev_m);
         } else if (ad_f.valid) {
             VP_INFO("[Fusion] %s — reinit %.1f→%.1f m (AD)",
-                    reason, cloud_mean, ad_f.distance_m);
+                    reason, mean_m, ad_f.distance_m);
             init_from(ad_f.distance_m, ad_f.stddev_m);
         }
     };
@@ -238,12 +291,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
         }
         initialised_ = true;
     } else {
-        predict(dt);
-
-        float cloud_mean = 0.f;
-        for (const auto& p : particles_) cloud_mean += p.distance_m;
-        cloud_mean /= static_cast<float>(particles_.size());
-
+        // predict() already ran. Reseed only a jump that has now been confirmed.
         const float gate = cfg_.reset_gate_m;
         if (cut_in_edge) {
             // New closer CIPO (L2 cut-in). Drop the old cloud; prefer radar
@@ -262,7 +310,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
     weight_update(ad_f, as_f, radar_f);
     if (effective_n() < 0.5f * static_cast<float>(cfg_.n_particles)) resample();
 
-    if (cfg_.radar_enabled)
+    if (cfg_.radar_enabled && accept)
         track_src_ = src;
 
     const auto w = linear_weights();
@@ -320,6 +368,34 @@ CIPOFusionEstimate LongitudinalFusion::update(
 }
 
 // ─── Particle filter internals ────────────────────────────────────────────────
+
+bool LongitudinalFusion::same_candidate(float a, float b) const
+{
+    const float ref = std::max(std::abs(a), std::abs(b));
+    const float scale = ref / std::max(cfg_.homography_ref_range_m, 1.f);
+    // 8 m covers one highway frame (~3 m at 30 m/s and 10 Hz) plus radar noise.
+    // The range² term matches homography error, which is several metres nearby
+    // and tens of metres at the far end of the 150 m scale.
+    const float gate = std::max(8.f, cfg_.cipo_noise_m * scale * scale);
+    return std::abs(a - b) <= gate;
+}
+
+bool LongitudinalFusion::note_candidate(float dist_m)
+{
+    if (pending_hits_ > 0 && same_candidate(dist_m, pending_dist_m_)) {
+        ++pending_hits_;
+    } else {
+        pending_hits_ = 1;
+        pending_dist_m_ = dist_m;
+        VP_INFO("[Fusion] CIPO candidate %.1f m — hold braking until %d consecutive frames",
+                dist_m, cfg_.confirm_frames);
+    }
+    if (pending_hits_ < cfg_.confirm_frames)
+        return false;
+    VP_INFO("[Fusion] CIPO confirmed %.1f m across %d frames", dist_m, pending_hits_);
+    pending_hits_ = 0;
+    return true;
+}
 
 void LongitudinalFusion::init_from(float dist_m, float stddev_m, float vel_ms, float vel_std)
 {
