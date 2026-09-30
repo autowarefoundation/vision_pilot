@@ -100,6 +100,28 @@ private:
     cv::Mat prev_frame_;
     cv::Mat curr_frame_;
     int     frame_buf_count_ = 0;
+
+    // Input tensors, allocated once in the constructor and reused: each is
+    // 6 MB at 1024x512, and value-initialising three fresh ones per frame cost
+    // more than the conversion that fills them. process() hands the networks
+    // raw pointers into these, so they are never resized after construction.
+    //
+    // imn_ is a two-slot ping-pong: the ImageNet tensor computed for frame N
+    // is exactly the previous-frame input that frame N+1 needs, so imn_curr_
+    // names the slot this frame writes and the other already holds the last
+    // one.
+    //
+    // imn_prev_src_ is the pixel buffer that cached tensor was built from, and
+    // the cache is trusted only while it still matches prev_frame_.data. That
+    // makes the reuse self-checking rather than resting on the two-frame
+    // buffering in process() keeping its current shape: if prev_frame_ ever
+    // stops being the cv::Mat that was curr_frame_ on the previous call, the
+    // pointers differ and the tensor is simply recomputed. It is null before
+    // the first inferred frame and after reset().
+    std::vector<float>   imn_[2];
+    std::vector<float>   unit_;
+    int                  imn_curr_     = 0;
+    const unsigned char* imn_prev_src_ = nullptr;
 };
 
 }  // namespace visionpilot::models

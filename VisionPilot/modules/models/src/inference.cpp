@@ -2,11 +2,9 @@
 
 #include <common/utils.hpp>
 #include <logging/logger.hpp>
-
-#include <opencv2/imgproc.hpp>
+#include <models/tensor_prep.hpp>
 
 #include <chrono>
-#include <cstring>
 #include <future>
 #include <utility>
 #include <vector>
@@ -15,43 +13,7 @@ namespace visionpilot::models {
 
 namespace {
 
-constexpr int NET_W    = AutoDrive::NET_W;
-constexpr int NET_H    = AutoDrive::NET_H;
 constexpr int CHW_SIZE = AutoDrive::CHW_SIZE;
-
-constexpr float MEAN[3] = {0.485f, 0.456f, 0.406f};
-constexpr float STD[3]  = {0.229f, 0.224f, 0.225f};
-
-std::vector<float> chw_imagenet(const cv::Mat& bgr)
-{
-    cv::Mat rgb, f32;
-    cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
-    rgb.convertTo(f32, CV_32FC3, 1.0 / 255.0);
-    std::vector<cv::Mat> ch(3);
-    cv::split(f32, ch);
-    std::vector<float> out(CHW_SIZE);
-    for (int c = 0; c < 3; ++c) {
-        float* dst = out.data() + c * NET_H * NET_W;
-        const float* src = reinterpret_cast<const float*>(ch[c].data);
-        for (int i = 0; i < NET_H * NET_W; ++i)
-            dst[i] = (src[i] - MEAN[c]) / STD[c];
-    }
-    return out;
-}
-
-std::vector<float> chw_01(const cv::Mat& bgr)
-{
-    cv::Mat rgb, f32;
-    cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
-    rgb.convertTo(f32, CV_32FC3, 1.0 / 255.0);
-    std::vector<cv::Mat> ch(3);
-    cv::split(f32, ch);
-    std::vector<float> out(CHW_SIZE);
-    for (int c = 0; c < 3; ++c)
-        std::memcpy(out.data() + c * NET_H * NET_W, ch[c].data,
-                    static_cast<std::size_t>(NET_H * NET_W) * sizeof(float));
-    return out;
-}
 
 std::string find_model(const std::string& filename) {
     const std::string local  = "modules/models/weights/" + filename;
@@ -93,6 +55,12 @@ InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& c
     latc.debug      = cfg.fusion_debug;
     latc.cte_bias_m = cfg.cte_bias_m;
     lat_fusion_ = fusion::LateralFusion{latc};
+
+    // Allocate the input tensors once. Each is 6 MB, and process() hands the
+    // networks raw pointers into them, so they must not be reallocated.
+    imn_[0].resize(CHW_SIZE);
+    imn_[1].resize(CHW_SIZE);
+    unit_.resize(CHW_SIZE);
 }
 
 // V matrix — warped BEV 1024×512 → world.  Matches lateral/longitudinal fusion H_.
@@ -152,27 +120,52 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
     // AutoSteer + AutoSpeed use resized if provided, else fall back to warped
     const cv::Mat& as_input = (!resized.empty()) ? resized : warped;
 
-    auto t0          = Clock::now();
-    auto prev_imn    = chw_imagenet(prev_frame_);
-    auto curr_imn    = chw_imagenet(curr_frame_);
-    auto curr_01_as  = chw_01(as_input);
-    auto curr_01_asp = curr_01_as;   // shared preprocessing (same image)
+    auto t0 = Clock::now();
+
+    // prev_frame_ is the very cv::Mat that was curr_frame_ on the previous
+    // call, so its ImageNet tensor is bit for bit the one computed then. Keep
+    // two slots and swap rather than converting the same image twice.
+    const int curr_slot = imn_curr_;
+    const int prev_slot = 1 - curr_slot;
+    float* prev_imn   = imn_[prev_slot].data();
+    float* curr_imn   = imn_[curr_slot].data();
+    // AutoSteer and AutoSpeed take the same image, so they share one tensor.
+    float* curr_01_as = unit_.data();
+
+    // prev_frame_ holds a reference to that pixel buffer for as long as this
+    // comparison lasts, so a match cannot be a recycled allocation: it really
+    // is the image converted last call. Anything else -- the first inferred
+    // frame, or a future change to the frame buffering above -- just converts
+    // it again.
+    const bool prev_is_cached =
+        imn_prev_src_ != nullptr && imn_prev_src_ == prev_frame_.data;
+    if (!prev_is_cached)
+        to_chw_imagenet(prev_frame_, prev_imn, imn_[prev_slot].size());
+    to_chw_imagenet(curr_frame_, curr_imn, imn_[curr_slot].size());
+    to_chw_unit(as_input, curr_01_as, unit_.size());
+
+    // This frame's curr tensor is next frame's prev. Swap now, while the state
+    // still matches the frame buffers -- a failure below does not invalidate
+    // the conversion that has already happened.
+    imn_curr_     = prev_slot;
+    imn_prev_src_ = curr_frame_.data;
+
     const double ms_pre = Ms(Clock::now() - t0).count();
 
     auto t_wall = Clock::now();
     auto f_drive = std::async(std::launch::async, [&] {
         auto t = Clock::now();
-        auto r = auto_drive_.infer(prev_imn.data(), curr_imn.data());
+        auto r = auto_drive_.infer(prev_imn, curr_imn);
         return std::make_pair(std::move(r), Ms(Clock::now() - t).count());
     });
     auto f_steer = std::async(std::launch::async, [&] {
         auto t = Clock::now();
-        auto r = auto_steer_.infer(curr_01_as.data());
+        auto r = auto_steer_.infer(curr_01_as);
         return std::make_pair(std::move(r), Ms(Clock::now() - t).count());
     });
     auto f_speed = std::async(std::launch::async, [&] {
         auto t = Clock::now();
-        auto r = auto_speed_.infer(curr_01_asp.data());
+        auto r = auto_speed_.infer(curr_01_as);
         return std::make_pair(std::move(r), Ms(Clock::now() - t).count());
     });
 
@@ -218,6 +211,10 @@ void InferencePipeline::reset()
 {
     prev_frame_.release();
     curr_frame_.release();
+    // The cached tensor belongs to the frames just dropped, so it must go with
+    // them or the next first frame would be paired with a stale predecessor.
+    imn_prev_src_ = nullptr;
+    imn_curr_     = 0;
     frame_buf_count_ = 0;
     frame_count_ = 0;
     stats_.reset();

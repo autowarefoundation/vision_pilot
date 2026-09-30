@@ -7,6 +7,7 @@ add_library(models
     src/auto_steer.cpp
     src/auto_speed.cpp
     src/inference.cpp
+    src/tensor_prep.cpp
 )
 
 target_include_directories(models

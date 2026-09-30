@@ -19,6 +19,7 @@
     "imgproc",
     "keyout",
     "libglib",
+    "libgtest",
     "libopencv",
     "libyaml",
     "newkey",
