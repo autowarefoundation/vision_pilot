@@ -1,0 +1,45 @@
+{
+  "map": "Town04_Opt",
+  "type": "vehicle.lincoln.mkz",
+  "id": "hero",
+  "spawn_index": 5,
+  "attributes": {
+    "ros2_ackermann_control": "True"
+  },
+  "sensors": [
+    {
+      "type": "sensor.camera.rgb",
+      "id": "main_cam",
+      "spawn_point": {
+        "x": 1.25,
+        "y": 0.0,
+        "z": 1.58,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      },
+      "attributes": {
+        "image_size_x": 1280,
+        "image_size_y": 720,
+        "fov": 60.0,
+        "sensor_tick": 0.1
+      }
+    },
+    {
+      "type": "sensor.other.imu",
+      "id": "imu",
+      "spawn_point": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      },
+      "attributes": {
+        "sensor_tick": 0.1
+      }
+    }
+  ],
+  "npc_vehicles": []
+}

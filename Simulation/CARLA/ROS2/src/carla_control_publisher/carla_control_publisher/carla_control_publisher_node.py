@@ -17,6 +17,19 @@ A_DES_MAX = MAX_ACCELERATION
 class CarlaControlPublisher(Node):
     def __init__(self):
         super().__init__('carla_control_publisher')
+
+        # VisionPilot reports +cte as "ego right of path" and emits the tyre angle
+        # in that same sense, so a positive angle steers right. CARLA's native
+        # ROS2 ackermann path uses the same convention rather than REP-103:
+        # AckermannControlConversion.h assigns steering_angle straight to
+        # AckermannControl.steer, AckermannController.cpp only rescales it by
+        # VehicleMaxSteering, and python_api.md documents that field as
+        # "Desired steer (rad). Positive value is to the right."
+        # The two conventions already agree — negating here turns lane keeping
+        # into positive feedback. Expose it for a differently-signed source.
+        self.declare_parameter('steering_sign', 1.0)
+        self.steering_sign = self.get_parameter('steering_sign').value
+
         self.steering_sub_ = self.create_subscription(Float64, '/vehicle/steering_cmd', self.steering_callback, 1)
         self.throttle_sub_ = self.create_subscription(Float64, '/vehicle/throttle_cmd', self.throttle_callback, 1)
         self.speed_sub_ = self.create_subscription(Float64, '/vehicle/speed', self.speed_callback, 1)
@@ -63,7 +76,7 @@ class CarlaControlPublisher(Node):
 
     def steering_callback(self, msg):
         # self.get_logger().info(f'Steering command received: {msg.data}')
-        self.steering_angle_cmd = msg.data
+        self.steering_angle_cmd = self.steering_sign * msg.data
         self.have_steering = True
         self.try_publish()
 
