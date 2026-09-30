@@ -174,7 +174,9 @@ int main(int argc, char** argv)
             // closer than D_MAX. cipo_raw_found alone must not gate the planner.
             static constexpr double D_MAX = 150.0;
             const bool has_cipo = r->cipo.valid && r->cipo.distance_m < D_MAX;
-            const double cipo_v = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
+            // The planner takes the lead's speed; fusion reports it relative
+            // to ego (negative = approaching).
+            const double cipo_v = has_cipo ? ego_v + r->cipo.velocity_ms : cfg.speed_limit;
             const double cipo_dist = r->cipo.distance_m;
 
             const double raw_cte = r->lateral.path_valid

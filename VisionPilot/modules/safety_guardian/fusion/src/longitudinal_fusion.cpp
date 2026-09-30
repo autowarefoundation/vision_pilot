@@ -30,6 +30,7 @@ void LongitudinalFusion::reset()
     particles_.clear();
     initialised_ = false;
     prev_cut_in_ = false;
+    as_track_    = false;
     track_src_   = TrackSrc::None;
 }
 
@@ -142,8 +143,16 @@ CIPOFusionEstimate LongitudinalFusion::update(
 
     if (!cfg_.radar_enabled) {
         // Legacy camera-only path (radar off).
+        if (as_h.valid) as_track_ = true;
+        const bool ad_only_allowed = !cfg_.ad_only_needs_as_track || as_track_;
+        const bool ad_only_hit = autodrive.valid && !as_cipo_box &&
+                                 autodrive.flag_prob >= CIPO_PROB_MIN;
         const bool ad_cipo_confirmed =
-            autodrive.valid && (as_cipo_box || autodrive.flag_prob >= CIPO_PROB_MIN);
+            autodrive.valid && (as_cipo_box || (ad_only_hit && ad_only_allowed));
+        if (ad_only_hit && !ad_only_allowed && cfg_.debug)
+            VP_INFO("[Fusion] AD-only CIPO ignored, no AS track (AD=%.1f m p=%.0f%%)",
+                    cfg_.d_max_m * (1.f - autodrive.dist_normalized),
+                    autodrive.flag_prob * 100.f);
         if (!ad_cipo_confirmed && !as_h.valid) {
             if (initialised_) {
                 VP_INFO("[Fusion] No CIPO confirmed (AD=%.0f%%  AS=none) — reset to %.0f m",
