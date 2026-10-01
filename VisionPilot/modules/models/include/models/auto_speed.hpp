@@ -3,6 +3,7 @@
 #include <engine/onnx_engine.hpp>
 #include <onnxruntime_cxx_api.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,7 +13,8 @@ namespace visionpilot::models {
 // ─── Output ───────────────────────────────────────────────────────────────────
 // Bounding boxes in model-input pixel space (1024 × 512) after NMS.
 // Coordinate mapping back to original image coordinates is the caller's job
-// (reverse the letterbox: subtract pad, divide by scale).
+// (reverse the preprocessing: divide by the resize scale, then add back the
+// top-crop offset — there is no pad to subtract, since no letterbox is used).
 struct Detection {
     float x1 = 0.f, y1 = 0.f;  // top-left
     float x2 = 0.f, y2 = 0.f;  // bottom-right
@@ -25,12 +27,32 @@ struct AutoSpeedOutput {
     bool valid = false;
 };
 
+// Decode a [1, channels, anchors] detection tensor into boxes.
+// Memory layout is data[c * anchors + n]; channels = 4 + num_classes, with
+// rows 0..3 being cx, cy, w, h in model-input pixels.
+//
+// cls_is_probability distinguishes the two producers: the standalone AutoSpeed
+// graph emits class logits (false), while the merged rewrite emits
+// already-sigmoided probabilities (true). Applying sigmoid twice would
+// compress every score toward 0.5.
+//
+// Returns an invalid output (valid == false) when channels <= 4. A
+// non-positive anchors yields a valid, empty detection list — there is
+// nothing to decode, and this matches the pre-extraction behaviour.
+AutoSpeedOutput decode_detections(const float* data,
+                                  int64_t channels,
+                                  int64_t anchors,
+                                  bool    cls_is_probability,
+                                  float   conf_thres,
+                                  float   iou_thres);
+
 // ─── Model ────────────────────────────────────────────────────────────────────
 // YOLO-style object detection model.
 //
 // Preprocessing contract (caller, before infer()):
-//   • Letterbox-resize frame to NET_W × NET_H (1024 × 512),
-//     preserving aspect ratio, padding with (114, 114, 114)
+//   • Top-crop to 2:1, then resize to NET_W × NET_H (1024 × 512),
+//     INTER_LINEAR. No letterbox and no padding — the pipeline shares this
+//     buffer with AutoSteer (see ImagePreprocessor).
 //   • Convert BGR → RGB
 //   • Scale to [0, 1] — NO ImageNet normalisation
 //   • Layout: CHW float32, CHW_SIZE elements
@@ -57,9 +79,6 @@ private:
     AutoSpeedOutput post_process(const Ort::Value& tensor,
                                  float conf_thres,
                                  float iou_thres) const;
-
-    static float iou(const Detection& a, const Detection& b);
-    static std::vector<Detection> nms(std::vector<Detection> dets, float iou_thres);
 
     std::unique_ptr<Ort::Session> session_;
     Ort::MemoryInfo               mem_info_;
