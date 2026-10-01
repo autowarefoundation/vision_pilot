@@ -25,6 +25,7 @@ struct Config {
     bool        fusion_debug = false;
     float       cte_bias_m   = 0.0f;  // camera mounting offset [m] — subtracted from raw CTE before filter
     fusion::LongitudinalFusion::Config long_fusion;
+    fusion::LateralFusion::Config lat_fusion;  // noise terms tunable via fusion.lat.*
 };
 
 struct LatencyStats {
