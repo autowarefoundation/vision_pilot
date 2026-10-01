@@ -1,5 +1,6 @@
 // VisionPilot — preprocess → inference → fusion → display
 #include <chrono>
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <thread>
@@ -41,6 +42,11 @@ namespace vd = visionpilot::debug;
 
 int main(int argc, char** argv)
 {
+    // VP_INFO writes to stdout, which is fully buffered under a container log
+    // pipe: lines then arrive in bursts and their log timestamps say when the
+    // buffer flushed, not when the cycle ran. Line-buffer so log time = event time.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
+
     Config cfg;
     try { cfg = load_vision_pilot_config(); }
     catch (const std::exception& e)
