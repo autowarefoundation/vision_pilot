@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -316,6 +317,49 @@ namespace visualization
         std::atomic<int> mjpeg_clients{0};
         std::chrono::steady_clock::time_point mjpeg_last_encode;
         bool mjpeg_encode_seen = false;
+
+
+        // Live session sockets, tracked so stop() can interrupt blocking
+        // session I/O and wait for the owning threads to exit before the
+        // rest of Impl is torn down.
+        std::mutex sessions_mutex;
+        std::condition_variable sessions_cv;
+        std::vector<tcp::socket*> session_sockets;
+        int session_count = 0;
+
+
+        // Registers a session socket for the lifetime of a handler. stop()
+        // treats session_count dropping to zero as "all handlers returned".
+        struct SessionRegistration
+        {
+            Impl* impl;
+            tcp::socket* socket;
+
+            SessionRegistration(Impl* impl_in, tcp::socket* socket_in)
+                : impl(impl_in), socket(socket_in)
+            {
+                std::lock_guard<std::mutex> lock(impl->sessions_mutex);
+                impl->session_sockets.push_back(socket);
+                ++impl->session_count;
+                impl->sessions_cv.notify_all();
+            }
+
+            ~SessionRegistration()
+            {
+                std::lock_guard<std::mutex> lock(impl->sessions_mutex);
+                impl->session_sockets.erase(
+                    std::remove(
+                        impl->session_sockets.begin(), impl->session_sockets.end(), socket
+                    ),
+                    impl->session_sockets.end()
+                );
+                --impl->session_count;
+                impl->sessions_cv.notify_all();
+            }
+
+            SessionRegistration(const SessionRegistration&) = delete;
+            SessionRegistration& operator=(const SessionRegistration&) = delete;
+        };
     };
 
 
@@ -520,6 +564,10 @@ namespace visualization
     // to either the plain-HTML response or the WebSocket upgrade path
     void WebRTCStreamer::Impl::handle_connection(tcp::socket socket)
     {
+        // Covers the initial request read and the plain HTTP response; the
+        // WebSocket and MJPEG handlers register their own live sockets.
+        SessionRegistration session{this, &socket};
+
         try
         {
             beast::flat_buffer buffer;
@@ -569,6 +617,7 @@ namespace visualization
     )
     {
         auto ws = std::make_shared<websocket::stream<tcp::socket>>(std::move(socket));
+        SessionRegistration session{this, &ws->next_layer()};
 
         try
         {
@@ -660,6 +709,8 @@ namespace visualization
     // delimits the stream.
     void WebRTCStreamer::Impl::handle_mjpeg_connection(tcp::socket socket)
     {
+        SessionRegistration session{this, &socket};
+
         struct ClientCounter
         {
             std::atomic<int>* counter;
@@ -853,10 +904,41 @@ namespace visualization
             accept_thread.join();
         }
 
+        // Interrupt detached session threads (blocked in socket I/O) and wait
+        // for them to exit before the rest of Impl is torn down. Re-scan each
+        // pass because a handler registers its socket when it starts.
+        const auto sessions_deadline =
+            std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        for (;;)
+        {
+            {
+                std::lock_guard<std::mutex> lock(sessions_mutex);
+                for (tcp::socket* session_socket : session_sockets)
+                {
+                    boost::system::error_code ec;
+                    session_socket->shutdown(tcp::socket::shutdown_both, ec);
+                }
+            }
+
+            std::unique_lock<std::mutex> lock(sessions_mutex);
+            if (sessions_cv.wait_for(
+                    lock, std::chrono::milliseconds(20),
+                    [this]() { return session_count == 0; }))
+            {
+                break;
+            }
+
+            if (std::chrono::steady_clock::now() >= sessions_deadline)
+            {
+                g_printerr("[WebRTCStreamer] session threads still active at shutdown\n");
+                break;
+            }
+        }
+
         {
             std::lock_guard<std::mutex> lock(signal_mutex);
             client_ws.reset();
-            // detached session threads own their own shared_ptr copy and will exit on next read error
+            // clear any client left over from a session that exited early
         }
 
         if (appsrc != nullptr)
