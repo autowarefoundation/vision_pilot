@@ -10,11 +10,14 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/write.hpp>
 
 // nlohmann/json for signaling message handling
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <condition_variable>
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -117,6 +120,39 @@ namespace visualization
                                 }
                             };
                         </script>
+                    </body>
+                </html>
+        )HTML";
+
+
+        // Plain-HTTP viewer for the same rendered frame. WebRTC media cannot
+        // traverse an HTTP-only tunnel (cloudflared forwards TCP/HTTP, not the
+        // UDP ICE path), so the MJPEG endpoint below mirrors the visualization
+        // frame as a browser-friendly multipart stream.
+        constexpr const char kMjpegHtml[] = R"HTML(
+            <!doctype html>
+                <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <meta name="viewport" content="width=device-width,initial-scale=1">
+                        <title>VisionPilot MJPEG</title>
+                        <style>
+                            html,body{
+                                height:100%;
+                                margin:0;
+                                background:#000
+                            }
+                            img{
+                                width:100%;
+                                height:100%;
+                                object-fit:contain;
+                                background:#000;
+                                display:block
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <img src="/mjpeg" alt="VisionPilot">
                     </body>
                 </html>
         )HTML";
@@ -231,6 +267,8 @@ namespace visualization
             tcp::socket socket,
             http::request<http::string_body> req
         );
+        void handle_mjpeg_connection(tcp::socket socket);
+        void encode_mjpeg_frame(const cv::Mat& bgr_frame);
 
 
         // Config for WebRTC streaming
@@ -269,6 +307,59 @@ namespace visualization
         bool caps_configured = false;
         int configured_width = 0;
         int configured_height = 0;
+
+
+        // Plain-HTTP MJPEG mirror of the rendered frame. The JPEG is encoded
+        // only while at least one /mjpeg client is connected, at ~10 fps.
+        std::mutex mjpeg_mutex;
+        std::vector<uchar> mjpeg_jpeg;
+        std::atomic<uint64_t> mjpeg_sequence{0};
+        std::atomic<int> mjpeg_clients{0};
+        std::chrono::steady_clock::time_point mjpeg_last_encode;
+        bool mjpeg_encode_seen = false;
+
+
+        // Live session sockets, tracked so stop() can interrupt blocking
+        // session I/O and wait for the owning threads to exit before the
+        // rest of Impl is torn down.
+        std::mutex sessions_mutex;
+        std::condition_variable sessions_cv;
+        std::vector<tcp::socket*> session_sockets;
+        int session_count = 0;
+
+
+        // Registers a session socket for the lifetime of a handler. stop()
+        // treats session_count dropping to zero as "all handlers returned".
+        struct SessionRegistration
+        {
+            Impl* impl;
+            tcp::socket* socket;
+
+            SessionRegistration(Impl* impl_in, tcp::socket* socket_in)
+                : impl(impl_in), socket(socket_in)
+            {
+                std::lock_guard<std::mutex> lock(impl->sessions_mutex);
+                impl->session_sockets.push_back(socket);
+                ++impl->session_count;
+                impl->sessions_cv.notify_all();
+            }
+
+            ~SessionRegistration()
+            {
+                std::lock_guard<std::mutex> lock(impl->sessions_mutex);
+                impl->session_sockets.erase(
+                    std::remove(
+                        impl->session_sockets.begin(), impl->session_sockets.end(), socket
+                    ),
+                    impl->session_sockets.end()
+                );
+                --impl->session_count;
+                impl->sessions_cv.notify_all();
+            }
+
+            SessionRegistration(const SessionRegistration&) = delete;
+            SessionRegistration& operator=(const SessionRegistration&) = delete;
+        };
     };
 
 
@@ -473,6 +564,10 @@ namespace visualization
     // to either the plain-HTML response or the WebSocket upgrade path
     void WebRTCStreamer::Impl::handle_connection(tcp::socket socket)
     {
+        // Covers the initial request read and the plain HTTP response; the
+        // WebSocket and MJPEG handlers register their own live sockets.
+        SessionRegistration session{this, &socket};
+
         try
         {
             beast::flat_buffer buffer;
@@ -491,11 +586,17 @@ namespace visualization
                 return;
             }
 
+            if (req.target() == "/mjpeg")
+            {
+                handle_mjpeg_connection(std::move(socket));
+                return;
+            }
+
             http::response<http::string_body> res{http::status::ok, req.version()};
             res.set(http::field::server, "VisionPilot");
             res.set(http::field::content_type, "text/html");
             res.keep_alive(false);
-            res.body() = kBrowserHtml;
+            res.body() = (req.target() == "/view") ? kMjpegHtml : kBrowserHtml;
             res.prepare_payload();
 
             http::write(socket, res, ec);
@@ -516,6 +617,7 @@ namespace visualization
     )
     {
         auto ws = std::make_shared<websocket::stream<tcp::socket>>(std::move(socket));
+        SessionRegistration session{this, &ws->next_layer()};
 
         try
         {
@@ -565,6 +667,128 @@ namespace visualization
     };
 
 
+    // JPEG-encodes the rendered frame for the /mjpeg viewer, at most ~10 fps
+    // and only while a viewer is connected. Runs on the VisionPilot main loop
+    // thread (called from push_frame), like the existing GStreamer push.
+    void WebRTCStreamer::Impl::encode_mjpeg_frame(const cv::Mat& bgr_frame)
+    {
+        if (mjpeg_clients.load(std::memory_order_acquire) <= 0)
+        {
+            return;
+        }
+
+        const auto now = std::chrono::steady_clock::now();
+        {
+            std::lock_guard<std::mutex> lock(mjpeg_mutex);
+            if (
+                mjpeg_encode_seen &&
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - mjpeg_last_encode).count() < 90
+            )
+            {
+                return;
+            }
+            mjpeg_last_encode = now;
+            mjpeg_encode_seen = true;
+        }
+
+        std::vector<uchar> jpeg;
+        const std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, 80};
+        if (!cv::imencode(".jpg", bgr_frame, jpeg, params))
+        {
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(mjpeg_mutex);
+        mjpeg_jpeg.swap(jpeg);
+        mjpeg_sequence.fetch_add(1, std::memory_order_release);
+    }
+
+
+    // Streams the latest JPEG as multipart/x-mixed-replace until the client
+    // disconnects. The response has no Content-Length: the connection close
+    // delimits the stream.
+    void WebRTCStreamer::Impl::handle_mjpeg_connection(tcp::socket socket)
+    {
+        SessionRegistration session{this, &socket};
+
+        struct ClientCounter
+        {
+            std::atomic<int>* counter;
+            ~ClientCounter()
+            {
+                counter->fetch_sub(1, std::memory_order_acq_rel);
+            }
+        } client_counter{&mjpeg_clients};
+
+        mjpeg_clients.fetch_add(1, std::memory_order_acq_rel);
+
+        try
+        {
+            const std::string response_header =
+                "HTTP/1.1 200 OK\r\n"
+                "Server: VisionPilot\r\n"
+                "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n"
+                "Cache-Control: no-store\r\n"
+                "Pragma: no-cache\r\n"
+                "Connection: close\r\n"
+                "\r\n";
+
+            boost::system::error_code ec;
+            net::write(socket, net::buffer(response_header), ec);
+            if (ec)
+            {
+                return;
+            }
+
+            uint64_t last_sent = 0;
+            while (server_running.load(std::memory_order_acquire))
+            {
+                std::vector<uchar> frame;
+                uint64_t sequence = 0;
+                {
+                    std::lock_guard<std::mutex> lock(mjpeg_mutex);
+                    frame = mjpeg_jpeg;
+                    sequence = mjpeg_sequence.load(std::memory_order_acquire);
+                }
+
+                if (frame.empty() || sequence == last_sent)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                    continue;
+                }
+                last_sent = sequence;
+
+                const std::string part_header =
+                    "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: " +
+                    std::to_string(frame.size()) + "\r\n\r\n";
+                net::write(socket, net::buffer(part_header), ec);
+                if (ec)
+                {
+                    break;
+                }
+                net::write(socket, net::buffer(frame), ec);
+                if (ec)
+                {
+                    break;
+                }
+                net::write(socket, net::buffer("\r\n", 2), ec);
+                if (ec)
+                {
+                    break;
+                }
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            }
+
+            socket.shutdown(tcp::socket::shutdown_send, ec);
+        }
+        catch (const std::exception& e)
+        {
+            g_printerr("[WebRTCStreamer] mjpeg connection error: %s\n", e.what());
+        }
+    };
+
+
     // Full implementation of WebRTCStreamer
     bool WebRTCStreamer::Impl::start()
     {
@@ -590,6 +814,10 @@ namespace visualization
         accept_thread = std::thread(&WebRTCStreamer::Impl::accept_loop, this);
 
         g_printerr("[WebRTCStreamer] listening on port %d\n", config.port);
+        g_printerr(
+            "[WebRTCStreamer] MJPEG viewer: http://%s:%d/view (stream: /mjpeg)\n",
+            config.host.c_str(), config.port
+        );
 
         // 3. Build GStreamer pipeline
 
@@ -676,10 +904,41 @@ namespace visualization
             accept_thread.join();
         }
 
+        // Interrupt detached session threads (blocked in socket I/O) and wait
+        // for them to exit before the rest of Impl is torn down. Re-scan each
+        // pass because a handler registers its socket when it starts.
+        const auto sessions_deadline =
+            std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        for (;;)
+        {
+            {
+                std::lock_guard<std::mutex> lock(sessions_mutex);
+                for (tcp::socket* session_socket : session_sockets)
+                {
+                    boost::system::error_code ec;
+                    session_socket->shutdown(tcp::socket::shutdown_both, ec);
+                }
+            }
+
+            std::unique_lock<std::mutex> lock(sessions_mutex);
+            if (sessions_cv.wait_for(
+                    lock, std::chrono::milliseconds(20),
+                    [this]() { return session_count == 0; }))
+            {
+                break;
+            }
+
+            if (std::chrono::steady_clock::now() >= sessions_deadline)
+            {
+                g_printerr("[WebRTCStreamer] session threads still active at shutdown\n");
+                break;
+            }
+        }
+
         {
             std::lock_guard<std::mutex> lock(signal_mutex);
             client_ws.reset();
-            // detached session threads own their own shared_ptr copy and will exit on next read error
+            // clear any client left over from a session that exited early
         }
 
         if (appsrc != nullptr)
@@ -724,6 +983,8 @@ namespace visualization
         {
             return false;
         }
+
+        encode_mjpeg_frame(bgr_frame);
 
         if (
             (!caps_configured) ||
