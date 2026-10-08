@@ -369,7 +369,11 @@ NB_MODULE(_core, m)
       "mpc_max_cpu_time_s"_a = LateralPlanner::kRealTimeBudgetS)
     .def(
       "compute_plan", &Planner::compute_plan, "cte"_a, "epsi"_a, "kappa"_a, "ego_v"_a, "has_cipo"_a,
-      "cipo_v"_a, "cipo_distance"_a, nb::call_guard<nb::gil_scoped_release>());
+      "cipo_v"_a, "cipo_distance"_a, nb::call_guard<nb::gil_scoped_release>(),
+      "Plan one cycle. cte [m] and epsi [rad] are the ego relative to the path, "
+      "CCW-positive (cte > 0: ego left of the path; epsi > 0: heading left of it), "
+      "the opposite of LateralEstimate.cte_m / yaw_rad; kappa [1/m] is CCW-positive. "
+      "steering[1] is this cycle's front tyre angle [rad], positive to the left.");
 
   // ── The loop step ─────────────────────────────────────────────────────────
 

@@ -130,3 +130,37 @@ def test_step_releases_the_gil(pilot, road_image) -> None:
         done.set()
         spinner.join()
     assert during > 100
+
+
+def test_the_planner_gets_the_ego_relative_to_the_path(ground_h, road_image) -> None:
+    """Lateral fusion reports the path relative to the ego; the planner takes the ego
+    relative to the path. Pilot negates cte and yaw in between (curvature as is), or
+    its feedback steers away from the lane."""
+    pilot = make_pilot(ground_h)
+    pilot.step(road_image, 10.0, channel_order=RGB, dt_s=0.1)
+    result = pilot.step(road_image, 10.0, channel_order=RGB, dt_s=0.1)
+    lateral = result.perception.lateral
+    # A fresh planner (make_pilot's defaults) has the same empty curvature history.
+    defaults = vp.PilotConfig()
+    cipo = result.perception.cipo
+
+    def steer(sign: float) -> float:
+        planner = vp.Planner(
+            speed_limit_mps=defaults.speed_limit_mps,
+            front_axle_to_cog_m=defaults.front_axle_to_cog_m,
+            mpc_max_cpu_time_s=10.0,
+        )
+        plan = planner.compute_plan(
+            cte=sign * lateral.cte_m,
+            epsi=sign * lateral.yaw_rad,
+            kappa=lateral.curvature,
+            ego_v=10.0,
+            has_cipo=result.has_cipo,
+            cipo_v=cipo.velocity_ms if result.has_cipo else defaults.speed_limit_mps,
+            cipo_distance=cipo.distance_m,
+        )
+        return float(plan.steering[1])
+
+    # The image's lane is off the ego's axis, so the two conventions plan apart.
+    assert abs(steer(-1.0) - steer(+1.0)) > 1e-4
+    assert result.command.steering_tyre_rad == pytest.approx(steer(-1.0), abs=1e-9)

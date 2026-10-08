@@ -58,9 +58,14 @@ StepResult Pilot::step(const cv::Mat & frame_bgr, double ego_speed_mps, float dt
   out.has_cipo = r.cipo.valid && r.cipo.distance_m < cfg_.cipo_max_distance_m;
   const double cipo_v = out.has_cipo ? r.cipo.velocity_ms : cfg_.speed_limit;
 
+  // Lateral fusion reports the path as seen from the ego (cte > 0: the ego is
+  // right of the path; yaw > 0: the path heads left of the ego), the planner's
+  // MPC tracks the ego relative to the path (cte > 0: left of it; epsi > 0:
+  // heading left of it). Handed over as is, its feedback steers away from the
+  // path; curvature is CCW-positive on both sides.
   out.plan = planner_->compute_plan(
-    r.lateral.cte_m, r.lateral.yaw_rad, r.lateral.curvature, ego_speed_mps, out.has_cipo, cipo_v,
-    r.cipo.distance_m);
+    -r.lateral.cte_m, -r.lateral.yaw_rad, r.lateral.curvature, ego_speed_mps, out.has_cipo,
+    cipo_v, r.cipo.distance_m);
   out.command = Command{
     out.plan->steering.empty() ? 0.0 : out.plan->steering[1],
     out.plan->acceleration,
