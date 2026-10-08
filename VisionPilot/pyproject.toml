@@ -7,6 +7,8 @@ requires = [
     "nanobind>=2.8",
     "casadi==3.8.1",
     "cmeel-cppad==20250000.2",
+    # Renames the bundled ONNX Runtime (python/CMakeLists.txt).
+    "patchelf>=0.17",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -85,4 +87,4 @@ cache-keys = [
 
 [tool.uv.sources]
 # The policy-side package of the autoware_carla_scenario workspace.
-autoware-carla-egodriver = { git = "https://github.com/autowarefoundation/autoware_carla_scenario", subdirectory = "autoware_carla_egodriver", rev = "03660c714b4afd8e4af3a5e135677e949fe417ab" }
+autoware-carla-egodriver = { git = "https://github.com/autowarefoundation/autoware_carla_scenario", subdirectory = "autoware_carla_egodriver", rev = "916363b85a90d46a75278c0b8092a9e003bf074a" }
