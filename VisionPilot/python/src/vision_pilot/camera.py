@@ -26,7 +26,7 @@ import math
 import numpy as np
 import numpy.typing as npt
 
-__all__ = ["camera_intrinsics", "ground_homography"]
+__all__ = ["camera_intrinsics", "ground_homography", "ground_homography_from_extrinsics"]
 
 # Optical frame (x right, y down, z forward) from an ego-aligned camera body
 # frame (x forward, y left, z up).
@@ -67,7 +67,6 @@ def ground_homography(
     """
     if camera_height_m <= 0.0:
         raise ValueError("camera_height_m must be positive: the camera must be above the road")
-
     pitch = math.radians(pitch_down_deg)
     yaw = math.radians(yaw_left_deg)
     # Ego <- camera body: yaw about z, then pitch about the (left-pointing) y axis,
@@ -76,12 +75,37 @@ def ground_homography(
     cp, sp = math.cos(pitch), math.sin(pitch)
     rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
     ry = np.array([[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]])
-    ego_from_body = rz @ ry
 
-    k = camera_intrinsics(width, height, horizontal_fov_deg)
+    return ground_homography_from_extrinsics(
+        intrinsics=camera_intrinsics(width, height, horizontal_fov_deg),
+        rotation_ego_from_camera=rz @ ry,
+        position_m=(x_m, y_m, camera_height_m),
+    )
+
+
+def ground_homography_from_extrinsics(
+    *,
+    intrinsics: npt.ArrayLike,
+    rotation_ego_from_camera: npt.ArrayLike,
+    position_m: npt.ArrayLike,
+) -> npt.NDArray[np.float64]:
+    """Ground homography of a pinhole camera with a general mounting.
+
+    ``rotation_ego_from_camera`` and ``position_m`` are the camera's pose in the
+    ego frame, with the camera *body* axes (x along the optical axis, y left,
+    z up) -- the convention of alpasim's ``AvailableCamera.rig_to_camera`` and
+    of NVIDIA DriveWorks rigs. ``intrinsics`` is the 3x3 pinhole matrix of an
+    undistorted image.
+    """
+    k = np.asarray(intrinsics, dtype=np.float64)
+    ego_from_body = np.asarray(rotation_ego_from_camera, dtype=np.float64)
+    position = np.asarray(position_m, dtype=np.float64)
+    if k.shape != (3, 3) or ego_from_body.shape != (3, 3) or position.shape != (3,):
+        raise ValueError("intrinsics and rotation must be 3x3, position a 3-vector")
+    if position[2] <= 0.0:
+        raise ValueError("the camera must be above the road (position z > 0)")
+
     optical_from_ego = _OPTICAL_FROM_BODY @ ego_from_body.T
-    position = np.array([x_m, y_m, camera_height_m])
-
     # A ground point (x, y, 0) lands on pixel  K R ([x, y, 0] - c)
     #   = K R [e_x  e_y  -c] [x, y, 1]^T,  so pixel <- ground is a homography.
     pixel_from_ground = (

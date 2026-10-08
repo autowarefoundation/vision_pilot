@@ -28,6 +28,17 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 
+[project.optional-dependencies]
+# VisionPilot as an alpasim EgodriverService policy (vision_pilot.driver). The
+# driver half of carla-driver-interface never imports carla; its alpasim protos
+# limit it to CPython 3.11 / 3.12.
+driver = [
+    "carla-driver-interface>=0.1; python_version >= '3.11' and python_version < '3.13'",
+]
+
+[project.scripts]
+vision-pilot-driver = "vision_pilot.driver:main"
+
 [project.urls]
 Repository = "https://github.com/autowarefoundation/vision_pilot"
 
@@ -69,3 +80,6 @@ cache-keys = [
     { file = "modules/**/*.hpp" },
     { file = "python/bindings.cpp" },
 ]
+
+[tool.uv.sources]
+carla-driver-interface = { git = "https://github.com/hakuturu583/carla_driver_interface", rev = "ccc84acc1b2547055885239ec8b85f450d5992ad" }

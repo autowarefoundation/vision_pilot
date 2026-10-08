@@ -88,3 +88,49 @@ def test_rejects_invalid_cameras(width: int, fov: float, height_m: float) -> Non
         vp.ground_homography(
             width=width, height=100, horizontal_fov_deg=fov, camera_height_m=height_m
         )
+
+
+def test_extrinsics_form_matches_the_angle_form() -> None:
+    expected = vp.ground_homography(
+        width=800,
+        height=600,
+        horizontal_fov_deg=70.0,
+        camera_height_m=1.3,
+        pitch_down_deg=4.0,
+        yaw_left_deg=-3.0,
+        x_m=1.0,
+        y_m=0.2,
+    )
+    yaw, pitch = math.radians(-3.0), math.radians(4.0)
+    rz = np.array(
+        [[math.cos(yaw), -math.sin(yaw), 0], [math.sin(yaw), math.cos(yaw), 0], [0, 0, 1]]
+    )
+    ry = np.array(
+        [[math.cos(pitch), 0, math.sin(pitch)], [0, 1, 0], [-math.sin(pitch), 0, math.cos(pitch)]]
+    )
+    actual = vp.ground_homography_from_extrinsics(
+        intrinsics=vp.camera_intrinsics(800, 600, 70.0),
+        rotation_ego_from_camera=rz @ ry,
+        position_m=(1.0, 0.2, 1.3),
+    )
+    np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_extrinsics_form_handles_roll() -> None:
+    """A rolled camera still maps the principal ray to the right ground point."""
+    roll = math.radians(5.0)
+    rx = np.array(
+        [[1, 0, 0], [0, math.cos(roll), -math.sin(roll)], [0, math.sin(roll), math.cos(roll)]]
+    )
+    pitch = math.radians(10.0)
+    ry = np.array(
+        [[math.cos(pitch), 0, math.sin(pitch)], [0, 1, 0], [-math.sin(pitch), 0, math.cos(pitch)]]
+    )
+    H = vp.ground_homography_from_extrinsics(
+        intrinsics=vp.camera_intrinsics(1000, 500, 90.0),
+        rotation_ego_from_camera=ry @ rx,
+        position_m=(0.0, 0.0, 1.0),
+    )
+    g = H @ np.array([500.0, 250.0, 1.0])
+    # Roll about the optical axis does not move where the optical axis hits the road.
+    np.testing.assert_allclose(g[:2] / g[2], [1 / math.tan(pitch), 0.0], atol=1e-9)
