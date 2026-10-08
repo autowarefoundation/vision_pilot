@@ -1,11 +1,11 @@
 """VisionPilot as an alpasim ``egodriver`` policy, for closed-loop simulation.
 
 :class:`VisionPilotDriver` plugs a :class:`vision_pilot.Pilot` into
-`carla_driver_interface <https://github.com/hakuturu583/carla_driver_interface>`_'s
-driver half, which speaks alpasim's ``EgodriverService``. Any runtime of that
-protocol -- ``carla_driver_interface``'s ``CarlaRuntime``, a scenario runner
-that owns a CARLA world, or upstream alpasim -- can then drive VisionPilot
-unmodified.
+``autoware-carla-egodriver`` (the policy side of alpasim's ``EgodriverService``,
+from the autoware_carla_scenario workspace). Any runtime of that protocol can then
+drive VisionPilot unmodified: autoware_carla_scenario's scenarios against CARLA
+(``scenario driver=vision_pilot``), ``autoware_carla_egodriver.testing.FakeLoop``
+without a simulator, or upstream alpasim.
 
 Per ``drive`` call:
 
@@ -32,22 +32,21 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
-from carla_driver_interface.driver.base import (
+from autoware_carla_egodriver.driver import (
     BaseDriver,
     CameraFrame,
     DriveContext,
     DriveResult,
     SessionState,
 )
-from carla_driver_interface.geometry import Pose, Trajectory
-from carla_driver_interface.grpc_api import AvailableCamera
-from carla_driver_interface.runtime.rig import VehicleRig, rig_from_toml
+from autoware_carla_egodriver.geometry import Pose, Trajectory
+from autoware_carla_egodriver.protocol import AvailableCamera
 
 from ._core import ChannelOrder, Command, Pilot, PilotConfig, StepResult, Warning
 from .camera import ground_homography_from_extrinsics
 from .kinematics import rollout_command
 
-__all__ = ["VisionPilotDriver", "camera_ground_homography", "carla_rig"]
+__all__ = ["VisionPilotDriver", "camera_ground_homography"]
 
 logger = logging.getLogger(__name__)
 
@@ -58,23 +57,11 @@ _HOLD = Command(0.0, 0.0)
 _EXPECTED_HFOV_DEG = (40.0, 70.0)
 
 
-def carla_rig() -> VehicleRig:
-    """VisionPilot's CARLA rig: the vehicle and front camera it is tuned for.
-
-    Registered as ``vision_pilot`` for ``carla-driver-interface --rig``; the
-    values live in ``carla_rig.toml`` next to this module.
-    """
-    from importlib.resources import as_file, files
-
-    with as_file(files(__package__) / "carla_rig.toml") as path:
-        return rig_from_toml(path)
-
-
 def camera_ground_homography(camera: AvailableCamera) -> npt.NDArray[np.float64]:
     """VisionPilot's ground homography for an alpasim ``AvailableCamera``.
 
     The camera must use the OpenCV pinhole model without distortion, which is
-    how ``carla_driver_interface`` describes CARLA's ``sensor.camera.rgb``. The
+    how autoware_carla_scenario describes CARLA's ``sensor.camera.rgb``. The
     homography's origin is the point on the road directly below the camera, with
     the rig's axes (x forward, y left): the convention of the calibrated
     ``config/H.yaml`` the app ships with.
@@ -105,7 +92,7 @@ def camera_ground_homography(camera: AvailableCamera) -> npt.NDArray[np.float64]
     if not low <= hfov <= high:
         logger.warning(
             "camera %r has a %.0f degree horizontal FOV; VisionPilot expects about 52 "
-            "(use --rig vision_pilot on the runtime)",
+            "(autoware_carla_scenario: driver=vision_pilot)",
             name,
             hfov,
         )
@@ -268,7 +255,7 @@ def main(argv: list[str] | None = None) -> None:
     import argparse
     import os
 
-    from carla_driver_interface.driver.server import run_server
+    from autoware_carla_egodriver.server import run_server
 
     from ._core import EngineConfig, InferenceConfig
 
