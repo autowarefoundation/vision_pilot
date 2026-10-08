@@ -8,7 +8,6 @@
 # syntax=docker/dockerfile:1
 ARG CUDA_TAG=13.0.0-devel-ubuntu24.04
 ARG ONNXRUNTIME_VERSION=1.26.0
-ARG ENABLE_RADAR=OFF
 ARG ENABLE_ROS2=OFF
 ARG ENABLE_OCCUPANCY=OFF
 
@@ -16,7 +15,6 @@ ARG ENABLE_OCCUPANCY=OFF
 # build
 FROM nvcr.io/nvidia/cuda:${CUDA_TAG} AS builder
 ARG ONNXRUNTIME_VERSION
-ARG ENABLE_RADAR=OFF
 ARG ENABLE_ROS2
 ARG ENABLE_OCCUPANCY
 ENV DEBIAN_FRONTEND=noninteractive
@@ -98,7 +96,6 @@ COPY . .
 RUN mkdir build && cd build \
     && if [ "$ENABLE_ROS2" = "ON" ]; then . /opt/ros/jazzy/setup.bash; fi \
     && cmake -DONNXRUNTIME_ROOT=/usr/share/visionpilot/onnxruntime -DGPU=ON \
-             -DENABLE_RADAR_INTERFACE=${ENABLE_RADAR} \
              -DENABLE_ROS2_INTERFACE=${ENABLE_ROS2} \
              -DENABLE_OCCUPANCY=${ENABLE_OCCUPANCY} \
              -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib" .. \
@@ -107,7 +104,6 @@ RUN mkdir build && cd build \
 # runtime
 FROM nvcr.io/nvidia/cuda:${CUDA_TAG%-devel*}-runtime-ubuntu24.04 AS runtime
 ARG ENABLE_ROS2
-ARG ENABLE_RADAR
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
