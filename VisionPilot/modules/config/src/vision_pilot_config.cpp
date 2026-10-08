@@ -119,10 +119,6 @@ Config load_vision_pilot_config()
     cfg.engine.device_id    = parse_int(optional(kv, "engine.device_id", "0"), "engine.device_id");
     cfg.engine.cache_dir    = expand_home(optional(kv, "engine.cache_dir", "/tmp/visionpilot_trt_cache"));
     cfg.engine.workspace_gb = parse_double(optional(kv, "engine.workspace_gb", "1.0"), "engine.workspace_gb");
-    cfg.engine.artifacts_dir  = expand_home(optional(kv, "engine.artifacts_dir", ""));
-    cfg.engine.arc_prog_path  = expand_home(optional(kv, "engine.arc_prog_path", ""));
-    cfg.engine.require_npu_nodes = parse_int(
-        optional(kv, "engine.require_npu_nodes", "0"), "engine.require_npu_nodes");
 
     cfg.inference.precision    = optional(kv, "model.precision",    "fp32");
     cfg.inference.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
@@ -175,11 +171,6 @@ Config load_vision_pilot_config()
             }
     }
 #endif
-
-    cfg.inference.merged      = parse_bool(optional(kv, "model.merged", "false"),
-                                           "model.merged");
-    cfg.inference.merged_path = expand_home(optional(kv, "model.merged_path", ""));
-    cfg.inference.contract    = expand_home(optional(kv, "model.contract", "auto"));
 
     { const std::string raw = optional(kv, "debug.wheel_dir", "");
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }

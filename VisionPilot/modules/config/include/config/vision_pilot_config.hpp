@@ -1,6 +1,5 @@
 #pragma once
 
-#include <filesystem>
 #include <string>
 #include <engine/onnx_engine.hpp>
 #include <models/inference.hpp>

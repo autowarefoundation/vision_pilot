@@ -8,12 +8,6 @@ if(NOT DEFINED ONNXRUNTIME_ROOT OR ONNXRUNTIME_ROOT STREQUAL "")
         "  cmake -DONNXRUNTIME_ROOT=<path/to/onnxruntime> ..")
 endif()
 
-find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp)
-if(NOT NLOHMANN_JSON_INCLUDE_DIR)
-    message(FATAL_ERROR
-        "[engine] nlohmann/json.hpp not found. Install nlohmann-json3-dev.")
-endif()
-
 add_library(engine
     src/onnx_engine.cpp
 )
@@ -22,7 +16,6 @@ target_include_directories(engine
     PUBLIC
         include
         ${ONNXRUNTIME_ROOT}/include
-        ${NLOHMANN_JSON_INCLUDE_DIR}
 )
 
 target_link_libraries(engine
