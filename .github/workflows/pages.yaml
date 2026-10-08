@@ -1,5 +1,5 @@
 ---
-name: deploy-github-io-site
+name: deploy-docs-site
 
 # Builds the Jekyll site in github-io/ and publishes it to GitHub Pages.
 #
@@ -36,12 +36,12 @@ jobs:
         with:
           ruby-version: "3.3"
           bundler-cache: true
-          working-directory: github-io
+          working-directory: docs
 
       - uses: actions/configure-pages@v5
 
       - name: Build site
-        working-directory: github-io
+        working-directory: docs
         env:
           JEKYLL_ENV: production
         run: bundle exec jekyll build --destination ../_site

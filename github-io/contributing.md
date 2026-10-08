@@ -92,14 +92,14 @@ for the full house style.
 
 ## Contributing to this site
 
-The documentation site lives in [`github-io/`]({{ site.links.repo }}/tree/main/github-io) and is a Jekyll
+The documentation site lives in [`github-io/`]({{ site.links.repo }}/tree/main/docs) and is a Jekyll
 site published by GitHub Pages. Every page has an **Edit this page** link at the bottom that takes
 you straight to the source file.
 
 To preview locally:
 
 ```bash
-cd github-io
+cd docs
 bundle install
 bundle exec jekyll serve
 # http://127.0.0.1:4000/vision_pilot/

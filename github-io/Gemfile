@@ -1,6 +1,6 @@
 # Local preview of the Vision Pilot documentation site.
 #
-#   cd github-io && bundle install && bundle exec jekyll serve
+#   cd docs && bundle install && bundle exec jekyll serve
 #   => http://127.0.0.1:4000/vision_pilot/
 #
 # GitHub Pages builds this site with its own pinned dependency set; the

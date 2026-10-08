@@ -38,7 +38,7 @@ videos:
   overview: 16jRW5uB5yv2vV_jAUNkCiqJAamWzTh_y
   carla: 1DCtXkKnhGTcU-YRiBCTTbCYkixUw8FZW
 
-# == Left-hand navigation for every /github-io page =================================
+# == Left-hand navigation for every /docs page =================================
 docs_nav:
   - group: Start here
     items:
