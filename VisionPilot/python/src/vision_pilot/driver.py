@@ -20,7 +20,7 @@ The ground homography VisionPilot projects with is derived from the camera the
 runtime declares in ``start_session`` (pinhole intrinsics and pose in the rig),
 with its origin on the road directly below the camera.
 
-Requires the ``driver`` extra: ``pip install 'vision-pilot[driver]'``.
+Requires the ``closed-loop-test`` extra: ``pip install 'vision-pilot[closed-loop-test]'``.
 """
 
 from __future__ import annotations

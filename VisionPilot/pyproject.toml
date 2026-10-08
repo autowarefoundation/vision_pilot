@@ -29,10 +29,14 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# VisionPilot as an alpasim EgodriverService policy (vision_pilot.driver). The
-# driver half of carla-driver-interface never imports carla; its alpasim protos
-# limit it to CPython 3.11 / 3.12.
-driver = [
+# Closed-loop testing: VisionPilot as an alpasim EgodriverService policy
+# (vision_pilot.driver, `vision-pilot-driver`) and carla-driver-interface's
+# runtime to drive it (CarlaRuntime, FakeWorld, `carla-driver-interface run /
+# demo`, the `--rig` that registers VisionPilot's vehicle and camera).
+# alpasim's protos limit it to CPython 3.11 / 3.12. The CARLA client itself is
+# left out: it has to match the server (0.9.x is `carla` on PyPI, 0.10.x ships
+# its own PythonAPI, see `--carla-python-path`).
+closed-loop-test = [
     "carla-driver-interface>=0.1; python_version >= '3.11' and python_version < '3.13'",
 ]
 

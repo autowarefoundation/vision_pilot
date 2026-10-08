@@ -1066,7 +1066,7 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-driver = [
+closed-loop-test = [
     { name = "carla-driver-interface", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
 ]
 
@@ -1079,12 +1079,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "carla-driver-interface", marker = "python_full_version >= '3.11' and python_full_version < '3.13' and extra == 'driver'", git = "https://github.com/hakuturu583/carla_driver_interface?rev=5521c013125813439e5c74ebb8c79095750b1cdd" },
+    { name = "carla-driver-interface", marker = "python_full_version >= '3.11' and python_full_version < '3.13' and extra == 'closed-loop-test'", git = "https://github.com/hakuturu583/carla_driver_interface?rev=5521c013125813439e5c74ebb8c79095750b1cdd" },
     { name = "casadi", specifier = "==3.8.1" },
     { name = "cmeel-cppad", specifier = "==20250000.2" },
     { name = "numpy", specifier = ">=1.24" },
 ]
-provides-extras = ["driver"]
+provides-extras = ["closed-loop-test"]
 
 [package.metadata.requires-dev]
 dev = [
