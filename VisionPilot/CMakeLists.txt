@@ -2,21 +2,6 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(VisionPilot VERSION 1.0 LANGUAGES CXX)
 
-# An unset build type is not a neutral default: CMake then passes no -O flag at
-# all, so the binary is built -O0. That is what shipped, and it cost real
-# latency -- the per-frame input tensor conversion ran as scalar code with a
-# division per element, 14.4 ms per 1024x512 image on a Cortex-A720 instead of
-# 0.6 ms once vectorised. Pick Release for anyone who did not ask for something
-# else. Release is -O3, which matters: at -O2 that conversion stays entirely
-# scalar.
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING
-        "Build type (Debug, Release, RelWithDebInfo, MinSizeRel)" FORCE)
-endif()
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY
-        STRINGS Debug Release RelWithDebInfo MinSizeRel)
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
