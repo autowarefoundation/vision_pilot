@@ -23,7 +23,6 @@ namespace camera_interface
         bool realtime_;
         cv::VideoCapture cap_;
         std::chrono::duration<double> frame_period_{0};
-        std::chrono::steady_clock::time_point t0_{};
     };
 } // namespace camera_interface
 
