@@ -1,0 +1,21 @@
+# VisionPilot's CARLA vehicle rig, for carla_driver_interface (`--rig vision_pilot`).
+#
+# The same vehicle and camera as Simulation/CARLA/ROS2/config/carla916.json,
+# the rig the CARLA ROS 2 bridge runs VisionPilot with. That file is written in
+# ROS axes; these values are what its launcher passes to carla.Transform
+# (y, pitch and yaw negated; roll as is): CARLA's left-handed mount relative
+# to the vehicle actor, in metres and degrees.
+description = "VisionPilot: one narrow (50 degree) front camera on a Lincoln MKZ"
+ego_blueprint = "vehicle.lincoln.mkz_2020"
+
+[[cameras]]
+logical_id = "camera_front_narrow_50fov"
+width = 1920
+height = 1280
+fov_deg = 50.0
+x = 1.544
+y = 0.0243
+z = 2.116
+roll_deg = -0.10
+pitch_deg = -0.11
+yaw_deg = -0.23
