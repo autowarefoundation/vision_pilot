@@ -50,9 +50,11 @@ cv::Mat compute_preprocess_homography(const cv::Mat& H)
     cv::perspectiveTransform(world, raw_px, cv::Mat(H64.inv()));
     cv::perspectiveTransform(world, bev_px, cv::Mat(V.inv()));
 
-    cv::Mat C = cv::findHomography(raw_px, bev_px, 0);
-    if (C.empty())
-        throw std::runtime_error("compute_preprocess_homography: degenerate H");
+    // Four exact correspondences: the script's findHomography(method=0) is the
+    // same solve as getPerspectiveTransform, which needs only imgproc.
+    const std::vector<cv::Point2f> src(raw_px.begin(), raw_px.end());
+    const std::vector<cv::Point2f> dst(bev_px.begin(), bev_px.end());
+    cv::Mat C = cv::getPerspectiveTransform(src, dst);
     C.convertTo(C, CV_32F);  // the script stores C as float32
     return C;
 }

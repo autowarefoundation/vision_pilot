@@ -24,35 +24,50 @@ drives the code that ships, not a reimplementation of it.
   built, so editors and mypy see every signature and docstring.
 - Images cross the boundary without copies (NumPy buffer ⇄ `cv::Mat`), and the
   GIL is released while a frame is processed.
-- The ONNX Runtime shared library is placed next to the extension (`$ORIGIN`
-  RPATH): no `LD_LIBRARY_PATH`, no system-wide install. When `ONNXRUNTIME_ROOT`
-  is unset, the pinned CPU release (1.26.0, SHA-256 checked) is downloaded.
+- Every native dependency comes from uv, not apt (see `cmake/PythonDeps.cmake`):
+
+  | Dependency                            | Source                                                                            |
+  | ------------------------------------- | --------------------------------------------------------------------------------- |
+  | ONNX Runtime 1.26.0                   | Official release (SHA-256 pinned), shipped inside the wheel next to the extension |
+  | Ipopt 3.14 (+ MUMPS, METIS, OpenBLAS) | The [`casadi`](https://pypi.org/project/casadi/) wheel                            |
+  | CppAD                                 | The [`cmeel-cppad`](https://pypi.org/project/cmeel-cppad/) wheel                  |
+  | OpenCV 4.12 (core, imgproc)           | Built from source and linked statically: no wheel ships OpenCV's headers          |
+  | Eigen 5.0                             | Fetched (header-only), as for the app                                             |
+  | CMake, Ninja                          | PyPI, when the system has none or an older one                                    |
+
+  casadi and cmeel-cppad are both build requirements and runtime dependencies
+  at the same pinned versions, and the extension finds their libraries through
+  RPATH entries relative to `site-packages`, so nothing needs `LD_LIBRARY_PATH`.
 
 ## Install
 
-System libraries (Ubuntu 24.04), the same ones the app needs minus the I/O and
-display stack:
+Only [uv](https://docs.astral.sh/uv/), a C/C++ compiler and git are needed
+(`build-essential` and `git` on Ubuntu). From `VisionPilot/`:
 
 ```bash
-sudo apt-get install build-essential cmake libopencv-dev coinor-libipopt-dev libcppad-dev liblapack-dev libblas-dev
-# CppAD includes <coin-or/...>; Ubuntu's Ipopt installs to /usr/include/coin
-sudo ln -sf "$(dirname "$(find /usr/include -name IpIpoptApplication.hpp | head -1)")" /usr/include/coin-or
-```
-
-Then, from `VisionPilot/`:
-
-```bash
-uv sync                 # builds the extension into .venv (editable)
+uv sync                 # creates .venv and builds the extension into it
 uv run pytest           # Python test suite
 ```
 
-or install into another project's environment:
+The first build compiles OpenCV and takes a few minutes; it is kept in
+`build/<wheel tag>/`, so later builds only recompile what changed (C++ edits
+trigger a rebuild on the next `uv sync` / `uv run`).
+
+To install it into another project's environment:
 
 ```bash
 uv pip install ./VisionPilot
-# GPU: point at a CUDA / TensorRT build of ONNX Runtime instead of the CPU download
-uv pip install ./VisionPilot -C cmake.define.ONNXRUNTIME_ROOT=/path/to/onnxruntime-gpu
+# or, from that project's pyproject.toml:
+#   [tool.uv.sources]
+#   vision-pilot = { path = "../vision_pilot/VisionPilot" }
 ```
+
+Build options go through `-C cmake.define.<NAME>=<value>`:
+
+| Option                                      | Effect                                                                           |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
+| `ONNXRUNTIME_ROOT=/path/to/onnxruntime-gpu` | Link a CUDA / TensorRT ONNX Runtime build instead of downloading the CPU release |
+| `VISIONPILOT_VENDOR_OPENCV=OFF`             | Use an installed OpenCV instead of building one                                  |
 
 The model weights are not part of the wheel; pass their directory as
 `InferenceConfig(model_dir=...)` (`modules/models/weights` in this repository).

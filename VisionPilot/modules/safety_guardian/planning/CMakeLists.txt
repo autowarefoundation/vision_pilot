@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(IPOPT REQUIRED ipopt)
+# Ipopt and CppAD: from the system (pkg-config) for the app; from PyPI wheels
+# for the Python build, which defines VisionPilot::ipopt / VisionPilot::cppad
+# in cmake/PythonDeps.cmake.
+if(NOT TARGET VisionPilot::ipopt)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(IPOPT REQUIRED ipopt)
+endif()
 
 include(FetchContent)
 
@@ -50,9 +55,13 @@ target_link_libraries(planning
         ${IPOPT_LIBRARIES}
 )
 
-# CppAD's Ipopt interface needs cppad_lib on Ubuntu 24.04+; link it here rather
-# than relying on -DCMAKE_CXX_STANDARD_LIBRARIES=-lcppad_lib from the caller.
-find_library(CPPAD_LIB cppad_lib)
-if(CPPAD_LIB)
-    target_link_libraries(planning PRIVATE ${CPPAD_LIB})
+if(TARGET VisionPilot::ipopt)
+    target_link_libraries(planning PRIVATE VisionPilot::ipopt VisionPilot::cppad)
+else()
+    # CppAD's Ipopt interface needs cppad_lib on Ubuntu 24.04+; link it here rather
+    # than relying on -DCMAKE_CXX_STANDARD_LIBRARIES=-lcppad_lib from the caller.
+    find_library(CPPAD_LIB cppad_lib)
+    if(CPPAD_LIB)
+        target_link_libraries(planning PRIVATE ${CPPAD_LIB})
+    endif()
 endif()
