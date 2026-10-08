@@ -22,6 +22,7 @@ set -euo pipefail
 
 VARIANT="gpu"
 V4L2=""
+ENABLE_RADAR="OFF"
 ENABLE_ROS2="OFF"
 TAG=""
 DATA_DIR=""
@@ -47,6 +48,10 @@ while [ $# -gt 0 ]; do
             [ $# -ge 2 ] || { echo "Error: --v4l2 requires a value" >&2; exit 1; }
             V4L2="$2"
             shift 2
+            ;;
+        --radar)
+            ENABLE_RADAR="ON"
+            shift
             ;;
         --ros2)
             ENABLE_ROS2="ON"
@@ -85,11 +90,14 @@ TAG="visionpilot:${VARIANT}"
 if [ "$ENABLE_ROS2" = "ON" ]; then
     TAG="${TAG}-ros2"
 fi
+if [ "$ENABLE_RADAR" = "ON" ]; then
+    TAG="${TAG}-radar"
+fi
 
 
 if ! docker image inspect "$TAG" >/dev/null 2>&1; then
     echo "Error: image '$TAG' not found locally." >&2
-    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )" >&2
+    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )$( [ "$ENABLE_RADAR" = "ON" ] && echo " --radar" )" >&2
     exit 1
 fi
 
@@ -103,6 +111,7 @@ is_valid_port() {
     [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
 
+#DOCKER_ARGS=(--rm -it)
 DOCKER_ARGS=(--rm -it)
 
 if [ "$VARIANT" = "gpu" ]; then

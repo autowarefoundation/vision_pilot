@@ -1,0 +1,12 @@
+# Local preview of the Vision Pilot documentation site.
+#
+#   cd github-io && bundle install && bundle exec jekyll serve
+#   => http://127.0.0.1:4000/vision_pilot/
+#
+# GitHub Pages builds this site with its own pinned dependency set; the
+# github-pages gem mirrors that set so local previews match production.
+
+source "https://rubygems.org"
+
+gem "github-pages", group: :jekyll_plugins
+gem "webrick", "~> 1.8"   # not bundled with Ruby 3+

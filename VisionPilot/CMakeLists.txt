@@ -19,6 +19,9 @@ option(GPU "Enable GPU support" ON)
 # ROS2 packages
 option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
 
+# Radar packages
+option(ENABLE_RADAR_INTERFACE "Enable Radar support" OFF)
+
 # Build testing code
 option(BUILD_TESTING "Build the testing tree" OFF)
 
@@ -46,11 +49,6 @@ add_subdirectory(modules/common)
 
 add_subdirectory(modules/sensing/image_preprocessing)
 
-if(ENABLE_ROS2_INTERFACE)
-    add_subdirectory(modules/middleware_interfaces/ros2_interface/camera_ros2_interface)
-    add_subdirectory(modules/middleware_interfaces/ros2_interface/vehicle_ros2_interface)
-endif()
-
 add_subdirectory(modules/engine)
 add_subdirectory(modules/models)
 
@@ -60,12 +58,20 @@ add_subdirectory(modules/safety_guardian/planning)
 add_subdirectory(modules/sensing/vehicle_interface)
 add_subdirectory(modules/sensing/camera_interface)
 
-add_subdirectory(modules/visualization)
+if(ENABLE_RADAR_INTERFACE)
+    add_subdirectory(modules/sensing/radar_interface)
+endif ()
 
-add_subdirectory(modules/debug)
+if(ENABLE_ROS2_INTERFACE)
+    add_subdirectory(modules/middleware_interfaces/ros2_interface/camera_ros2_interface)
+    add_subdirectory(modules/middleware_interfaces/ros2_interface/vehicle_ros2_interface)
+endif()
+
+add_subdirectory(modules/visualization)
 
 # Tests
 if(BUILD_TESTING)
+    add_subdirectory(modules/debug)
     add_subdirectory(tests)
 endif()
 

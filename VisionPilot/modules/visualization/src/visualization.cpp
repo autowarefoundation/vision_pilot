@@ -650,7 +650,8 @@ cv::Mat Visualization::build_frame(
     ProductionView::from(result, plan, ego_speed_ms, H_resized, speed_limit_ms).render(frame);
 #if defined(ENABLE_OCCUPANCY)
   // Single upstream hook — Occupancy module owns scene build + rendering.
-  occupancy::publish(visual_interface.get(), result, plan, H_resized);
+  occupancy::publish(
+    visual_interface.get(), result, plan, H_resized, static_cast<float>(ego_speed_ms));
 #endif
   return out;
 }

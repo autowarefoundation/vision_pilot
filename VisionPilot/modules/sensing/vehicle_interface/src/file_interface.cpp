@@ -3,50 +3,60 @@
 #include <fstream>
 #include <vehicle_interface/file_interface.hpp>
 
-FileInterface::FileInterface(const std::string& filename)
+namespace vehicle_interface
 {
-    std::ifstream file(filename);
-    if (file.is_open())
+    FileInterface::FileInterface(const std::string& filename, bool loop) : loop_(loop)
     {
-        std::string line;
-        while (std::getline(file, line))
+        std::ifstream file(filename);
+        if (file.is_open())
         {
-            // skip empty lines
-            if (line.find_first_not_of(" \t\r\n") == std::string::npos)
+            std::string line;
+            while (std::getline(file, line))
             {
-                continue;
+                // skip empty lines
+                if (line.find_first_not_of(" \t\r\n") == std::string::npos)
+                {
+                    continue;
+                }
+                try
+                {
+                    double value = std::stod(line);
+                    speeds_.push_back(value);
+                }
+                catch (const std::exception& e)
+                {
+                    std::cerr << "Warning: skipping invalid line: \"" << line
+                        << "\" (" << e.what() << ")" << std::endl;
+                }
             }
-            try
+
+            file.close();
+        }
+    }
+
+    double FileInterface::read()
+    {
+        if (speeds_.empty())
+        {
+            throw std::runtime_error("FileInterface: no speeds loaded");
+        }
+
+        if (frame_cnt_ >= speeds_.size())
+        {
+            if (loop_)
             {
-                double value = std::stod(line);
-                speeds_.push_back(value);
+                frame_cnt_ = 0;
             }
-            catch (const std::exception& e)
+            else
             {
-                std::cerr << "Warning: skipping invalid line: \"" << line
-                    << "\" (" << e.what() << ")" << std::endl;
+                throw std::runtime_error("FileInterface: read() called past end of speeds data");
             }
         }
 
-        file.close();
+        return speeds_[frame_cnt_++];
     }
-}
 
-double FileInterface::read()
-{
-    if (speeds_.empty())
+    void FileInterface::write(double steering, double acceleration)
     {
-        throw std::runtime_error("FileInterface: no speeds loaded");
     }
-
-    if (frame_cnt_ >= speeds_.size())
-    {
-        throw std::runtime_error("FileInterface: read() called past end of speeds data");
-    }
-
-    return speeds_[frame_cnt_++];
-}
-
-void FileInterface::write(double steering, double acceleration)
-{
-}
+} // namespace vehicle_interface

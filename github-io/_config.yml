@@ -1,0 +1,80 @@
+# == Vision Pilot documentation site ============================================
+# Served by GitHub Pages from the `github-io/` folder of autowarefoundation/vision_pilot
+# Live at: https://autowarefoundation.github.io/vision_pilot/
+
+title: Vision Pilot
+tagline: Open Source L2 ADAS
+description: >-
+  Vision Pilot is a free, fully open-source, productionizable and safety
+  certifiable L2 ADAS stack from the Autoware Foundation. Camera-only, mapless,
+  Apache 2.0 - including AI model weights.
+
+url: "https://autowarefoundation.github.io"
+baseurl: "/vision_pilot"
+
+# == Project-wide links, referenced from templates as {{ site.links.x }} ========
+repo: https://github.com/autowarefoundation/vision_pilot
+version: "1.2"
+
+links:
+  repo: https://github.com/autowarefoundation/vision_pilot
+  releases: https://github.com/autowarefoundation/vision_pilot/releases
+  issues: https://github.com/autowarefoundation/vision_pilot/issues
+  discord: https://discord.com/invite/Q94UsPvReQ
+  discord_channel: https://discord.com/channels/953808765935816715/1301551216740012113
+  discussions: https://github.com/orgs/autowarefoundation/discussions/categories/working-group-meetings?discussions_q=is%3Aopen+category%3A%22Working+group+meetings%22+label%3Ameeting%3Aprivately-owned-vehicle-wg
+  autoware: https://autoware.org/
+  youtube: https://www.youtube.com/@autowarefoundation
+  linkedin: https://www.linkedin.com/company/the-autoware-foundation
+  presentation: https://canva.link/qjz6rwp40v7apft
+  sample_data: https://drive.google.com/drive/folders/1-Sxgz3XHzFD6XtETz1sVFRtDKY3W57QB?usp=sharing
+  auto_speed: https://github.com/autowarefoundation/auto_speed
+  auto_steer: https://github.com/autowarefoundation/auto_steer
+  auto_drive: https://github.com/autowarefoundation/auto_drive
+  onnxruntime_releases: https://github.com/microsoft/onnxruntime/releases
+
+# Google Drive file ids for the embedded demo videos
+videos:
+  overview: 16jRW5uB5yv2vV_jAUNkCiqJAamWzTh_y
+  carla: 1DCtXkKnhGTcU-YRiBCTTbCYkixUw8FZW
+
+# == Left-hand navigation for every /github-io page =================================
+docs_nav:
+  - group: Start here
+    items:
+      - { title: Overview, url: /github-io/ }
+      - { title: Getting started, url: /github-io/getting-started/ }
+      - { title: Configuration, url: /github-io/configuration/ }
+  - group: Understand
+    items:
+      - { title: Architecture, url: /github-io/architecture/ }
+      - { title: Modules, url: /github-io/modules/ }
+  - group: Run it
+    items:
+      - { title: Simulation, url: /github-io/simulation/ }
+      - { title: Hardware and calibration, url: /github-io/hardware/ }
+  - group: Project
+    items:
+      - { title: Releases, url: /github-io/releases/ }
+      - { title: Functional safety, url: /github-io/functional-safety/ }
+      - { title: Contributing, url: /github-io/contributing/ }
+
+# == Build =====================================================================
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  hard_wrap: false
+  toc_levels: 2..3
+
+plugins:
+  - jekyll-seo-tag
+
+sass:
+  style: compressed
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
