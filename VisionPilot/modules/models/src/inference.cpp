@@ -53,14 +53,20 @@ std::vector<float> chw_01(const cv::Mat& bgr)
     return out;
 }
 
-std::string find_model(const std::string& filename) {
+std::string find_model(const std::string& model_dir, const std::string& filename) {
+    if (!model_dir.empty()) {
+        const auto path = std::filesystem::path(model_dir) / filename;
+        if (std::filesystem::exists(path)) return path.string();
+        throw std::runtime_error("Model file not found: " + path.string());
+    }
+
     const std::string local  = "modules/models/weights/" + filename;
     const std::string system = "/usr/share/visionpilot/modules/models/weights/" + filename;
 
     if (std::filesystem::exists(local))  return local;
     if (std::filesystem::exists(system)) return system;
 
-    throw std::runtime_error("Config file not found: " + filename);
+    throw std::runtime_error("Model file not found: " + filename);
 }
 
 }  // namespace
@@ -81,17 +87,19 @@ void LatencyStats::print() const
 void LatencyStats::reset() { *this = {}; }
 
 InferencePipeline::InferencePipeline(engine::OnnxEngine& engine, const Config& cfg)
-    : auto_drive_(engine, find_model("autodrive_" + cfg.precision + ".onnx"))
-    , auto_steer_(engine, find_model("autosteer_" + cfg.precision + ".onnx"))
-    , auto_speed_(engine, find_model("autospeed_" + cfg.precision + ".onnx"))
+    : auto_drive_(engine, find_model(cfg.model_dir, "autodrive_" + cfg.precision + ".onnx"))
+    , auto_steer_(engine, find_model(cfg.model_dir, "autosteer_" + cfg.precision + ".onnx"))
+    , auto_speed_(engine, find_model(cfg.model_dir, "autospeed_" + cfg.precision + ".onnx"))
 {
     fusion::LongitudinalFusion::Config lc = cfg.long_fusion;
     lc.debug = cfg.fusion_debug;
+    if (cfg.seed) lc.seed = *cfg.seed;
     long_fusion_ = fusion::LongitudinalFusion{lc};
 
     fusion::LateralFusion::Config latc;
     latc.debug      = cfg.fusion_debug;
     latc.cte_bias_m = cfg.cte_bias_m;
+    if (cfg.seed) latc.seed = *cfg.seed;
     lat_fusion_ = fusion::LateralFusion{latc};
 }
 
@@ -135,7 +143,8 @@ void InferencePipeline::set_H_resized(const cv::Mat& H, cv::Size raw_size)
 std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& warped,
                                                                const cv::Mat& resized,
                                                                float ego_speed_ms,
-                                                               bool has_ego_speed)
+                                                               bool has_ego_speed,
+                                                               float dt_s)
 {
     using Clock = std::chrono::steady_clock;
     using Ms    = std::chrono::duration<double, std::milli>;
@@ -192,7 +201,7 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
     out.auto_steer = res_steer;
     out.auto_speed = res_speed;
 
-    out.lateral = lat_fusion_.update(res_steer, res_drive);
+    out.lateral = lat_fusion_.update(res_steer, res_drive, dt_s);
 
     const bool radar_on = long_fusion_.config().radar_enabled;
     fusion::PathPoly path;
@@ -208,7 +217,7 @@ std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& wa
     const fusion::PathPoly* path_ptr =
         (radar_on && path.valid) ? &path : nullptr;
     const float* ego_ptr = has_ego_speed ? &ego_speed_ms : nullptr;
-    out.cipo = long_fusion_.update(res_drive, res_speed, warped, 0.f, radar_ptr, path_ptr, ego_ptr);
+    out.cipo = long_fusion_.update(res_drive, res_speed, warped, dt_s, radar_ptr, path_ptr, ego_ptr);
 
     stats_.update(ms_pre, ms_drive, ms_steer, ms_speed, ms_wall);
     return out;

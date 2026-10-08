@@ -12,10 +12,9 @@
 #include <vehicle_interface/vehicle_interface.hpp>
 #include <vehicle_interface/file_interface.hpp>
 #include <vehicle_interface/can_interface.hpp>
-#include <image_preprocessing/image_preprocessor.hpp>
 #include <logging/logger.hpp>
 #include <models/inference.hpp>
-#include <planning/planning.hpp>
+#include <pilot/pilot.hpp>
 #include <visualization/visualization.hpp>
 
 #if ENABLE_RADAR_INTERFACE
@@ -33,8 +32,8 @@
 #endif
 
 
-namespace ve = visionpilot::engine;
 namespace vm = visionpilot::models;
+namespace vp = visionpilot::pilot;
 #if BUILD_TESTING
 namespace vd = visionpilot::debug;
 #endif
@@ -91,14 +90,20 @@ int main(int argc, char** argv)
     }
 #endif
 
-    ImagePreprocessor preprocessor;
-    ve::OnnxEngine engine(cfg.engine);
 #if ENABLE_RADAR_INTERFACE
     cfg.inference.long_fusion.radar_enabled = cfg.radar_on;
     cfg.inference.long_fusion.radar_hfov_deg = cfg.radar_hfov_deg;
 #endif
-    vm::InferencePipeline pipeline(engine, cfg.inference);
-    Planner planner(cfg.speed_limit, cfg.L);
+    // preprocess → inference → fusion → planning; the same step the Python
+    // bindings drive in closed-loop simulation.
+    vp::Config pilot_cfg;
+    pilot_cfg.engine = cfg.engine;
+    pilot_cfg.inference = cfg.inference;
+    pilot_cfg.speed_limit = cfg.speed_limit;
+    pilot_cfg.L = cfg.L;
+    vp::Pilot pilot(pilot_cfg, load_matrix("H.yaml", "H"),
+                    load_matrix("homography_C_matrix.yaml", "C"));
+    const vm::InferencePipeline& pipeline = pilot.pipeline();
     if (cfg.rrd_on) logging::Rerun::init(cfg.rrd_log);
 
     // ── Init visualization assets once based on mode ──────────────────────────
@@ -127,10 +132,6 @@ int main(int argc, char** argv)
     // ── Initialize display ────────────────────────────────────────────────────
     visualization::Visualization visualization({cfg.webrtc_on, cfg.webrtc_port, cfg.visualization_on});
 
-    const cv::Size net_size(vm::AutoDrive::NET_W, vm::AutoDrive::NET_H);
-    cv::Mat frame, warped, resized;
-    bool h_resized_set = false;
-    cv::Mat H = load_matrix("H.yaml", "H");
     while (true)
     {
         auto [ok, frame] = camera_interface->get_latest_frame();
@@ -141,47 +142,33 @@ int main(int argc, char** argv)
             continue;
         }
 
-        preprocessor.preprocess(frame, warped, resized, net_size);
-        cv::Size frame_size = frame.size();
-        // One-time: tell the pipeline how to project AutoSteer/AutoSpeed outputs
-        // back to world when those networks run on the plain-resized image.
-        if (!h_resized_set)
-        {
-            pipeline.set_H_resized(H, frame_size);
-            h_resized_set = true;
-        }
-
-        // ── Default frame no inference ────────────────────────────────────────────
-        cv::Mat display_frame = resized;
-
         const double ego_v = vehicle_interface->read();
         VP_INFO("ego_speed=%.2f m/s", ego_v);
 #if ENABLE_RADAR_INTERFACE
         if (cfg.radar_on)
         {
-            std::vector<RadarPoint> points = radar_interface->read_points();
-            pipeline.set_radar_points(points);
+            pilot.set_radar_points(radar_interface->read_points());
         }
 #endif
-        if (const auto r = pipeline.process(warped, resized,
-                                            static_cast<float>(ego_v), true))
+        vp::StepResult step = pilot.step(frame, ego_v);
+        const cv::Mat& warped = step.warped;
+        cv::Mat& resized = step.resized;
+
+        // ── Default frame no inference ────────────────────────────────────────────
+        cv::Mat display_frame = resized;
+
+        if (const auto& r = step.perception)
         {
             const double cte = r->lateral.cte_m;
             const double epsi = r->lateral.yaw_rad;
             const double kappa = r->lateral.curvature;
-
-            // has_cipo: tracker-based — true only when filter tracks a target
-            // closer than D_MAX. cipo_raw_found alone must not gate the planner.
-            static constexpr double D_MAX = 150.0;
-            const bool has_cipo = r->cipo.valid && r->cipo.distance_m < D_MAX;
-            const double cipo_v = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
+            const bool has_cipo = step.has_cipo;
             const double cipo_dist = r->cipo.distance_m;
 
             const double raw_cte = r->lateral.path_valid
                                        ? static_cast<double>(r->lateral.raw_cte_m)
                                        : cte;
-            const Plan plan = planner.compute_plan(
-                cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
+            const Plan& plan = *step.plan;
 
             VP_INFO(
                 "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm) cte_dot=%+.2fm/s  epsi=%.3f epsi_dot=%+.3frad/s  kappa=%.4f  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
@@ -197,9 +184,8 @@ int main(int argc, char** argv)
                 cipo_dist,
                 r->cipo.velocity_ms);
 
-            vehicle_interface->write(
-                plan.steering.empty() ? 0.0 : plan.steering[1],
-                plan.acceleration);
+            vehicle_interface->write(step.command->steering_tyre_rad,
+                                     step.command->acceleration_mps2);
             cv::Mat viz; // output visualization image (empty when viz is off)
             if (cfg.visualization_on)
             {

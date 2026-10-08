@@ -4,6 +4,8 @@
 #include <models/auto_speed.hpp>
 #include <opencv2/core.hpp>
 
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <vector>
 #include <common/types.hpp>
@@ -93,6 +95,8 @@ public:
         // particle cloud (genuine cut-in / cut-out only).
         float reset_gate_m          = 25.f;
         bool  debug                = false;
+        // Particle-filter RNG seed. Empty: std::random_device (nondeterministic).
+        std::optional<uint32_t> seed;
 
         bool  radar_enabled        = false;
         float radar_hfov_deg       = 50.f;   // AutoSpeed crop HFOV (not ZOD's ~120° full cam)
