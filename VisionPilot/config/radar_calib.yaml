@@ -1,0 +1,20 @@
+%YAML:1.0
+---
+# T_sensor → ego (ISO-8855: X forward, Y left, Z up). Same keys as ZOD.
+# Default: camera optical → ego; radar already ego. Paste ZOD 4x4s here to test a sequence.
+extrinsics: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [ 0,  0, 1, 0,
+         -1,  0, 0, 0,
+          0, -1, 0, 0,
+          0,  0, 0, 1 ]
+radar_extrinsics: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [ 1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 0, 0, 1 ]

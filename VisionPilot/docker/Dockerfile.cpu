@@ -9,6 +9,7 @@
 ARG UBUNTU_VERSION=24.04
 ARG ONNXRUNTIME_VERSION=1.26.0
 ARG TARGETARCH=amd64
+ARG ENABLE_RADAR=OFF
 ARG ENABLE_ROS2=OFF
 ARG ENABLE_OCCUPANCY=OFF
 
@@ -17,6 +18,7 @@ ARG ENABLE_OCCUPANCY=OFF
 FROM ubuntu:${UBUNTU_VERSION} AS builder
 ARG TARGETARCH
 ARG ONNXRUNTIME_VERSION
+ARG ENABLE_RADAR=OFF
 ARG ENABLE_ROS2
 ARG ENABLE_OCCUPANCY
 ENV DEBIAN_FRONTEND=noninteractive
@@ -98,6 +100,7 @@ COPY . .
 RUN mkdir build && cd build \
     && if [ "$ENABLE_ROS2" = "ON" ]; then . /opt/ros/jazzy/setup.bash; fi \
     && cmake -DONNXRUNTIME_ROOT=/usr/share/visionpilot/onnxruntime -DGPU=OFF \
+             -DENABLE_RADAR_INTERFACE=${ENABLE_RADAR} \
              -DENABLE_ROS2_INTERFACE=${ENABLE_ROS2} \
              -DENABLE_OCCUPANCY=${ENABLE_OCCUPANCY} \
              -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib" .. \
@@ -105,6 +108,7 @@ RUN mkdir build && cd build \
 
 # runtime
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
+ARG ENABLE_RADAR
 ARG ENABLE_ROS2
 ENV DEBIAN_FRONTEND=noninteractive
 

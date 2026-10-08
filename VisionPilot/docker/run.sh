@@ -4,7 +4,7 @@
 #
 #
 # Usage:
-#   ./run.sh [--gpu|--cpu] [--ros2] [--v4l2 <host_device>[:<container_device>]] [--data <host_dir>[:<container_dir>]] [--no-display] [--no-xhost]
+#   ./run.sh [--gpu|--cpu] [--ros2] [--radar] [--tag <name>] [--v4l2 <host_device>[:<container_device>]] [--data <host_dir>[:<container_dir>]] [--no-display] [--no-xhost]
 #
 # Examples:
 #   ./run.sh                                  # GPU build, no test data/display
@@ -13,6 +13,8 @@
 #   ./run.sh --data /data                     # same path in container
 #   ./run.sh --data /host/data:/data          # mounted at a different path
 #   ./run.sh --gpu --ros2                     # matches the -ros2 tag suffix from build.sh
+#   ./run.sh --gpu --radar                    # matches the -radar tag suffix from build.sh
+#   ./run.sh --gpu --tag myimg:latest         # image built with build.sh --tag
 #
 # Anything after a literal `--` is passed through as extra arguments to
 # VisionPilot itself:
@@ -22,6 +24,7 @@ set -euo pipefail
 
 VARIANT="gpu"
 V4L2=""
+ENABLE_RADAR="OFF"
 ENABLE_ROS2="OFF"
 TAG=""
 DATA_DIR=""
@@ -48,9 +51,21 @@ while [ $# -gt 0 ]; do
             V4L2="$2"
             shift 2
             ;;
+        --radar)
+            ENABLE_RADAR="ON"
+            shift
+            ;;
         --ros2)
             ENABLE_ROS2="ON"
             shift
+            ;;
+        --tag)
+            if [ $# -lt 2 ] || [ -z "$2" ] || [[ "$2" == -* ]]; then
+                echo "Error: --tag requires a value" >&2
+                exit 1
+            fi
+            TAG="$2"
+            shift 2
             ;;
         --data)
             [ $# -ge 2 ] || { echo "Error: --data requires a value" >&2; exit 1; }
@@ -80,16 +95,22 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
-# Default tag matches build.sh's naming convention
-TAG="visionpilot:${VARIANT}"
-if [ "$ENABLE_ROS2" = "ON" ]; then
-    TAG="${TAG}-ros2"
+# Default tag matches build.sh's naming convention (an explicit --tag wins)
+TAG_GIVEN="$TAG"
+if [ -z "$TAG" ]; then
+    TAG="visionpilot:${VARIANT}"
+    if [ "$ENABLE_ROS2" = "ON" ]; then
+        TAG="${TAG}-ros2"
+    fi
+    if [ "$ENABLE_RADAR" = "ON" ]; then
+        TAG="${TAG}-radar"
+    fi
 fi
 
 
 if ! docker image inspect "$TAG" >/dev/null 2>&1; then
     echo "Error: image '$TAG' not found locally." >&2
-    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )" >&2
+    echo "Build it first, e.g.: ./build.sh --${VARIANT}$( [ "$ENABLE_ROS2" = "ON" ] && echo " --ros2" )$( [ "$ENABLE_RADAR" = "ON" ] && [ -z "$TAG_GIVEN" ] && echo " --radar" )$( [ -n "$TAG_GIVEN" ] && echo " --tag $TAG" )" >&2
     exit 1
 fi
 
@@ -103,6 +124,7 @@ is_valid_port() {
     [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
 
+#DOCKER_ARGS=(--rm -it)
 DOCKER_ARGS=(--rm -it)
 
 if [ "$VARIANT" = "gpu" ]; then

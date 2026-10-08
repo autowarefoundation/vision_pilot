@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 #
 # Build the VisionPilot Docker image, choosing GPU or CPU variant and
-# optionally enabling ROS2 and/or Occupancy BEV support.
+# optionally enabling ROS2, Radar and/or Occupancy BEV support.
 #
 # Usage:
-#   ./build.sh [--gpu|--cpu] [--ros2] [--occupancy] [--no-cache] [--tag <name>]
+#   ./build.sh [--gpu|--cpu] [--ros2] [--radar] [--occupancy] [--no-cache] [--tag <name>]
 #
 # Examples:
-#   ./build.sh                         # CPU build, ROS2 off, Occupancy off (defaults)
+#   ./build.sh                         # GPU build, ROS2 off, Radar off, Occupancy off (defaults)
 #   ./build.sh --gpu                   # GPU build, ROS2 off
 #   ./build.sh --gpu --ros2            # GPU build, ROS2 on
 #   ./build.sh --gpu --occupancy       # GPU build with Occupancy BEV window
+#   ./build.sh --gpu --radar           # GPU build with the radar interface
 #   ./build.sh --cpu --no-cache        # CPU build, force a clean rebuild
 #   ./build.sh --gpu --tag myimg:latest   # custom tag instead of the default
 
@@ -18,6 +19,7 @@ set -euo pipefail
 
 VARIANT="gpu"
 ENABLE_ROS2="OFF"
+ENABLE_RADAR="OFF"
 ENABLE_OCCUPANCY="OFF"
 NO_CACHE=""
 TAG=""
@@ -37,6 +39,10 @@ while [ $# -gt 0 ]; do
             VARIANT="cpu"
             shift
             ;;
+        --radar)
+            ENABLE_RADAR="ON"
+            shift
+            ;;
         --ros2)
             ENABLE_ROS2="ON"
             shift
@@ -48,6 +54,14 @@ while [ $# -gt 0 ]; do
         --no-cache)
             NO_CACHE="--no-cache"
             shift
+            ;;
+        --tag)
+            if [ $# -lt 2 ] || [ -z "$2" ] || [[ "$2" == -* ]]; then
+                echo "Error: --tag requires a value." >&2
+                usage
+            fi
+            TAG="$2"
+            shift 2
             ;;
         -h|--help)
             usage
@@ -83,16 +97,22 @@ if [ ! -f "$DOCKERFILE" ]; then
 fi
 
 # Default tag reflects the chosen options, e.g. visionpilot:gpu-ros2
-
-TAG="visionpilot:${VARIANT}"
-if [ "$ENABLE_ROS2" = "ON" ]; then
-    TAG="${TAG}-ros2"
+# (an explicit --tag wins)
+if [ -z "$TAG" ]; then
+    TAG="visionpilot:${VARIANT}"
+    if [ "$ENABLE_ROS2" = "ON" ]; then
+        TAG="${TAG}-ros2"
+    fi
+    if [ "$ENABLE_RADAR" = "ON" ]; then
+        TAG="${TAG}-radar"
+    fi
 fi
 
 echo "=================================================="
 echo " VisionPilot Docker build"
 echo "=================================================="
 echo " Variant:      $VARIANT"
+echo " Radar support: $ENABLE_RADAR"
 echo " ROS2 support: $ENABLE_ROS2"
 echo " Occupancy support: $ENABLE_OCCUPANCY"
 echo " Dockerfile:   $DOCKERFILE"
@@ -103,6 +123,7 @@ echo "=================================================="
 docker build $NO_CACHE \
     -t "$TAG" \
     -f "$DOCKERFILE" \
+    --build-arg ENABLE_RADAR="$ENABLE_RADAR" \
     --build-arg ENABLE_ROS2="$ENABLE_ROS2" \
     --build-arg ENABLE_OCCUPANCY="$ENABLE_OCCUPANCY" \
     ..

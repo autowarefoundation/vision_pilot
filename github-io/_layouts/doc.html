@@ -1,0 +1,28 @@
+---
+layout: base
+---
+<div class="docs">
+  <aside class="sidebar" aria-label="Documentation">
+    {% for grp in site.docs_nav %}
+    <div class="grp">
+      <div class="grp-t">{{ grp.group }}</div>
+      {% for item in grp.items %}
+        {% assign target = item.url | relative_url %}
+        <a href="{{ target }}"{% if page.url == item.url %} class="active" aria-current="page"{% endif %}>{{ item.title }}</a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </aside>
+
+  <article class="doc-body">
+    <h1>{{ page.title }}</h1>
+    {% if page.lede %}<p class="doc-lede">{{ page.lede }}</p>{% endif %}
+
+    {{ content }}
+
+    <div class="doc-foot">
+      <span>Something out of date or missing? <a href="{{ site.links.repo }}/edit/main/github-io/{{ page.path }}" rel="noopener">Edit this page</a>.</span>
+      <span><a href="{{ site.links.issues }}" rel="noopener">Report an issue ↗</a></span>
+    </div>
+  </article>
+</div>

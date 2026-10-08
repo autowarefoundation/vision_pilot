@@ -13,10 +13,13 @@ struct SourceConfig {
     SourceMode  mode         = SourceMode::Video;
     std::string input_video;
     std::string input_vehicle_speed;
+    std::string input_radar_file;
     std::string dataset;
     bool        video_realtime = true;
     bool        video_loop     = false;
     std::string input_camera_topic   = "/camera/image";
+    std::string input_radar_topic    = "/radar/points";
+    int         radar_sync_slop_ms   = 80;
     std::string v4l2_device  = "/dev/video0";
     int         v4l2_fps     = 10;
 };
@@ -50,6 +53,10 @@ struct Config {
     // .rrd recording ready to open in Rerun viewer.
     bool        rrd_on  = false;
     std::string rrd_log = "visionpilot.rrd";
+
+    // Radar config
+    bool  radar_on = false;
+    float radar_hfov_deg = 50.f;
 };
 
 static std::string find_config(const std::string& filename) {

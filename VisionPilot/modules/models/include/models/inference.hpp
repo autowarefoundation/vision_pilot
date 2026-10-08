@@ -8,9 +8,11 @@
 #include <opencv2/core.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
-#include <filesystem>
+#include <vector>
+#include <common/types.hpp>
 
 namespace visionpilot::engine {
 class OnnxEngine;
@@ -22,6 +24,7 @@ struct Config {
     std::string precision    = "fp32";
     bool        fusion_debug = false;
     float       cte_bias_m   = 0.0f;  // camera mounting offset [m] — subtracted from raw CTE before filter
+    fusion::LongitudinalFusion::Config long_fusion;
 };
 
 struct LatencyStats {
@@ -57,7 +60,9 @@ public:
     // resized : plain-resized 1024×512 image → AutoSteer + AutoSpeed.
     //           If empty, falls back to warped for all networks (legacy behaviour).
     std::optional<InferenceFrameResult> process(const cv::Mat& warped,
-                                                const cv::Mat& resized = {});
+                                                const cv::Mat& resized = {},
+                                                float ego_speed_ms = 0.f,
+                                                bool has_ego_speed = false);
 
     // Compute and apply H_resized to both fusion modules so that AutoSteer /
     // AutoSpeed outputs are projected correctly when they run on a resized
@@ -78,6 +83,8 @@ public:
     void reset();
     const LatencyStats& latency() const { return stats_; }
 
+    void set_radar_points(std::vector<RadarPoint> pts) { radar_points_ = std::move(pts); }
+
 private:
     cv::Mat H_resized_;
     cv::Mat H_world2resized_;
@@ -88,6 +95,7 @@ private:
     fusion::LateralFusion      lat_fusion_;
     LatencyStats       stats_;
     uint64_t           frame_count_ = 0;
+    std::vector<RadarPoint> radar_points_;
 
     cv::Mat prev_frame_;
     cv::Mat curr_frame_;

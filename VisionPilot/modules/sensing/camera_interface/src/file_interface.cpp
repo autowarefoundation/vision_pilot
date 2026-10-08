@@ -25,8 +25,6 @@ bool FileInterface::is_device_open() const
 
 std::tuple<bool, cv::Mat> FileInterface::get_latest_frame()
 {
-    const auto t0 = std::chrono::steady_clock::now();
-
     cv::Mat frame;
     if (!cap_.read(frame) || frame.empty()) {
         if (!loop_) {
@@ -39,12 +37,16 @@ std::tuple<bool, cv::Mat> FileInterface::get_latest_frame()
     }
 
     if (frame_period_.count() > 0) {
-        const auto elapsed = std::chrono::steady_clock::now() - t0;
-        const auto rem = frame_period_ - elapsed;
-        if (rem.count() > 0) {
-            std::this_thread::sleep_for(rem);
+        if (t0_.time_since_epoch().count() != 0) {          // not the first frame
+            const auto elapsed = std::chrono::steady_clock::now() - t0_;
+            const auto rem = frame_period_ - elapsed;
+            if (rem.count() > 0) {
+                std::this_thread::sleep_for(rem);
+            }
         }
+        t0_ = std::chrono::steady_clock::now();              // when this frame is released
     }
+
 
     return {true, frame};
 }
