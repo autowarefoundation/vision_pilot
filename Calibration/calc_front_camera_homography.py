@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import argparse
 import sys
-import mimetypes
 
 def sort_corners(centers):
     """
@@ -21,65 +20,22 @@ def sort_corners(centers):
     
     return [tl, tr, bl, br]
 
-def extract_video_frame(video_path, save_frame=False, hide_capture=False):
-    """
-    Extracts the first frame of the input video to use 
-    as the image for the calibration
-    """
-    vid = cv2.VideoCapture(video_path)
-
-    if not vid.isOpened():
-        print(f"Error: Could not read video at {video_path}")
-        sys.exit()
-
-    frame = None
-    ret, frame = vid.read()
-
-    if ret:
-        print("Frame captured from video.")
-
-        if not hide_capture:
-            print("Displaying captured video frame. Press any key in the window to exit...")
-            cv2.namedWindow("Extracted image from video", cv2.WINDOW_NORMAL)
-            cv2.imshow("Extracted image from video", frame)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
-        if save_frame:
-            cv2.imwrite("captured_video_frame.png", frame)
-            print("Video frame has been saved as captured_video_frame.png")
-
-        vid.release()
-    else:
-        vid.release()
-        print("Did not receive frame. Exiting ...")
-        sys.exit()
-
-    return frame
-
-def find_4x4_checkerboard_centers(image_path, debug_mask, save_frame, hide_capture):
-    mimetype, _ = mimetypes.guess_type(image_path)
-
-    # Check if path points to a video
-    if mimetype and mimetype.startswith("video/"):
-        print("Source is a video.")
-        img = extract_video_frame(image_path, save_frame, hide_capture)
-    else:
-        img = cv2.imread(image_path)
-        if img is None:
-            print(f"Error: Could not read image at {image_path}")
-            sys.exit(1)
+def find_2x2_checkerboard_centers(image_path):
+    img = cv2.imread(image_path)
+    if img is None:
+        print(f"Error: Could not read image at {image_path}")
+        sys.exit(1)
         
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # A 4x4 checkerboard has exactly 3 internal corners
-    pattern_size = (3,3)
+    # A 2x2 checkerboard has exactly 1 internal corner
+    pattern_size = (1, 1)
     centers = []
     
     # Radius to mask out detected corners so they aren't found twice
     mask_radius = max(gray.shape) // 20 
     
-    print("Detecting 4x4 checkerboards...")
+    print("Detecting 2x2 checkerboards...")
     for i in range(4):
         ret, corners = cv2.findChessboardCorners(
             gray, 
@@ -92,13 +48,11 @@ def find_4x4_checkerboard_centers(image_path, debug_mask, save_frame, hide_captu
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
             corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
             
-            center = corners[4]
+            center = corners[0][0]
             centers.append(center)
             
             # Draw a white circle over the detected center to mask it out
             cv2.circle(gray, (int(center[0]), int(center[1])), mask_radius, 255, -1)
-            if debug_mask: # If --debug-mask
-                cv2.imwrite(f"debug_mask_step_{i}.png", gray)
         else:
             print(f"Error: Could only find {i} checkerboards. Ensure four 2x2 checkerboards are visible.")
             sys.exit(1)
@@ -151,22 +105,19 @@ def draw_world_line(img, p1, p2, H_inv, color=(0, 255, 0), thickness=2):
 
 def main():
     parser = argparse.ArgumentParser(description="Calculate and visualize homography from four 2x2 checkerboards.")
-    parser.add_argument('--img', type=str, required=True, help="Path to the input image/video. If the file is a video, it extracts the first frame.")
+    parser.add_argument('--img', type=str, required=True, help="Path to the input image.")
     parser.add_argument('--out', '-o', type=str, default="H.yaml", help="Output path for the homography YAML file (default: H.yaml).")
-    parser.add_argument('--tl', nargs=2, type=float, required=True, help="World X Y for Top-Left board.")
-    parser.add_argument('--tr', nargs=2, type=float, required=True, help="World X Y for Top-Right board.")
-    parser.add_argument('--bl', nargs=2, type=float, required=True, help="World X Y for Bottom-Left board.")
-    parser.add_argument('--br', nargs=2, type=float, required=True, help="World X Y for Bottom-Right board.")
-    parser.add_argument('--debug-mask', '-d', action=argparse.BooleanOptionalAction, help="Exports the images of the found checkerboards with masking circles on top of them.")
-    parser.add_argument('--save-frame', '-sf', action=argparse.BooleanOptionalAction, help="Exports captured frame from video as png. It has no effect when source is already and image.")
-    parser.add_argument('--hide-capture', action=argparse.BooleanOptionalAction, help="Do not open a window to show the captured video frame used for the calibration. It has no effect when source is already and image.")
+    parser.add_argument('--tl', nargs=2, type=float, required=True, help="World X Y for Top-Left board")
+    parser.add_argument('--tr', nargs=2, type=float, required=True, help="World X Y for Top-Right board")
+    parser.add_argument('--bl', nargs=2, type=float, required=True, help="World X Y for Bottom-Left board")
+    parser.add_argument('--br', nargs=2, type=float, required=True, help="World X Y for Bottom-Right board")
     args = parser.parse_args()
 
     # 1. Parse world points
     world_pts = np.array([args.tl, args.tr, args.bl, args.br], dtype=np.float32)
 
     # 2. Extract image points and fetch the original image for visualization
-    image_pts, original_img = find_4x4_checkerboard_centers(args.img, args.debug_mask, args.save_frame, args.hide_capture)
+    image_pts, original_img = find_2x2_checkerboard_centers(args.img)
     image_pts = np.array(image_pts, dtype=np.float32)
 
     print("\nMatched Coordinates:")
@@ -183,7 +134,7 @@ def main():
 
     # 4. Save to target output file
     fs = cv2.FileStorage(args.out, cv2.FILE_STORAGE_WRITE)
-    fs.write("H", H)
+    fs.write("homography", H)
     fs.release()
     print(f"\nSuccess! Homography matrix saved to: {args.out}")
 
