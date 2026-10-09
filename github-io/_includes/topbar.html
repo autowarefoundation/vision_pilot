@@ -1,0 +1,20 @@
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="brand-mark" aria-hidden="true"></span>
+      Vision&nbsp;Pilot
+    </a>
+    <span class="brand-ver">v{{ site.version }}</span>
+
+    <button class="nav-toggle" aria-expanded="false" aria-controls="topnav">Menu</button>
+
+    <nav class="topnav" id="topnav" aria-label="Main">
+      <a href="{{ '/github-io/getting-started/' | relative_url }}">Get started</a>
+      <a href="{{ '/github-io/architecture/' | relative_url }}">Architecture</a>
+      <a href="{{ '/github-io/simulation/' | relative_url }}">Simulation</a>
+      <a href="{{ '/github-io/releases/' | relative_url }}">Releases</a>
+      <a href="{{ '/github-io/' | relative_url }}">Docs</a>
+      <a class="ghost" href="{{ site.links.repo }}" rel="noopener">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
