@@ -1,0 +1,47 @@
+# @package _global_
+# A vehicle in the lane on the ego's left cuts in just ahead of it: AutoSpeed's
+# CIPO and the longitudinal planner.
+#
+# Logical: the lanelets are constraints on the map, not ids, so the scenario
+# runs on any map. `scenario-expand scenario=vision_pilot/cut_in map=<map>`
+# lists the concrete cases, each as the overrides to add to the run.
+scenario:
+  name: cut_in
+  side: left
+  npc_lanelet_id: ???
+  # 10 m ahead in the next lane, both at 30 km/h; it changes lanes after 2 s.
+  npc_ahead_m: 10.0
+  npc_initial_speed_kmh: 30.0
+  cut_in_after_seconds: 2.0
+  hold_seconds: 3.0
+  timeout_seconds: 20.0
+
+ego:
+  initial_speed_kmh: 30.0
+  spawn_lanelet_id: ???
+  spawn_s: 5.0
+
+sweep:
+  constraints:
+    ego.spawn_lanelet_id:
+      - type: and
+        constraints:
+          # A lane on the left a vehicle may change in from.
+          - type: has_adjacent
+            value: left
+          - type: not
+            constraint:
+              type: is_junction
+          # The spawn, the NPC 10 m ahead, and room for the cut-in.
+          - type: lanelet_length
+            rule: greater_than_or_equal
+            value: 60.0
+          - type: not
+            constraint:
+              type: in_set
+              values: ${map.no_3d_model_lanelet_ids}
+  bindings:
+    # The NPC starts on that lane, beside the ego's.
+    scenario.npc_lanelet_id:
+      type: adjacent
+      side: left

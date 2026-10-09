@@ -45,3 +45,13 @@ jobs:
 
       - name: Test
         run: uv run pytest -v
+
+      # The scenario package's checks read only its configs: no CARLA, so not
+      # the package's own environment (autoware-carla-scenario builds CARLA's
+      # Python API).
+      - name: Test the scenario package's configs
+        working-directory: VisionPilot/python/test_scenarios
+        run: >-
+          uv run --isolated --no-project --with pytest --with omegaconf
+          --python ${{ matrix.python-version }}
+          env PYTHONPATH=src python -m pytest -v tests

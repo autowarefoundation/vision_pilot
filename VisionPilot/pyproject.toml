@@ -70,10 +70,15 @@ install.components = ["python"]
 # abi3 wheels on CPython >= 3.12 (nanobind's STABLE_ABI); a per-version wheel below that.
 wheel.py-api = "cp312"
 # The weights are large and sit in the source tree; Pilot takes model_dir instead.
-sdist.exclude = ["modules/models/weights", "docker", "build"]
+sdist.exclude = ["modules/models/weights", "docker", "build", "python/test_scenarios"]
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
+
+[tool.uv.workspace]
+# The closed-loop test scenarios (autoware_carla_scenario scenario package):
+#   uv sync --package vision-pilot-test-scenarios
+members = ["python/test_scenarios"]
 
 [tool.uv]
 # Rebuild the extension whenever a C++ source or build file changes.

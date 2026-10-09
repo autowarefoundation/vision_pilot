@@ -1,0 +1,44 @@
+# @package _global_
+# A pedestrian runs out from the kerb in front of the ego: AutoSpeed's CIPO on
+# a pedestrian, FCW / AEB.
+#
+# Logical: the lanelets are constraints on the map, not ids, so the scenario
+# runs on any map. `scenario-expand scenario=vision_pilot/pedestrian_dart_out
+# map=<map>` lists the concrete cases.
+scenario:
+  name: pedestrian_dart_out
+  # At the kerb 35 m ahead, half a lane and a bit off the lane's centre.
+  pedestrian_ahead_m: 35.0
+  pedestrian_offset_m: -3.0
+  # Runs out at 2 m/s once the ego is within 20 m.
+  trigger_distance_m: 20.0
+  walk_speed_ms: 2.0
+  pass_beyond_m: 10.0
+  timeout_seconds: 25.0
+
+ego:
+  initial_speed_kmh: 30.0
+  spawn_lanelet_id: ???
+  spawn_s: 5.0
+
+sweep:
+  constraints:
+    ego.spawn_lanelet_id:
+      - type: and
+        constraints:
+          # The rightmost lane: the pedestrian steps straight off the kerb into it.
+          - type: not
+            constraint:
+              type: has_adjacent
+              value: right
+          - type: not
+            constraint:
+              type: is_junction
+          # The spawn, 35 m to the pedestrian, 10 m past it, and a margin.
+          - type: lanelet_length
+            rule: greater_than_or_equal
+            value: 55.0
+          - type: not
+            constraint:
+              type: in_set
+              values: ${map.no_3d_model_lanelet_ids}

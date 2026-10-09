@@ -1,0 +1,18 @@
+# @package _global_
+#
+# VisionPilot driving the ego, served from the scenario's own process
+# (vision_pilot_test_scenarios.vision_pilot_policy), on the vehicle and camera
+# of the framework's driver=vision_pilot:
+#
+#   uv run scenario scenario=vision_pilot/cut_in map=<map> <case> driver=vision_pilot_in_process
+defaults:
+  - vision_pilot
+  - _self_
+
+driver:
+  policy: vision_pilot_test_scenarios:vision_pilot_policy
+  # Loading the three networks and the first steps on CPU take a while.
+  timeout_s: 120.0
+  # Run up onto the spawn pose for 3 s, VisionPilot planning but not driving:
+  # AutoDrive reads two frames, and the lateral and CIPO filters settle.
+  warmup_s: 3.0
