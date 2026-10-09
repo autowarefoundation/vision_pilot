@@ -5,7 +5,11 @@
 
 class ImagePreprocessor {
 public:
+    // Loads C from the build-time homography_C_matrix.yaml.
     ImagePreprocessor();
+
+    // Uses the given C (raw camera pixel → warped 1024×512 BEV).
+    explicit ImagePreprocessor(cv::Mat C);
 
     ~ImagePreprocessor() = default;
 

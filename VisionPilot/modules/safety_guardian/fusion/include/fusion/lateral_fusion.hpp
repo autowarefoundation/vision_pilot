@@ -3,6 +3,8 @@
 #include <models/auto_drive.hpp>
 #include <models/auto_steer.hpp>
 #include <opencv2/core.hpp>
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>
@@ -103,6 +105,8 @@ public:
 
         // Same YAML used by LongitudinalFusion (shared config field).
         bool debug = false;
+        // Particle-filter RNG seed. Empty: std::random_device (nondeterministic).
+        std::optional<uint32_t> seed;
     };
 
     LateralFusion();

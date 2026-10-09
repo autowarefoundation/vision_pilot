@@ -1,0 +1,57 @@
+[build-system]
+requires = ["scikit-build-core>=0.11", "nanobind>=2.8"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "vision-pilot"
+version = "1.0.0"
+description = "Python bindings for the VisionPilot perception -> planning loop, for closed-loop simulation"
+readme = "python/README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Repository = "https://github.com/autowarefoundation/vision_pilot"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "mypy>=1.10",
+    "opencv-python-headless>=5.0.0.93",
+]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+cmake.version = ">=3.22.1"
+cmake.build-type = "Release"
+cmake.define = { BUILD_PYTHON_BINDINGS = "ON", BUILD_APP = "OFF" }
+wheel.packages = ["python/src/vision_pilot"]
+# Only the extension, its ONNX Runtime and stubs: not what dependencies install.
+install.components = ["python"]
+# abi3 wheels on CPython >= 3.12 (nanobind's STABLE_ABI); a per-version wheel below that.
+wheel.py-api = "cp312"
+# The weights are large and sit in the source tree; Pilot takes model_dir instead.
+sdist.exclude = ["modules/models/weights", "docker", "build"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+
+[tool.uv]
+# Rebuild the extension whenever a C++ source or build file changes.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "CMakeLists.txt" },
+    { file = "modules/**/CMakeLists.txt" },
+    { file = "python/CMakeLists.txt" },
+    { file = "cmake/*.cmake" },
+    { file = "modules/**/*.cpp" },
+    { file = "modules/**/*.hpp" },
+    { file = "python/bindings.cpp" },
+]

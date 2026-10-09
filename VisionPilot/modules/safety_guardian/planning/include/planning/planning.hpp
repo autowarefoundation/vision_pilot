@@ -9,7 +9,9 @@
 
 class Planner {
 public:
-    Planner(double speed_limit, double Lf);
+    // mpc_max_cpu_time_s: lateral MPC solver budget, see LateralPlanner.
+    Planner(double speed_limit, double Lf,
+            double mpc_max_cpu_time_s = LateralPlanner::kRealTimeBudgetS);
 
     // Unified longitudinal + lateral plan.
     //

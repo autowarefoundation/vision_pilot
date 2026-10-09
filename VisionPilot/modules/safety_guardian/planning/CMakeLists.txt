@@ -49,3 +49,10 @@ target_link_libraries(planning
         PRIVATE
         ${IPOPT_LIBRARIES}
 )
+
+# CppAD's Ipopt interface needs cppad_lib on Ubuntu 24.04+; link it here rather
+# than relying on -DCMAKE_CXX_STANDARD_LIBRARIES=-lcppad_lib from the caller.
+find_library(CPPAD_LIB cppad_lib)
+if(CPPAD_LIB)
+    target_link_libraries(planning PRIVATE ${CPPAD_LIB})
+endif()

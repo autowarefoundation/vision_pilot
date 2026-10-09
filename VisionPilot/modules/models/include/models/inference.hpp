@@ -22,6 +22,11 @@ struct Config {
     std::string precision    = "fp32";
     bool        fusion_debug = false;
     float       cte_bias_m   = 0.0f;  // camera mounting offset [m] — subtracted from raw CTE before filter
+    // Directory holding the <model>_<precision>.onnx weights. Empty: search
+    // modules/models/weights/ then /usr/share/visionpilot/modules/models/weights/.
+    std::string model_dir;
+    // Seed for the fusion particle filters. Empty: nondeterministic.
+    std::optional<uint32_t> seed;
 };
 
 struct LatencyStats {
@@ -56,8 +61,11 @@ public:
     // warped  : BEV 1024×512 image → AutoDrive only.
     // resized : plain-resized 1024×512 image → AutoSteer + AutoSpeed.
     //           If empty, falls back to warped for all networks (legacy behaviour).
+    // dt_s    : time since the previous frame [s]. <= 0 uses the fusion
+    //           modules' nominal dt (camera rate assumed, not measured).
     std::optional<InferenceFrameResult> process(const cv::Mat& warped,
-                                                const cv::Mat& resized = {});
+                                                const cv::Mat& resized = {},
+                                                float dt_s = 0.f);
 
     // Compute and apply H_resized to both fusion modules so that AutoSteer /
     // AutoSpeed outputs are projected correctly when they run on a resized

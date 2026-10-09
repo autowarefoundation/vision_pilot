@@ -4,6 +4,8 @@
 #include <models/auto_speed.hpp>
 #include <opencv2/core.hpp>
 
+#include <cstdint>
+#include <optional>
 #include <random>
 #include <vector>
 
@@ -51,6 +53,8 @@ public:
         // particle cloud (genuine cut-in / cut-out only).
         float reset_gate_m          = 25.f;
         bool  debug                = false;
+        // Particle-filter RNG seed. Empty: std::random_device (nondeterministic).
+        std::optional<uint32_t> seed;
     };
 
     LongitudinalFusion();
