@@ -31,8 +31,8 @@ set(BUILD_TESTING OFF CACHE BOOL "Build the testing tree")
 # GPU support
 option(GPU "Enable GPU support" ON)
 
-# ROS2 packages
-option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
+# ROS 2 packages
+option(ENABLE_ROS2_INTERFACE "Enable ROS 2 support" OFF)
 
 # Build testing code
 option(BUILD_TESTING "Build the testing tree" OFF)

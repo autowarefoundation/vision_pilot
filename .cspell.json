@@ -1,6 +1,8 @@
 {
   "ignorePaths": [],
-  "ignoreRegExpList": [],
+  "ignoreRegExpList": [
+    "Simulation/CARLA/ROS2/"
+  ],
   "words": [
     "alpasim",
     "ascontiguousarray",
