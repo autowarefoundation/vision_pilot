@@ -33,22 +33,58 @@ set_target_properties(_core PROPERTIES
 
 install(TARGETS _core LIBRARY DESTINATION vision_pilot COMPONENT python)
 
+set(_core_dir "${CMAKE_CURRENT_BINARY_DIR}/stub_root/vision_pilot")
+set_target_properties(_core PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${_core_dir}")
+
+# ONNX Runtime ships under a hashed name, as auditwheel does for the libraries it
+# grafts: a libonnxruntime.so.1 next to the extension would lose to any other
+# one on LD_LIBRARY_PATH (searched before RUNPATH), e.g. an older system ORT in
+# /usr/local/lib, and fail with "version `VERS_1.26.0' not found".
+execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+        OUTPUT_VARIABLE _py_scripts
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+find_program(PATCHELF_EXECUTABLE patchelf HINTS "${_py_scripts}" REQUIRED)  # the `patchelf` build requirement
+
 file(GLOB _ort_libs "${ONNXRUNTIME_ROOT}/lib/libonnxruntime*.so*")
 foreach(_lib IN LISTS _ort_libs)
     get_filename_component(_name "${_lib}" NAME)
-    # Ship each library once, under the name the dynamic linker looks up:
-    # libonnxruntime.so.1 (its SONAME) and the unversioned provider plugins.
-    if(_name MATCHES "^libonnxruntime\\.so\\.[0-9]+$" OR _name MATCHES "^libonnxruntime_providers_[a-z_]+\\.so$")
-        file(REAL_PATH "${_lib}" _real)
-        install(FILES "${_real}" DESTINATION vision_pilot RENAME "${_name}" COMPONENT python)
+    file(REAL_PATH "${_lib}" _real)
+    if(_name MATCHES "^libonnxruntime\\.so\\.[0-9]+$")
+        # libonnxruntime.so.1.26.0 -> libonnxruntime-<sha256[:8]>.so.1.26.0
+        file(SHA256 "${_real}" _hash)
+        string(SUBSTRING "${_hash}" 0 8 _hash)
+        get_filename_component(_real_name "${_real}" NAME)
+        string(REGEX REPLACE "^libonnxruntime" "libonnxruntime-${_hash}" _ort_vendored "${_real_name}")
+        set(_ort_soname "${_name}")
+        set(_ort_real "${_real}")
+    elseif(_name MATCHES "^libonnxruntime_providers_[a-z_]+\\.so$")
+        # Provider plugins are loaded by ORT from its own directory, by full path.
+        install(FILES "${_real}" DESTINATION vision_pilot COMPONENT python)
     endif()
 endforeach()
+if(NOT _ort_vendored)
+    message(FATAL_ERROR "[python] No libonnxruntime.so.<N> in ${ONNXRUNTIME_ROOT}/lib")
+endif()
+
+# The renamed copy sits next to the build-tree extension too, for the stubs below.
+add_custom_command(
+        OUTPUT "${_core_dir}/${_ort_vendored}"
+        COMMAND ${CMAKE_COMMAND} -E copy "${_ort_real}" "${_core_dir}/${_ort_vendored}"
+        COMMAND "${PATCHELF_EXECUTABLE}" --set-soname "${_ort_vendored}" "${_core_dir}/${_ort_vendored}"
+        DEPENDS "${_ort_real}"
+        COMMENT "Vendoring ONNX Runtime as ${_ort_vendored}")
+add_custom_target(_core_onnxruntime DEPENDS "${_core_dir}/${_ort_vendored}")
+add_dependencies(_core _core_onnxruntime)
+add_custom_command(TARGET _core POST_BUILD
+        COMMAND "${PATCHELF_EXECUTABLE}" --replace-needed "${_ort_soname}" "${_ort_vendored}" "$<TARGET_FILE:_core>")
+set_property(TARGET _core APPEND PROPERTY BUILD_RPATH "$ORIGIN")
+install(FILES "${_core_dir}/${_ort_vendored}" DESTINATION vision_pilot COMPONENT python)
 
 # Typed stubs for the extension, generated from the bindings themselves. This
 # imports the extension from the build tree, whose build RPATH reaches the
 # Ipopt / CppAD wheels of the build environment (the install tree's relative
 # RPATH only resolves once installed into site-packages).
-set_target_properties(_core PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/stub_root/vision_pilot")
 nanobind_add_stub(_core_stub
         MODULE vision_pilot._core
         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/stub_root/vision_pilot/_core.pyi"
