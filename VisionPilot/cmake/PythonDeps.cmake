@@ -96,7 +96,7 @@ if(VISIONPILOT_VENDOR_OPENCV)
                 -DWITH_IPP=OFF -DWITH_ITT=OFF -DWITH_OPENCL=OFF -DWITH_EIGEN=OFF -DWITH_LAPACK=OFF
                 -DWITH_PROTOBUF=OFF -DWITH_ADE=OFF -DWITH_VA=OFF -DWITH_VA_INTEL=OFF
                 # No imgcodecs, so no codecs: where the system lacks one, OpenCV
-                # builds it from 3rdparty and exports a target for a library that
+                # builds it from its bundled sources and exports a target for a library that
                 # only imgcodecs would have installed.
                 -DWITH_JPEG=OFF -DWITH_PNG=OFF -DWITH_TIFF=OFF -DWITH_WEBP=OFF
                 -DWITH_OPENJPEG=OFF -DWITH_JASPER=OFF -DWITH_OPENEXR=OFF

@@ -75,6 +75,8 @@
     "onnx",
     "onnxruntime",
     "openbox",
+    "openexr",
+    "openjpeg",
     "patchelf",
     "procps",
     "pyproject",
@@ -98,6 +100,7 @@
     "visionpilot",
     "vncpasswd",
     "vncserver",
+    "webp",
     "websockify",
     "xstartup",
     "zenseact"
