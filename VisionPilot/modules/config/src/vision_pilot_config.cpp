@@ -188,10 +188,6 @@ Config load_vision_pilot_config()
 #ifdef ENABLE_ROS2_INTERFACE
     kv = parse_conf(find_config("vision_pilot_ros2.conf"));
     cfg.source.input_camera_topic = optional(kv, "source.input_camera_topic",  "/camera/image");
-    cfg.source.input_radar_topic = optional(kv, "radar.topic", cfg.source.input_radar_topic);
-    cfg.source.radar_sync_slop_ms = parse_int(
-        optional(kv, "radar.sync_slop_ms", std::to_string(cfg.source.radar_sync_slop_ms)),
-        "radar.sync_slop_ms");
     cfg.vehicle_speed_topic = optional(kv, "vehicle_speed_topic", "/vehicle/speed");
     cfg.vehicle_steering_topic = optional(kv, "vehicle_steering_topic", "/vehicle/steering_cmd");
     cfg.vehicle_acceleration_topic = optional(kv, "vehicle_acceleration_topic", "/vehicle/throttle_cmd");

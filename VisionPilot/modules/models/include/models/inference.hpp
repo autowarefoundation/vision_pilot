@@ -1,14 +1,17 @@
 #pragma once
 
+#include <engine/onnx_engine.hpp>
 #include <fusion/lateral_fusion.hpp>
 #include <fusion/longitudinal_fusion.hpp>
 #include <models/auto_drive.hpp>
 #include <models/auto_steer.hpp>
 #include <models/auto_speed.hpp>
+#include <models/backend.hpp>
 #include <opencv2/core.hpp>
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -23,8 +26,43 @@ struct Config {
     std::string precision    = "fp32";
     bool        fusion_debug = false;
     float       cte_bias_m   = 0.0f;  // camera mounting offset [m] — subtracted from raw CTE before filter
-    fusion::LongitudinalFusion::Config long_fusion;
+    // Run all three networks in one session over a merged graph. Required for
+    // the renesas provider, which permits only one NPU session per process.
+    bool        merged = false;
+    // Merged .onnx path. Ignored under the renesas provider, which uses
+    // engine.artifacts_dir instead.
+    std::string merged_path;
+    // "auto" resolves <merged_path>.contract.json or
+    // <artifacts_dir>/contract.json. "none" forces plain-merged mode.
+    // Anything else is treated as an explicit contract path.
+    std::string contract = "auto";
 };
+
+// The MergedBackend construction target, resolved purely from configuration
+// -- no ORT session is touched. std::nullopt means "construct a
+// SplitBackend instead"; resolving that case also refuses
+// engine_cfg.provider == "renesas", since a three-session split would place
+// two of the three networks on a silent CPU fallback.
+//
+// model_or_dir is engine_cfg.artifacts_dir under the renesas provider, else
+// cfg.merged_path; either being empty is a startup error naming the
+// missing key. contract_path follows cfg.contract, matched
+// case-insensitively against the "auto"/"none" sentinels so a typo like
+// "Auto" is not silently misread as a literal path: "auto" resolves via
+// resolve_contract_path() (against the artifacts directory under renesas,
+// else the merged_path's ".contract.json" sidecar), "none" yields ""
+// (forces plain-merged mode), and anything else is passed through as an
+// explicit path.
+//
+// Throws std::runtime_error naming the missing config key, or the refused
+// engine.provider = renesas / model.merged combination.
+struct MergedTarget {
+    std::string model_or_dir;
+    std::string contract_path;
+};
+
+std::optional<MergedTarget> resolve_merged_target(const engine::Config& engine_cfg,
+                                                   const Config&         cfg);
 
 struct LatencyStats {
     double pre{0}, ad{0}, as{0}, asp{0}, wall{0};
@@ -59,9 +97,7 @@ public:
     // resized : plain-resized 1024×512 image → AutoSteer + AutoSpeed.
     //           If empty, falls back to warped for all networks (legacy behaviour).
     std::optional<InferenceFrameResult> process(const cv::Mat& warped,
-                                                const cv::Mat& resized = {},
-                                                float ego_speed_ms = 0.f,
-                                                bool has_ego_speed = false);
+                                                const cv::Mat& resized = {});
 
     // Compute and apply H_resized to both fusion modules so that AutoSteer /
     // AutoSpeed outputs are projected correctly when they run on a resized
@@ -82,19 +118,14 @@ public:
     void reset();
     const LatencyStats& latency() const { return stats_; }
 
-    void set_radar_points(std::vector<fusion::RadarPoint> pts) { radar_points_ = std::move(pts); }
-
 private:
     cv::Mat H_resized_;
     cv::Mat H_world2resized_;
-    AutoDrive          auto_drive_;
-    AutoSteer          auto_steer_;
-    AutoSpeed          auto_speed_;
+    std::unique_ptr<ModelBackend> backend_;
     fusion::LongitudinalFusion long_fusion_;
     fusion::LateralFusion      lat_fusion_;
     LatencyStats       stats_;
     uint64_t           frame_count_ = 0;
-    std::vector<fusion::RadarPoint> radar_points_;
 
     cv::Mat prev_frame_;
     cv::Mat curr_frame_;
@@ -102,7 +133,7 @@ private:
 
     // Input tensors, allocated once in the constructor and reused: each is
     // 6 MB at 1024x512, and value-initialising three fresh ones per frame cost
-    // more than the conversion that fills them. process() hands the networks
+    // more than the conversion that fills them. process() hands the backend
     // raw pointers into these, so they are never resized after construction.
     //
     // imn_ is a two-slot ping-pong: the ImageNet tensor computed for frame N
@@ -121,6 +152,8 @@ private:
     std::vector<float>   unit_;
     int                  imn_curr_     = 0;
     const unsigned char* imn_prev_src_ = nullptr;
+
+    bool offload_verified_ = false;
 };
 
 }  // namespace visionpilot::models
