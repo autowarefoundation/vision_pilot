@@ -41,7 +41,7 @@ from ._core import (
     Warning,
     compute_preprocess_homography,
 )
-from .camera import camera_intrinsics, ground_homography
+from .camera import camera_intrinsics, ground_homography, ground_homography_from_extrinsics
 
 try:
     __version__ = version("vision-pilot")
@@ -74,4 +74,5 @@ __all__ = [
     "camera_intrinsics",
     "compute_preprocess_homography",
     "ground_homography",
+    "ground_homography_from_extrinsics",
 ]

@@ -118,6 +118,50 @@ pilot.reset()                                         # before the next episode
 `Planner` is bound on its own as well, for testing the IDM + MPC planner without
 the networks.
 
+## Closed loop with carla_driver_interface
+
+`vision_pilot.driver.VisionPilotDriver` is a policy for
+[carla_driver_interface](https://github.com/hakuturu583/carla_driver_interface)'s
+driver half, so anything that speaks alpasim's `EgodriverService` (that
+project's `CarlaRuntime`, a scenario runner owning a CARLA world, or upstream
+alpasim) drives VisionPilot unmodified. It needs the `driver` extra (CPython
+3.11 or 3.12, the limit of alpasim's protos):
+
+```bash
+uv sync --extra driver
+uv run vision-pilot-driver --model-dir modules/models/weights --port 50051 --seed 0
+# in another shell, e.g. carla_driver_interface's runtime against CARLA:
+#   carla-driver-interface run --driver localhost:50051 ...
+```
+
+What happens on each `drive` call:
+
+1. **Camera → ground homography** (once per session). The runtime declares its
+   cameras in `start_session`; the driver takes the configured one
+   (`--camera`, or the only one), and builds VisionPilot's `H` from its pinhole
+   intrinsics and pose in the rig, with the origin on the road below the
+   camera, as for the calibrated `config/H.yaml`. Distorted or fisheye cameras
+   are rejected. A 52–55° HFOV front camera matches what the networks expect.
+2. **Frame → command.** A new frame goes through `Pilot.step`, with the
+   simulation time between frames as `dt_s`. The first frame of a session only
+   primes the two-frame buffer; until then the command is "hold" (no steering,
+   no acceleration).
+3. **Command → trajectory.** The command (front tyre angle δ, acceleration a)
+   is held over the horizon on a kinematic bicycle model
+   (`vision_pilot.kinematics.rollout_command`): an arc of curvature
+   `tan(δ) / front_axle_to_cog_m` (the planner's own model) with a
+   constant-acceleration speed profile that stops at zero rather than
+   reversing. This is what VisionPilot would do to the car until its next
+   cycle, and a trajectory follower (pure pursuit in `CarlaRuntime`)
+   reproduces that curvature on whatever vehicle it drives.
+
+Each plan carries VisionPilot's state in `debug_scalars` (CTE, heading error,
+curvature, lead vehicle distance/speed, FCW/AEB/LDW flags, inference time),
+which `CarlaDriveDebugInfo` forwards to the runtime.
+
+`--mpc-max-cpu-time` defaults to 1 s in the driver so that results do not
+depend on the machine; pass 0.015 to reproduce the vehicle's real-time cut-off.
+
 ## Layout
 
 ```text
@@ -128,6 +172,7 @@ VisionPilot/
 └── python/
     ├── CMakeLists.txt          # nanobind extension, stubs, bundled ONNX Runtime
     ├── bindings.cpp            # vision_pilot._core
-    ├── src/vision_pilot/       # Python package (camera geometry, re-exports)
+    ├── src/vision_pilot/       # Python package: re-exports, camera geometry,
+    │                           #   kinematics (command → trajectory), driver (alpasim policy)
     └── tests/
 ```

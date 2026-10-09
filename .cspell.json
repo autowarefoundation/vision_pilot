@@ -2,6 +2,7 @@
   "ignorePaths": [],
   "ignoreRegExpList": [],
   "words": [
+    "alpasim",
     "autospeed",
     "autoware",
     "buildx",
@@ -15,6 +16,7 @@
     "dbus",
     "dejavu",
     "domainseg",
+    "egodriver",
     "egolanes",
     "gstreamer",
     "hfov",
