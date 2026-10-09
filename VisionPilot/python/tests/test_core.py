@@ -88,3 +88,20 @@ def test_planner_brakes_for_a_close_lead_vehicle() -> None:
 def test_constants() -> None:
     assert (vp.NET_WIDTH, vp.NET_HEIGHT) == (1024, 512)
     assert math.isclose(vp.PLANNER_DT_S, 0.05)
+
+
+def test_planner_steers_back_onto_the_path() -> None:
+    """cte / epsi are the ego relative to the path, CCW-positive, and the tyre angle is
+    positive to the left: an ego left of the path, or heading left of it, steers right."""
+
+    def steer(cte: float, epsi: float, kappa: float = 0.0) -> float:
+        planner = vp.Planner(speed_limit_mps=20.0, front_axle_to_cog_m=1.4, mpc_max_cpu_time_s=10.0)
+        plan = planner.compute_plan(
+            cte=cte, epsi=epsi, kappa=kappa, ego_v=10.0, has_cipo=False, cipo_v=20.0,
+            cipo_distance=9999.0,
+        )
+        return float(plan.steering[1])
+
+    assert steer(cte=1.0, epsi=0.0) < 0.0
+    assert steer(cte=0.0, epsi=0.1) < 0.0
+    assert steer(cte=0.0, epsi=0.0, kappa=0.02) > 0.0  # a left curve: steer left

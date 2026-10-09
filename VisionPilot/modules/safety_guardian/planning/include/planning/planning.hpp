@@ -15,7 +15,11 @@ public:
 
     // Unified longitudinal + lateral plan.
     //
-    //   cte, epsi      : tracking errors (m, rad)
+    //   cte, epsi      : tracking errors (m, rad) of the ego relative to the
+    //                    path, CCW-positive: cte > 0 with the ego left of the
+    //                    path, epsi > 0 with it heading left of the path's
+    //                    tangent. Lateral fusion reports the opposite (the path
+    //                    as seen from the ego); negate its cte_m and yaw_rad.
     //   kappa          : SIGNED (CCW-positive) road curvature at the ego now
     //                    (1/m).  This is the only road information required.
     //                    Sign matters: it must match the MPC's epsi convention
