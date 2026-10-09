@@ -36,8 +36,8 @@ jobs:
 
       # No apt step: the native dependencies come from uv (cmake/PythonDeps.cmake).
       - name: Build and install
-        # closed-loop-test resolves to nothing on 3.10 (alpasim's protos need 3.11+);
-        # its tests skip there.
+        # closed-loop-test brings autoware-carla-egodriver, whose FakeLoop the
+        # driver tests run against.
         run: uv sync --locked --extra closed-loop-test --python ${{ matrix.python-version }}
 
       - name: Type-check against the generated stubs

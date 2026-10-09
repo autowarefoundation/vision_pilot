@@ -118,34 +118,38 @@ pilot.reset()                                         # before the next episode
 `Planner` is bound on its own as well, for testing the IDM + MPC planner without
 the networks.
 
-## Closed loop with carla_driver_interface
+## Closed loop: scenarios in CARLA
 
-`vision_pilot.driver.VisionPilotDriver` is a policy for
-[carla_driver_interface](https://github.com/hakuturu583/carla_driver_interface)'s
-driver half, so anything that speaks alpasim's `EgodriverService` (that
-project's `CarlaRuntime`, a scenario runner owning a CARLA world, or upstream
-alpasim) drives VisionPilot unmodified. The `closed-loop-test` extra brings
-both ends of the loop, the driver and carla_driver_interface's runtime
-(CPython 3.11 or 3.12, the limit of alpasim's protos). The CARLA client is not
-in it, since it has to match your server: `uv pip install carla==0.9.x` for a
-0.9 server, or `--carla-python-path` to a 0.10 server's PythonAPI.
+`vision_pilot.driver.VisionPilotDriver` is a policy for alpasim's `EgodriverService`,
+built on `autoware-carla-egodriver`, the policy-side package of the
+[autoware_carla_scenario](https://github.com/autowarefoundation/autoware_carla_scenario)
+workspace. The `closed-loop-test` extra brings it:
 
 ```bash
 uv sync --extra closed-loop-test
 uv run vision-pilot-driver --model-dir modules/models/weights --port 50051 --seed 0
-# in another shell: carla_driver_interface's runtime, with VisionPilot's rig
-uv run carla-driver-interface run --rig vision_pilot --driver localhost:50051 ...
 ```
 
-`--rig vision_pilot` makes the runtime spawn the vehicle and camera VisionPilot
-is tuned for: the same Lincoln MKZ and 1920×1280, 50° front camera as the CARLA
-ROS 2 bridge (`Simulation/CARLA/ROS2/config/carla916.json`; a test keeps the
-two in sync). The package registers the rig under the
-`carla_driver_interface.rigs` entry point, from
-`python/src/vision_pilot/carla_rig.toml`; `carla-driver-interface rigs` lists
-it, and `vision_pilot.driver.carla_rig()` returns it for runtimes configured
-from Python. Without it, the runtime's default rig has a 120° camera, and the
-driver logs a warning.
+The CARLA side is autoware_carla_scenario, run from its own checkout and environment.
+Its `driver=vision_pilot` preset hands the ego to the policy with the vehicle and camera
+VisionPilot is tuned for: the Lincoln MKZ and 1920×1280, 50° front camera at 10 Hz of
+VisionPilot's own CARLA rig (`Simulation/CARLA/ROS2/config/carla916.json`):
+
+```bash
+uv run scenario driver=vision_pilot                 # in autoware_carla_scenario
+```
+
+A runtime whose camera is far from ~52° (alpasim's default 120° camera, say) still
+works, but the driver logs a warning.
+
+Without a simulator, `autoware_carla_egodriver.testing.FakeLoop` drives the same
+server over real gRPC on a straight road, rendering the declared camera; the tests use
+it (`python/tests/test_driver.py`), and so can a quick check from the command line:
+
+```bash
+uv run autoware-carla-egodriver demo --driver localhost:50051 \
+    --camera-width 1920 --camera-height 1280 --camera-fov 50 --steps 20
+```
 
 What happens on each `drive` call:
 
@@ -165,7 +169,7 @@ What happens on each `drive` call:
    `tan(δ) / front_axle_to_cog_m` (the planner's own model) with a
    constant-acceleration speed profile that stops at zero rather than
    reversing. This is what VisionPilot would do to the car until its next
-   cycle, and a trajectory follower (pure pursuit in `CarlaRuntime`)
+   cycle, and a trajectory follower (pure pursuit, in autoware_carla_scenario)
    reproduces that curvature on whatever vehicle it drives.
 
 Each plan carries VisionPilot's state in `debug_scalars` (CTE, heading error,
