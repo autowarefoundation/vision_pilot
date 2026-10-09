@@ -24,7 +24,9 @@ It subscribes to steering and throttle command topics and publishes correspondin
 
 ## **Parameters**
 
-The node declares no parameters.
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `steering_sign` | `double` | `1.0` | Multiplies the received steering angle. VisionPilot and CARLA both steer right for a positive angle, so keep `1.0`. Set `-1.0` only for a source with the opposite sign. |
 
 
 ## **Example Usage**
