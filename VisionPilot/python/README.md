@@ -130,9 +130,19 @@ alpasim) drives VisionPilot unmodified. It needs the `driver` extra (CPython
 ```bash
 uv sync --extra driver
 uv run vision-pilot-driver --model-dir modules/models/weights --port 50051 --seed 0
-# in another shell, e.g. carla_driver_interface's runtime against CARLA:
-#   carla-driver-interface run --driver localhost:50051 ...
+# in another shell: carla_driver_interface's runtime, with VisionPilot's rig
+uv run carla-driver-interface run --rig vision_pilot --driver localhost:50051 ...
 ```
+
+`--rig vision_pilot` makes the runtime spawn the vehicle and camera VisionPilot
+is tuned for: the same Lincoln MKZ and 1920×1280, 50° front camera as the CARLA
+ROS 2 bridge (`Simulation/CARLA/ROS2/config/carla916.json`; a test keeps the
+two in sync). The package registers the rig under the
+`carla_driver_interface.rigs` entry point, from
+`python/src/vision_pilot/carla_rig.toml`; `carla-driver-interface rigs` lists
+it, and `vision_pilot.driver.carla_rig()` returns it for runtimes configured
+from Python. Without it, the runtime's default rig has a 120° camera, and the
+driver logs a warning.
 
 What happens on each `drive` call:
 
@@ -141,7 +151,7 @@ What happens on each `drive` call:
    (`--camera`, or the only one), and builds VisionPilot's `H` from its pinhole
    intrinsics and pose in the rig, with the origin on the road below the
    camera, as for the calibrated `config/H.yaml`. Distorted or fisheye cameras
-   are rejected. A 52–55° HFOV front camera matches what the networks expect.
+   are rejected.
 2. **Frame → command.** A new frame goes through `Pilot.step`, with the
    simulation time between frames as `dt_s`. The first frame of a session only
    primes the two-frame buffer; until then the command is "hold" (no steering,

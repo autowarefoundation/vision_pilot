@@ -7,7 +7,10 @@ image -> Pilot.step -> command -> rolled-out plan -> trajectory follower.
 
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -24,7 +27,8 @@ from carla_driver_interface.runtime.conversions import (  # noqa: E402
     available_camera,
     camera_pose_in_rig,
 )
-from vision_pilot.driver import VisionPilotDriver, camera_ground_homography  # noqa: E402
+from carla_driver_interface.runtime.rig import load_rig  # noqa: E402
+from vision_pilot.driver import VisionPilotDriver, camera_ground_homography, carla_rig  # noqa: E402
 
 import vision_pilot as vp  # noqa: E402
 
@@ -58,6 +62,44 @@ def test_camera_homography_follows_the_carla_mount() -> None:
     # Origin below the camera: the lateral and longitudinal mount offsets drop out.
     # The pose crosses the wire as float32, hence the tolerance.
     np.testing.assert_allclose(camera_ground_homography(camera), expected, rtol=1e-6, atol=1e-9)
+
+
+ROS2_RIG = Path(__file__).parents[3] / "Simulation/CARLA/ROS2/config/carla916.json"
+
+
+def test_rig_is_registered_and_matches_the_ros2_bridge() -> None:
+    """`--rig vision_pilot` is the vehicle and camera the CARLA ROS 2 bridge uses."""
+    rig = load_rig("vision_pilot")  # through the entry point
+    assert rig == carla_rig()
+
+    bridge = json.loads(ROS2_RIG.read_text())
+    (camera_json,) = [s for s in bridge["sensors"] if s["type"] == "sensor.camera.rgb"]
+    mount, attrs = camera_json["spawn_point"], camera_json["attributes"]
+    (camera,) = rig.cameras
+    assert rig.ego_blueprint == bridge["type"]
+    assert (camera.width, camera.height) == (attrs["image_size_x"], attrs["image_size_y"])
+    assert camera.fov_deg == attrs["fov"]
+    # config_carla.py negates y, pitch and yaw on the way to carla.Transform.
+    assert (camera.x, camera.y, camera.z) == (mount["x"], -mount["y"], mount["z"])
+    assert (camera.roll_deg, camera.pitch_deg, camera.yaw_deg) == (
+        mount["roll"],
+        -mount["pitch"],
+        -mount["yaw"],
+    )
+
+
+def test_warns_about_a_wide_camera(caplog: pytest.LogCaptureFixture) -> None:
+    wide = load_rig("default").cameras[0]
+    camera = available_camera(
+        logical_id=wide.logical_id,
+        width=wide.width,
+        height=wide.height,
+        horizontal_fov_deg=wide.fov_deg,
+        pose_in_rig=camera_pose_in_rig(wide.x, wide.y, wide.z, 0.0, 0.0, 0.0, -1.4),
+    )
+    with caplog.at_level(logging.WARNING, logger="vision_pilot.driver"):
+        camera_ground_homography(camera)
+    assert "120 degree" in caplog.text and "--rig vision_pilot" in caplog.text
 
 
 def test_rejects_a_distorted_camera() -> None:
@@ -95,10 +137,11 @@ def closed_loop() -> tuple[RecordingDriver, object, FakeWorld]:
     )
     driver = RecordingDriver(config)
     scenario = ScenarioSpec(map_name="FakeTown", name="vision_pilot")
+    rig = load_rig("vision_pilot")
     with serving(driver, port=0, host="127.0.0.1") as port:
         runtime_config = replace(
             RuntimeConfig(driver_address=f"127.0.0.1:{port}", image_format=ImageFormat.JPEG),
-            cameras=[FRONT],
+            cameras=list(rig.cameras),
             max_steps=15,
         )
         world = FakeWorld(runtime_config, scenario)

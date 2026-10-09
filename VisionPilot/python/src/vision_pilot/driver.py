@@ -26,6 +26,7 @@ Requires the ``driver`` extra: ``pip install 'vision-pilot[driver]'``.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 from dataclasses import dataclass, field
 
@@ -40,16 +41,33 @@ from carla_driver_interface.driver.base import (
 )
 from carla_driver_interface.geometry import Pose, Trajectory
 from carla_driver_interface.grpc_api import AvailableCamera
+from carla_driver_interface.runtime.rig import VehicleRig, rig_from_toml
 
 from ._core import ChannelOrder, Command, Pilot, PilotConfig, StepResult, Warning
 from .camera import ground_homography_from_extrinsics
 from .kinematics import rollout_command
 
-__all__ = ["VisionPilotDriver", "camera_ground_homography"]
+__all__ = ["VisionPilotDriver", "camera_ground_homography", "carla_rig"]
 
 logger = logging.getLogger(__name__)
 
 _HOLD = Command(0.0, 0.0)
+
+#: Horizontal fields of view the networks were trained around (52-55 degrees);
+#: outside this band the driver still runs, but warns.
+_EXPECTED_HFOV_DEG = (40.0, 70.0)
+
+
+def carla_rig() -> VehicleRig:
+    """VisionPilot's CARLA rig: the vehicle and front camera it is tuned for.
+
+    Registered as ``vision_pilot`` for ``carla-driver-interface --rig``; the
+    values live in ``carla_rig.toml`` next to this module.
+    """
+    from importlib.resources import as_file, files
+
+    with as_file(files(__package__) / "carla_rig.toml") as path:
+        return rig_from_toml(path)
 
 
 def camera_ground_homography(camera: AvailableCamera) -> npt.NDArray[np.float64]:
@@ -82,6 +100,15 @@ def camera_ground_homography(camera: AvailableCamera) -> npt.NDArray[np.float64]
             [0.0, 0.0, 1.0],
         ]
     )
+    hfov = math.degrees(2.0 * math.atan(spec.resolution_w / (2.0 * pinhole.focal_length_x)))
+    low, high = _EXPECTED_HFOV_DEG
+    if not low <= hfov <= high:
+        logger.warning(
+            "camera %r has a %.0f degree horizontal FOV; VisionPilot expects about 52 "
+            "(use --rig vision_pilot on the runtime)",
+            name,
+            hfov,
+        )
     pose_in_rig = Pose.from_proto(camera.rig_to_camera)
     height = float(pose_in_rig.position[2])
     return ground_homography_from_extrinsics(

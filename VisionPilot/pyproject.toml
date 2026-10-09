@@ -39,6 +39,11 @@ driver = [
 [project.scripts]
 vision-pilot-driver = "vision_pilot.driver:main"
 
+# `carla-driver-interface run --rig vision_pilot`: the vehicle and camera
+# VisionPilot is tuned for (python/src/vision_pilot/carla_rig.toml).
+[project.entry-points."carla_driver_interface.rigs"]
+vision_pilot = "vision_pilot.driver:carla_rig"
+
 [project.urls]
 Repository = "https://github.com/autowarefoundation/vision_pilot"
 
@@ -82,4 +87,4 @@ cache-keys = [
 ]
 
 [tool.uv.sources]
-carla-driver-interface = { git = "https://github.com/hakuturu583/carla_driver_interface", rev = "ccc84acc1b2547055885239ec8b85f450d5992ad" }
+carla-driver-interface = { git = "https://github.com/hakuturu583/carla_driver_interface", rev = "5521c013125813439e5c74ebb8c79095750b1cdd" }
