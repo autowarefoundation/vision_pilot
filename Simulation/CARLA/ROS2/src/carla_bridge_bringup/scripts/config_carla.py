@@ -283,7 +283,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    argparser = argparse.ArgumentParser(description="CARLA ROS2 native")
+    argparser = argparse.ArgumentParser(description="CARLA ROS 2 native")
     argparser.add_argument(
         "--host",
         metavar="H",

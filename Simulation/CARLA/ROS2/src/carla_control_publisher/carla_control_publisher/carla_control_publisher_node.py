@@ -20,7 +20,7 @@ class CarlaControlPublisher(Node):
 
         # VisionPilot reports +cte as "ego right of path" and emits the tyre angle
         # in that same sense, so a positive angle steers right. CARLA's native
-        # ROS2 ackermann path uses the same convention rather than REP-103:
+        # ROS 2 ackermann path uses the same convention rather than REP-103:
         # AckermannControlConversion.h assigns steering_angle straight to
         # AckermannControl.steer, AckermannController.cpp only rescales it by
         # VehicleMaxSteering, and python_api.md documents that field as
