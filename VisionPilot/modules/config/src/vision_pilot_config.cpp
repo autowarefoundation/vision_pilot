@@ -124,7 +124,6 @@ Config load_vision_pilot_config()
     cfg.inference.fusion_debug = parse_bool(optional(kv, "fusion.debug", "false"), "fusion.debug");
     cfg.inference.cte_bias_m   = static_cast<float>(
         parse_double(optional(kv, "fusion.cte_bias_m", "0.0"), "fusion.cte_bias_m"));
-
     cfg.source.mode          = parse_source_mode(optional(kv, "source.mode", "video"));
 
     cfg.source.v4l2_device   = optional(kv, "source.v4l2_device", "/dev/video0");
@@ -145,6 +144,34 @@ Config load_vision_pilot_config()
     cfg.rrd_on  = parse_bool(optional(kv, "rrd_on", "false"), "rrd_on");
     cfg.rrd_log = optional(kv, "rrd_log", "visionpilot.rrd");
 
+#if ENABLE_RADAR_INTERFACE
+    cfg.radar_on = parse_bool(optional(kv, "radar_on", "false"), "radar_on");
+    cfg.radar_hfov_deg = static_cast<float>(
+        parse_double(optional(kv, "radar_hfov_deg", "50"), "radar_hfov_deg"));
+    cfg.inference.long_fusion.radar_lat_buffer_m = static_cast<float>(
+        parse_double(optional(kv, "radar.lat_buffer_m", "0.5"), "radar.lat_buffer_m"));
+    cfg.inference.long_fusion.radar_path_buffer_m = static_cast<float>(
+        parse_double(optional(kv, "radar.path_buffer_m", "1.8"), "radar.path_buffer_m"));
+    cfg.inference.long_fusion.radar_max_range_m = static_cast<float>(
+        parse_double(optional(kv, "radar.max_range_m", "150"), "radar.max_range_m"));
+    cfg.source.input_radar_topic = optional(kv, "radar.topic", "/radar/points");
+    cfg.source.radar_sync_slop_ms = parse_int(optional(kv, "radar.sync_slop_ms", "80"), "radar.sync_slop_ms");
+    const std::string radar_calib = optional(kv, "radar.calib_file", "");
+    if (!radar_calib.empty()) {
+        cv::FileStorage fs(find_config(radar_calib), cv::FileStorage::READ);
+        cv::Mat cam, radar;
+        fs["extrinsics"] >> cam;
+        fs["radar_extrinsics"] >> radar;
+        cam.convertTo(cam, CV_64F);
+        radar.convertTo(radar, CV_64F);
+        for (int r = 0; r < 4; ++r)
+            for (int c = 0; c < 4; ++c) {
+                cfg.inference.long_fusion.cam_T(r, c)   = cam.at<double>(r, c);
+                cfg.inference.long_fusion.radar_T(r, c) = radar.at<double>(r, c);
+            }
+    }
+#endif
+
     { const std::string raw = optional(kv, "debug.wheel_dir", "");
       cfg.wheel_dir = raw.empty() ? "" : expand_home(raw); }
 
@@ -152,6 +179,10 @@ Config load_vision_pilot_config()
 #ifdef ENABLE_ROS2_INTERFACE
     kv = parse_conf(find_config("vision_pilot_ros2.conf"));
     cfg.source.input_camera_topic = optional(kv, "source.input_camera_topic",  "/camera/image");
+    cfg.source.input_radar_topic = optional(kv, "radar.topic", cfg.source.input_radar_topic);
+    cfg.source.radar_sync_slop_ms = parse_int(
+        optional(kv, "radar.sync_slop_ms", std::to_string(cfg.source.radar_sync_slop_ms)),
+        "radar.sync_slop_ms");
     cfg.vehicle_speed_topic = optional(kv, "vehicle_speed_topic", "/vehicle/speed");
     cfg.vehicle_steering_topic = optional(kv, "vehicle_steering_topic", "/vehicle/steering_cmd");
     cfg.vehicle_acceleration_topic = optional(kv, "vehicle_acceleration_topic", "/vehicle/throttle_cmd");
@@ -173,6 +204,12 @@ Config load_vision_pilot_config()
             throw std::runtime_error("source.mode=video requires source.input_vehicle_speed");
         if (!file_ok(cfg.source.input_vehicle_speed))
             throw std::runtime_error("source.video_path not found: " + cfg.source.input_vehicle_speed);
+#if ENABLE_RADAR_INTERFACE
+        cfg.source.input_radar_file = optional(kv, "source.input_radar_file", "");
+        if (cfg.source.input_radar_file.empty())
+            throw std::runtime_error("source.mode=video requires source.input_radar_file");
+#endif
+
         // Load dataset config
         cfg.source.dataset = optional(kv, "source.dataset", "");
         if (cfg.source.dataset.empty())

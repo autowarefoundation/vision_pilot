@@ -18,4 +18,10 @@ struct Plan {
     std::vector<Warning>  warnings;
 };
 
+struct RadarPoint {
+    float range_m     = 0.f;
+    float azimuth_rad = 0.f;
+    float range_rate  = 0.f;  // relative; negative = closing
+};
+
 #endif //VISIONPILOT_TYPES_HPP

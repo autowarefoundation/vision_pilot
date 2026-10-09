@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {% include head.html %}
+  <script>document.documentElement.className += " js";</script>
+</head>
+<body>
+  <a class="sr" href="#main">Skip to content</a>
+  {% include topbar.html %}
+  <main id="main">
+    {{ content }}
+  </main>
+  {% include footer.html %}
+  <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
+</body>
+</html>

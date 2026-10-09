@@ -1,0 +1,30 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#06070a">
+
+{% assign page_desc = page.description | default: site.description | strip_newlines %}
+
+{% if page.home %}
+<title>{{ site.title }} - {{ site.tagline }}</title>
+<meta property="og:title" content="{{ site.title }} — {{ site.tagline }}">
+{% else %}
+<title>{{ page.title }} · {{ site.title }}</title>
+<meta property="og:title" content="{{ page.title }} · {{ site.title }}">
+{% endif %}
+
+<meta name="description" content="{{ page_desc }}">
+
+<link rel="canonical" href="{{ page.url | absolute_url }}">
+<link rel="icon" href="{{ '/assets/img/favicon.svg' | relative_url }}" type="image/svg+xml">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.title }}">
+<meta property="og:description" content="{{ page_desc }}">
+<meta property="og:url" content="{{ page.url | absolute_url }}">
+<meta property="og:image" content="{{ '/assets/img/Vision_Pilot_Thumbnail.jpg' | absolute_url }}">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">

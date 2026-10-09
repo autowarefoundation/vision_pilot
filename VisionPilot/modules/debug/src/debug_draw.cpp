@@ -43,7 +43,7 @@ static const cv::Scalar kClrAdWheel   {240, 240, 240};
 
 // Layout (1024×512): corners reserved so paths/HUD do not overlap
 static constexpr int kTopBarH   = 22;
-static constexpr int kHudH      = 104;
+static constexpr int kHudH      = 128;
 static constexpr int kLegendW   = 212;
 static constexpr int kLegendH   = 100;
 static constexpr int kBevW      = 200;
@@ -95,12 +95,14 @@ struct OverlayLayout {
     cv::Rect bev{};
 };
 
-static OverlayLayout layout_for(const cv::Mat& img)
+static OverlayLayout layout_for(const cv::Mat& img, bool radar_bev = false)
 {
     OverlayLayout L;
     L.hud_y = img.rows - kHudH;
-    L.legend = cv::Rect(6, kTopBarH + 4, kLegendW, kLegendH);
-    L.bev    = cv::Rect(img.cols - kBevW - 8, L.hud_y - kBevH - 6, kBevW, kBevH);
+    L.legend = cv::Rect(6, kTopBarH + 4, kLegendW, radar_bev ? 148 : kLegendH);
+    const int bw = radar_bev ? 340 : kBevW;
+    const int bh = radar_bev ? 260 : kBevH;
+    L.bev    = cv::Rect(img.cols - bw - 8, L.hud_y - bh - 6, bw, bh);
     return L;
 }
 
@@ -151,7 +153,16 @@ static void draw_legend(cv::Mat& img, const OverlayLayout& L,
     };
 
     swatch(y, kClrEgoPath, "Green  AutoSteer waypoints"); y += dy;
-    swatch(y, kClrFusedLat, "Yellow Fused path (RANSAC)"); y += dy;
+    swatch(y, kClrFusedLat, "Yellow Path fit (inliers)"); y += dy;
+
+    if (v.cipo.radar.enabled) {
+        swatch(y, cv::Scalar(200, 90, 40), "Teal   Search +/-1.8m to 150m"); y += dy;
+        swatch(y, cv::Scalar(0, 255, 100), "Green  CIPO cluster"); y += dy;
+        swatch(y, cv::Scalar(0, 140, 255), "Orange Mover in-path"); y += dy;
+        swatch(y, cv::Scalar(200, 80, 200), "Magenta Static in-path"); y += dy;
+        swatch(y, cv::Scalar(90, 90, 90), "Grey   Out of search zone"); y += dy;
+        return;
+    }
 
     if (v.lateral.valid) {
         const float st = curvature_to_steer_deg(
@@ -309,41 +320,249 @@ static cv::Point world_to_bev_px(float x_fwd, float y_lat,
         static_cast<int>(std::lround(cy - x_fwd * px_per_m)));
 }
 
-static void draw_bev_fused_ego_path(cv::Mat& img,
-                                     const fusion::LateralFusionEstimate& lat,
-                                     const OverlayLayout& L)
+// A static return's range-rate is -v_ego·cos(azimuth), and on a highway most
+// returns are static world (ground, barriers, signs).  The median of the
+// de-projected rate is therefore -v_ego, robust to the few moving targets.
+static float ego_speed_from_radar(const std::vector<RadarPoint>& pts)
 {
-    if (!lat.path_valid) return;
+    std::vector<float> rr;
+    rr.reserve(pts.size());
+    for (const auto& p : pts) {
+        const float ca = std::cos(p.azimuth_rad);
+        if (p.range_m > 2.f && ca > 0.2f) rr.push_back(p.range_rate / ca);
+    }
+    if (rr.size() < 8) return 0.f;
+    std::nth_element(rr.begin(), rr.begin() + static_cast<long>(rr.size() / 2), rr.end());
+    return -rr[rr.size() / 2];
+}
+
+// Radar BEV. Forward and lateral use *different* scales: 0-150 m of range has to
+// share a 260 px panel, so a 1.8 m association gate is a few pixels tall.
+// Stretching the lateral axis is the only way the gates are visible at all.
+//
+// Cluster membership is not recomputed here — it arrives in RadarAssocDebug so
+// the panel can only ever show the association fusion actually made. The path
+// corridor is drawn the way fusion searches: fitted poly out to x_max, then
+// the same poly extrapolated to radar_max_range (150 m) with a +/-1.8 m tube.
+static void draw_radar_bev_panel(cv::Mat& img, const DebugView& view,
+                                 const OverlayLayout& L)
+{
+    const auto& lat   = view.lateral;
+    const auto& radar = view.cipo.radar;
 
     const cv::Rect panel_rect = L.bev & cv::Rect(0, 0, img.cols, img.rows);
-    if (panel_rect.width < 40 || panel_rect.height < 40) return;
-
-    draw_panel(img, panel_rect, "FUSED PATH (top-down)", kClrFusedLat);
+    if (panel_rect.width < 80 || panel_rect.height < 80) return;
+    draw_panel(img, panel_rect, "RADAR BEV", kClrFusedLat);
 
     const int pw = panel_rect.width;
     const int ph = panel_rect.height;
     cv::Mat panel = img(panel_rect);
 
-    static constexpr float kPxPerM  = 4.5f;
-    static constexpr float kLatMaxM = 7.f;
+    static constexpr float kFwdMax = 150.f;   // m of range shown (in-path search)
+    static constexpr float kLatMax = 14.f;    // m either side shown
+    static constexpr float kPathZoneM = 1.8f; // same lateral gate as fusion
+    const int   y_ego  = ph - 16;
+    const int   cx     = pw / 2;
+    const float ppm_x  = static_cast<float>(y_ego - 30) / kFwdMax;
+    const float ppm_y  = (static_cast<float>(pw) * 0.5f - 6.f) / kLatMax;
 
+    auto to_px = [&](float x, float y) {
+        return cv::Point(cx - static_cast<int>(std::lround(y * ppm_y)),
+                         y_ego - static_cast<int>(std::lround(x * ppm_x)));
+    };
+    auto in_panel = [&](const cv::Point& p) {
+        return p.x >= 1 && p.x < pw - 1 && p.y >= 22 && p.y < ph - 1;
+    };
+
+    cv::putText(panel, "x 0-150m  y +/-14m  zone +/-1.8m", cv::Point(6, 27),
+                kFont, 0.28, cv::Scalar(120, 120, 120), 1, cv::LINE_AA);
+
+    // Range rings every 20 m, lane-ish lateral guides at +/-2 and +/-4 m.
+    for (int r = 20; r <= static_cast<int>(kFwdMax); r += 20) {
+        const int y = to_px(static_cast<float>(r), 0.f).y;
+        if (y < 30) continue;
+        cv::line(panel, cv::Point(2, y), cv::Point(pw - 3, y),
+                 cv::Scalar(45, 45, 45), 1, cv::LINE_AA);
+        cv::putText(panel, std::to_string(r), cv::Point(3, y - 2),
+                    kFont, 0.28, cv::Scalar(90, 90, 90), 1, cv::LINE_AA);
+    }
+    for (float y_off : {-12.f, -8.f, -4.f, 0.f, 4.f, 8.f, 12.f}) {
+        const int x = to_px(0.f, y_off).x;
+        if (x < 2 || x >= pw - 2) continue;
+        const cv::Scalar c = (y_off == 0.f) ? cv::Scalar(60, 60, 60)
+                                            : cv::Scalar(40, 40, 40);
+        for (int y = 30; y < y_ego; y += 6)
+            cv::line(panel, cv::Point(x, y), cv::Point(x, y + 3), c, 1);
+    }
+
+    // Fusion snapshot path if present (same poly association used), else lateral.
+    const bool have_path = radar.path.valid || lat.path_valid;
+    const float pa = radar.path.valid ? radar.path.a : lat.path_a;
+    const float pb = radar.path.valid ? radar.path.b : lat.path_b;
+    const float pc = radar.path.valid ? radar.path.c : lat.path_c;
+    const float x_fit_src = radar.path.valid ? radar.path.x_max_m : lat.path_x_max_m;
+    const cv::Scalar zone_clr(200, 90, 40);      // teal: +/-1.8 m search tube
+    const cv::Scalar ext_clr(180, 200, 80);      // cyan: extrapolated centreline
+    const cv::Scalar cipo_clr(0, 255, 100);
+    const cv::Scalar mov_in_clr(0, 140, 255);    // orange
+    const cv::Scalar mov_out_clr(0, 70, 140);
+    const cv::Scalar stat_in_clr(200, 80, 200);  // magenta
+    const cv::Scalar stat_out_clr(90, 90, 90);
+
+    // Fitted path (solid yellow) vs extended in-path search to 150 m
+    // (dashed cyan) with the +/-1.8 m association corridor (teal).
+    if (have_path) {
+        const float x_fit = (x_fit_src > 1.f) ? std::min(x_fit_src, kFwdMax) : 0.f;
+        std::vector<cv::Point> mid_fit, mid_ext, lo, hi;
+        for (float x = 0.f; x <= kFwdMax; x += 1.f) {
+            const float y = pa * x * x + pb * x + pc;
+            if (std::abs(y) > kLatMax) continue;
+            const cv::Point pm = to_px(x, y);
+            if (!in_panel(pm)) continue;
+            if (x <= x_fit) mid_fit.push_back(pm);
+            else            mid_ext.push_back(pm);
+            lo.push_back(to_px(x, y - kPathZoneM));
+            hi.push_back(to_px(x, y + kPathZoneM));
+        }
+        if (lo.size() >= 2 && hi.size() >= 2) {
+            std::vector<std::vector<cv::Point>> zone{lo};
+            zone[0].insert(zone[0].end(), hi.rbegin(), hi.rend());
+            cv::Mat tint = panel.clone();
+            cv::fillPoly(tint, zone, cv::Scalar(70, 32, 14));
+            cv::addWeighted(tint, 0.28, panel, 0.72, 0, panel);
+            cv::polylines(panel, lo, false, zone_clr, 1, cv::LINE_AA);
+            cv::polylines(panel, hi, false, zone_clr, 1, cv::LINE_AA);
+        }
+        if (mid_fit.size() >= 2)
+            cv::polylines(panel, mid_fit, false, kClrFusedLat, 2, cv::LINE_AA);
+        if (!mid_fit.empty() && !mid_ext.empty())
+            mid_ext.insert(mid_ext.begin(), mid_fit.back());
+        for (std::size_t i = 1; i < mid_ext.size(); ++i) {
+            if ((i % 2) == 0) continue;
+            cv::line(panel, mid_ext[i - 1], mid_ext[i], ext_clr, 1, cv::LINE_AA);
+        }
+    }
+
+    // Vision distances as ticks on the path, so radar vs camera is one glance.
+    auto path_y_at = [&](float x) {
+        return have_path ? pa * x * x + pb * x + pc : 0.f;
+    };
+    auto tick = [&](float dist, const cv::Scalar& c, const char* tag) {
+        if (dist <= 0.f || dist > kFwdMax) return;
+        const cv::Point p = to_px(dist, path_y_at(dist));
+        if (!in_panel(p)) return;
+        cv::line(panel, cv::Point(p.x - 9, p.y), cv::Point(p.x + 9, p.y), c, 1, cv::LINE_AA);
+        cv::putText(panel, tag, cv::Point(p.x + 11, p.y + 3), kFont, 0.30, c, 1, cv::LINE_AA);
+    };
+    if (view.cipo.ad_meas_valid) tick(view.cipo.ad_dist_m, cv::Scalar(0, 220, 0), "AD");
+    if (view.cipo.as_h_valid)    tick(view.cipo.as_h_dist_m, cv::Scalar(160, 220, 160), "H");
+
+    // Returns, split by ego-compensated Doppler. Prefer published ego; if
+    // missing, fall back to the cloud median for colour only.
+    int n_static = 0, n_moving = 0, n_match = 0, n_zone = 0;
+    const float ego_pub = view.ego_speed_ms;
+    const float ego_est = (ego_pub > 0.5f) ? ego_pub : ego_speed_from_radar(radar.points);
+    for (std::size_t i = 0; i < radar.points.size(); ++i) {
+        const auto& rp = radar.points[i];
+        const float x = rp.range_m * std::cos(rp.azimuth_rad);
+        const float y = rp.range_m * std::sin(rp.azimuth_rad);
+        const cv::Point p = to_px(x, y);
+        const bool is_static =
+            std::abs(rp.range_rate + ego_est * std::cos(rp.azimuth_rad)) < 1.0f;
+        const bool matched = i < radar.in_match.size() && radar.in_match[i] != 0;
+        bool in_zone = false;
+        if (have_path && x >= 0.5f && x <= kFwdMax) {
+            const float py = pa * x * x + pb * x + pc;
+            in_zone = std::abs(y - py) <= kPathZoneM;
+        }
+        if (is_static) ++n_static; else ++n_moving;
+        if (matched) ++n_match;
+        if (in_zone) ++n_zone;
+        if (!in_panel(p)) continue;
+        cv::Scalar c = is_static
+            ? (in_zone ? stat_in_clr : stat_out_clr)
+            : (in_zone ? mov_in_clr  : mov_out_clr);
+        if (matched) c = cipo_clr;
+        cv::circle(panel, p, matched ? 3 : 2, c, -1, cv::LINE_AA);
+    }
+
+    // Ring sits on the search path at the reported match range so the label
+    // cannot drift onto a random cluster member.
+    if (n_match > 0 && radar.match_range_m > 0.f) {
+        const cv::Point p = to_px(radar.match_range_m, path_y_at(radar.match_range_m));
+        if (in_panel(p)) {
+            cv::circle(panel, p, 7, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+            char buf[64];
+            std::snprintf(buf, sizeof(buf), "%.1fm %+.1f", radar.match_range_m,
+                          radar.match_rate_ms);
+            cv::putText(panel, buf, cv::Point(p.x + 9, p.y - 6),
+                        kFont, 0.30, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+        }
+    }
+
+    const cv::Point ego = to_px(0.f, 0.f);
+    cv::circle(panel, ego, 3, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
+
+    char foot[112];
+    if (ego_pub > 0.5f)
+        std::snprintf(foot, sizeof(foot),
+                      "ego=%.1f  pts %zu  zone %d  match %d  stat %d  mov %d",
+                      ego_pub, radar.points.size(), n_zone, n_match, n_static, n_moving);
+    else
+        std::snprintf(foot, sizeof(foot),
+                      "ego=--  pts %zu  zone %d  match %d  stat %d  mov %d",
+                      radar.points.size(), n_zone, n_match, n_static, n_moving);
+    cv::putText(panel, foot, cv::Point(4, ph - 4), kFont, 0.30,
+                cv::Scalar(150, 150, 150), 1, cv::LINE_AA);
+}
+
+static void draw_bev_fused_ego_path(cv::Mat& img,
+                                     const DebugView& view,
+                                     const OverlayLayout& L)
+{
+    const auto& lat = view.lateral;
+    const auto& radar = view.cipo.radar;
+    if (!lat.path_valid && !radar.enabled) return;
+
+    if (radar.enabled) { draw_radar_bev_panel(img, view, L); return; }
+
+    const cv::Rect panel_rect = L.bev & cv::Rect(0, 0, img.cols, img.rows);
+    if (panel_rect.width < 40 || panel_rect.height < 40) return;
+
+    draw_panel(img, panel_rect,
+               radar.enabled ? "RADAR BEV" : "FUSED PATH (top-down)",
+               kClrFusedLat);
+
+    const int pw = panel_rect.width;
+    const int ph = panel_rect.height;
+    cv::Mat panel = img(panel_rect);
+
+    const float px_per_m = radar.enabled
+        ? std::min((ph - 16.f) / 150.f, (pw * 0.5f) / 40.f)
+        : 4.5f;
+    const float lat_max = radar.enabled ? 40.f : 7.f;
+    // Never extrapolate the poly past the inlier span — same as original VisionPilot.
     const float x_end = (lat.path_x_max_m > lat.path_x_min_m + 1.f)
         ? lat.path_x_max_m : 0.f;
-    if (x_end < 2.f) return;
 
-    const float a = lat.path_a, b = lat.path_b, c = lat.path_c;
-    std::vector<cv::Point> poly;
-    for (float x = 0.f; x <= x_end; x += 1.f) {
-        const float y = a * x * x + b * x + c;
-        if (std::abs(y) > kLatMaxM) continue;
-        const cv::Point p = world_to_bev_px(x, y, pw, ph, kPxPerM);
-        if (p.x < 2 || p.x >= pw - 2 || p.y < 20 || p.y >= ph - 2) continue;
-        poly.push_back(p);
+    auto to_px = [&](float x, float y) {
+        return world_to_bev_px(x, y, pw, ph, px_per_m);
+    };
+
+    if (lat.path_valid && x_end >= 2.f) {
+        std::vector<cv::Point> poly;
+        for (float x = 0.f; x <= x_end; x += 1.f) {
+            const float y = lat.path_a * x * x + lat.path_b * x + lat.path_c;
+            if (std::abs(y) > lat_max) continue;
+            const cv::Point p = to_px(x, y);
+            if (p.x < 2 || p.x >= pw - 2 || p.y < 20 || p.y >= ph - 2) continue;
+            poly.push_back(p);
+        }
+        if (poly.size() >= 2)
+            cv::polylines(panel, poly, false, kClrFusedLat, 2, cv::LINE_AA);
     }
-    if (poly.size() >= 2)
-        cv::polylines(panel, poly, false, kClrFusedLat, 2, cv::LINE_AA);
 
-    const cv::Point ego = world_to_bev_px(0.f, 0.f, pw, ph, kPxPerM);
+    const cv::Point ego = to_px(0.f, 0.f);
     cv::circle(panel, ego, 4, cv::Scalar(255, 255, 255), -1, cv::LINE_AA);
     cv::putText(panel, "ego", cv::Point(ego.x + 6, ego.y + 4),
                 kFont, 0.32, kClrNormal, 1, cv::LINE_AA);
@@ -504,20 +723,47 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
     static constexpr float D_MAX = 150.f;
     const auto& veh = v.vehicle;
 
-    // ── Column 1: neural network outputs ─────────────────────────────────────
+    // ── Column 1: per-source longitudinal ────────────────────────────────────
     int y = py + 16;
-    text(c1x, y, "NEURAL NET OUTPUTS", kClrHeader); y += lineH;
+    text(c1x, y, "LONG MEASUREMENTS", kClrHeader); y += lineH;
+
+    if (v.ego_speed_ms > 0.5f)
+        text(c1x, y, "Ego    " + fd(v.ego_speed_ms, 2) + " m/s", kClrFusedLong);
+    else
+        text(c1x, y, "Ego    (none)", kClrNormal);
+    y += lineH;
 
     if (v.auto_drive.valid) {
-        const float d_m = D_MAX * (1.f - v.auto_drive.dist_normalized);
-        const float curv = v.auto_drive.curvature_raw * veh.curv_scale;
-        text(c1x, y, "AutoDrive  dist " + fd(d_m, 1) + " m", kClrNormal); y += lineH;
-        text(c1x, y, "           curv " + fd(curv, 4) + " 1/m", kClrNormal); y += lineH;
-        const int flag = (v.auto_drive.flag_prob >= veh.flag_threshold) ? 1 : 0;
-        text(c1x, y, "           CIPO flag " + std::to_string(flag)
-             + " p=" + fd(v.auto_drive.flag_prob, 2), kClrNormal);
+        const float d_m = v.cipo.ad_meas_valid ? v.cipo.ad_dist_m
+                        : D_MAX * (1.f - v.auto_drive.dist_normalized);
+        text(c1x, y, "AD     " + fd(d_m, 1) + " m  p=" + fd(v.auto_drive.flag_prob, 2),
+             v.cipo.ad_meas_valid ? kClrFusedLong : kClrNormal); y += lineH;
     } else {
-        text(c1x, y, "AutoDrive  (no output)", kClrNormal);
+        text(c1x, y, "AD     (none)", kClrNormal); y += lineH;
+    }
+    if (v.cipo.as_h_valid)
+        text(c1x, y, "AS+H   " + fd(v.cipo.as_h_dist_m, 1) + " m", kClrFusedLong);
+    else
+        text(c1x, y, "AS+H   (none)", kClrNormal);
+    y += lineH;
+    if (v.cipo.radar_meas_valid) {
+        char rad[64];
+        std::snprintf(rad, sizeof(rad), "Radar  %.1f m  v=%+.2f  S%d",
+                      static_cast<double>(v.cipo.radar_dist_m),
+                      static_cast<double>(v.cipo.radar_vel_ms),
+                      v.cipo.radar_scenario);
+        text(c1x, y, rad, kClrFusedLong);
+    } else if (v.cipo.radar.enabled) {
+        text(c1x, y, "Radar  (no match)", kClrNormal);
+    } else {
+        text(c1x, y, "Radar  (off)", kClrNormal);
+    }
+    y += lineH;
+    if (v.auto_drive.valid) {
+        const float curv = v.auto_drive.curvature_raw * veh.curv_scale;
+        const int flag = (v.auto_drive.flag_prob >= veh.flag_threshold) ? 1 : 0;
+        text(c1x, y, "CIPO flag " + std::to_string(flag)
+             + "  curv " + fd(curv, 4), kClrNormal);
     }
 
     // ── Column 2: fused longitudinal ─────────────────────────────────────────
@@ -530,8 +776,14 @@ static void draw_hud_panel(cv::Mat& img, const DebugView& v, const OverlayLayout
              kClrFusedLong, kNorm, kBold); y += lineH;
         text(c2x, y, "uncert.   +/-" + fd(v.cipo.distance_stddev_m, 1) + " m",
              kClrNormal);
-        if (v.cipo.cut_in_detected)
+        if (v.cipo.cut_in_detected && v.cipo.radar_scenario == 1)
             text(c2x, py + kHudH - 10, "CUT-IN", kClrL2, kSmall, kBold);
+        else if (v.cipo.radar_scenario == 2)
+            text(c2x, py + kHudH - 10, "S2 L3 ON PATH", kClrL3, kSmall, kBold);
+        else if (v.cipo.radar_scenario == 3)
+            text(c2x, py + kHudH - 10, "S3 PATH MOVING", kClrNormal, kSmall, kBold);
+        else if (v.cipo.radar_scenario == 1)
+            text(c2x, py + kHudH - 10, "S1 L1/L2 RADAR", kClrFusedLong, kSmall, kBold);
     } else {
         text(c2x, y, "(waiting for tracker)", kClrNormal);
     }
@@ -577,7 +829,7 @@ void annotate_frame(cv::Mat& frame, const DebugView& view,
         H_use = g_H_world_to_img;
     }
 
-    const OverlayLayout layout = layout_for(frame);
+    const OverlayLayout layout = layout_for(frame, view.cipo.radar.enabled);
 
     // Scene overlays (paths, boxes) — drawn first
     draw_autospeed_detections(frame, view.auto_speed);
@@ -586,7 +838,7 @@ void annotate_frame(cv::Mat& frame, const DebugView& view,
 
     // Chrome: legend, BEV, wheels, bars (on top, fixed zones)
     draw_legend(frame, layout, view);
-    draw_bev_fused_ego_path(frame, view.lateral, layout);
+    draw_bev_fused_ego_path(frame, view, layout);
     draw_steering_wheels(frame, view);
     draw_top_bar(frame, view);
     draw_hud_panel(frame, view, layout);
@@ -596,10 +848,11 @@ bool visualize(cv::Mat& frame,
                const models::InferenceFrameResult& result,
                const std::string& src_label,
                const std::string& wheel_dir,
-               const cv::Mat& H_world_to_px)
+               const cv::Mat& H_world_to_px,
+               float ego_speed_ms)
 {
     if (frame.empty()) return false;
-    auto dv = debug_view_from(result, src_label, wheel_dir);
+    auto dv = debug_view_from(result, src_label, wheel_dir, ego_speed_ms);
     annotate_frame(frame, dv, H_world_to_px);
     cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
     cv::resizeWindow("VisionPilot", frame.cols, frame.rows);

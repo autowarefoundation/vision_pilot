@@ -1,0 +1,368 @@
+---
+layout: base
+title: Vision Pilot
+permalink: /
+home: true
+---
+
+<!-- == Hero ================================================================ -->
+<section class="hero">
+  <div class="wrap">
+    <img class="hero-logo" src="{{ '/assets/img/VisionPilot_logo_alpha.png' | relative_url }}"
+         alt="Vision Pilot" width="1140" height="880">
+
+    <div class="eyebrow"><span class="dot" aria-hidden="true"></span> Autoware Foundation · v{{ site.version }} released</div>
+
+    <h1>Open source <span class="grad-text">L2 ADAS</span>,<br>from one camera.</h1>
+
+    <p class="lede">
+      A productionizable and safety-certifiable L2 ADAS stack — ACC, AEB, LKAS, LDW, ISA and
+      single-lane highway autopilot — running on a single front-facing camera, with
+      <strong>no HD maps</strong>. Complete codebase and AI model weights, free under Apache&nbsp;2.0.
+    </p>
+
+    <div class="cta-row">
+      <a class="btn btn-primary" href="{{ '/github-io/getting-started/' | relative_url }}">Get started →</a>
+      <a class="btn btn-ghost" href="{{ site.links.repo }}" rel="noopener">View on GitHub</a>
+      <a class="btn btn-ghost" href="{{ site.links.presentation }}" rel="noopener">Intro presentation</a>
+    </div>
+
+    <div class="badge-row">
+      <a href="https://opensource.org/licenses/Apache-2.0" rel="noopener"><img src="https://img.shields.io/badge/License-Apache_2.0-7f95e6?style=flat-square" alt="Apache 2.0 licence"></a>
+      <a href="{{ site.links.discord }}" rel="noopener"><img src="https://img.shields.io/discord/953808765935816715?label=Autoware%20Discord&style=flat-square&color=3fbfbf" alt="Autoware Discord"></a>
+      <a href="{{ site.links.repo }}" rel="noopener"><img src="https://img.shields.io/github/stars/autowarefoundation/vision_pilot?style=flat-square&color=a02fe0" alt="GitHub stars"></a>
+      <a href="{{ site.links.releases }}" rel="noopener"><img src="https://img.shields.io/github/v/tag/autowarefoundation/vision_pilot?label=release&style=flat-square&color=7f95e6" alt="Latest release"></a>
+    </div>
+  </div>
+</section>
+
+<!-- == Hero video ========================================================== -->
+<section class="section" style="padding-top:8px">
+  <div class="wrap reveal">
+    <button class="vframe" type="button"
+            data-embed="https://drive.google.com/file/d/{{ site.videos.overview }}/preview"
+            data-title="Vision Pilot — system overview">
+      <img src="{{ '/assets/img/Vision_Pilot_Thumbnail.jpg' | relative_url }}"
+           alt="Vision Pilot HUD: detected vehicles, drivable path, lane-departure warning and the Occupancy bird's-eye panel">
+      <span class="play" aria-hidden="true"><span></span></span>
+      <span class="label">Vision Pilot on the OpenLane dataset — HUD + Occupancy BEV</span>
+    </button>
+
+    <div class="stats" style="margin-top:34px">
+      <div><span class="n grad-text">1</span><span class="l">camera, no HD map</span></div>
+      <div><span class="n grad-text">10&nbsp;Hz</span><span class="l">design cadence</span></div>
+      <div><span class="n grad-text">3–5</span><span class="l">INT8 TOPs</span></div>
+      <div><span class="n grad-text">Apache&nbsp;2.0</span><span class="l">weights included</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- == Features ============================================================ -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-kicker">Capabilities</span>
+      <h2>Entry-level L2, done properly</h2>
+      <p>Vision Pilot targets the in-lane autonomous driving feature set that automotive OEMs
+         and Tier-1 suppliers ship in series production passenger cars.</p>
+    </div>
+
+    <div class="grid grid-2 reveal">
+      <div class="feat"><span class="abbr">ACC</span><span class="txt"><b>Autonomous cruise control</b>Longitudinal control that holds a safe gap to the closest in-path object.</span></div>
+      <div class="feat"><span class="abbr">FCW</span><span class="txt"><b>Forward collision warning</b>Alerts the driver when a collision with the lead object becomes imminent.</span></div>
+      <div class="feat"><span class="abbr">AEB</span><span class="txt"><b>Autonomous emergency braking</b>Applies braking automatically when the warning is not acted on.</span></div>
+      <div class="feat"><span class="abbr">LKAS</span><span class="txt"><b>Lane keep assist</b>Lateral control that centres the vehicle on the estimated ego path.</span></div>
+      <div class="feat"><span class="abbr">LDW</span><span class="txt"><b>Lane departure warning</b>Flags unsignalled drift across a lane boundary, left or right.</span></div>
+      <div class="feat"><span class="abbr">ISA</span><span class="txt"><b>Intelligent speed assist</b>Map-based — keeps the commanded speed within the applicable limit.</span></div>
+      <div class="feat"><span class="abbr">LDA</span><span class="txt"><b>Lane departure avoidance</b>Steers back into lane rather than only warning about the drift.</span></div>
+      <div class="feat"><span class="abbr">ALK</span><span class="txt"><b>Autonomous lane keep</b>Sustained in-lane lateral control on top of LKAS.</span></div>
+      <div class="feat" style="grid-column:1/-1"><span class="abbr">Autopilot</span><span class="txt"><b>Single-lane hands-free highway autopilot</b>Combined longitudinal and lateral control for highway driving, built on the feature set above.</span></div>
+    </div>
+
+    <figure class="media reveal" style="margin:34px 0 0">
+      <img src="{{ '/assets/img/VisionPilot_1.0.png' | relative_url }}"
+           alt="Vision Pilot capability summary: one front-facing 2 MP camera at 50 degrees horizontal field of view, the supported ADAS feature set, and a 3–5 INT8 TOPs compute budget" loading="lazy">
+      <figcaption>Vision Pilot at a glance — sensing, supported features and compute budget.</figcaption>
+    </figure>
+
+    <div class="note warn reveal" style="margin-top:22px">
+      <strong>Hands-free autopilot has a defined operational domain.</strong> It is available only on
+      highways and motorways with clearly marked lane lines, in fair weather and visibility, across
+      the full range of highway speeds (0–70&nbsp;mph), and away from construction zones and
+      roadwork objects. <strong>A human driver must monitor and supervise the system at all times.</strong>
+    </div>
+  </div>
+</section>
+
+<!-- == Architecture ======================================================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-kicker">Architecture</span>
+      <h2>Hybrid end-to-end AI</h2>
+      <p>Camera frames are processed in parallel by perception models for safety and by an
+         end-to-end model for performance. A Safety Guardian fuses both paths before anything
+         reaches the planner.</p>
+    </div>
+
+    <figure class="media reveal" style="margin:0 0 34px">
+      <img src="{{ '/assets/img/VisionPilot_architecture.png' | relative_url }}"
+           alt="Vision Pilot architecture: camera input feeding parallel perception and end-to-end AI branches, fused by the Safety Guardian into longitudinal and lateral planning" loading="lazy">
+      <figcaption>The Vision Pilot processing pipeline, from camera frame to actuation command.</figcaption>
+    </figure>
+
+    <div class="grid grid-3 reveal">
+      <a class="card" href="{{ site.links.auto_speed }}" rel="noopener">
+        <span class="card-tag">Perception</span>
+        <h3>AutoSpeed ↗</h3>
+        <p>Closest in-path object detection — what is in front of you, and how far away it is.</p>
+      </a>
+      <a class="card" href="{{ site.links.auto_steer }}" rel="noopener">
+        <span class="card-tag">Perception</span>
+        <h3>AutoSteer ↗</h3>
+        <p>Ego path future waypoint detection — the drivable corridor ahead of the vehicle.</p>
+      </a>
+      <a class="card" href="{{ site.links.auto_drive }}" rel="noopener">
+        <span class="card-tag">End to end</span>
+        <h3>AutoDrive ↗</h3>
+        <p>Distance and in-path object presence detection, plus road curvature estimation.</p>
+      </a>
+    </div>
+
+    <div class="grid grid-2 reveal" style="margin-top:18px">
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">🗺️</div>
+        <h3>No HD maps</h3>
+        <p>Vision Pilot operates fully mapless, following the road in real time. No localisation
+           stack, no map maintenance, no geofence to keep current.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" aria-hidden="true">📷</div>
+        <h3>One monocular camera</h3>
+        <p>A single front-facing RGB camera with 50–55° horizontal FoV at 2&nbsp;MP. That is the
+           entire sensor specification.</p>
+      </div>
+    </div>
+
+    <p style="text-align:center;margin-top:30px">
+      <a class="btn btn-ghost" href="{{ '/github-io/architecture/' | relative_url }}">Read the architecture guide →</a>
+    </p>
+  </div>
+</section>
+
+<!-- == Quick start ========================================================= -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-kicker">Quick start</span>
+      <h2>Three ways to run it</h2>
+      <p>Sample OpenLane data is provided so you can see the full pipeline in action before
+         touching a vehicle or a camera.</p>
+    </div>
+
+    <div class="tabs reveal">
+      <div class="tablist" role="tablist" aria-label="Installation method">
+        <button role="tab" id="tab-src" aria-controls="panel-src" aria-selected="true">Build from source</button>
+        <button role="tab" id="tab-deb" aria-controls="panel-deb" aria-selected="false">Debian package</button>
+        <button role="tab" id="tab-doc" aria-controls="panel-doc" aria-selected="false">Docker</button>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="panel-src" aria-labelledby="tab-src">
+        <p>Best if you intend to modify the stack. Requires <a href="{{ site.links.onnxruntime_releases }}" rel="noopener">ONNX Runtime</a>.</p>
+<pre><code>git clone https://github.com/autowarefoundation/vision_pilot.git
+cd vision_pilot/VisionPilot
+mkdir build &amp;&amp; cd build
+
+cmake -DONNXRUNTIME_ROOT=&lt;ONNX_RUNTIME_ROOT_PATH&gt; ../
+make -j$(nproc)
+
+./VisionPilot</code></pre>
+        <p style="color:var(--text-faint);font-size:14.5px">
+          Add <code>-DENABLE_ROS2_INTERFACE=ON</code> for ROS&nbsp;2, or
+          <code>-DENABLE_OCCUPANCY=ON</code> for the bird's-eye Occupancy window.
+        </p>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="panel-deb" aria-labelledby="tab-deb" hidden>
+        <p>Best on a fresh machine — the package pulls in the CUDA dependencies for you.</p>
+<pre><code>sudo apt install ./VisionPilot-1.0-x86_64.deb
+# reboot, then:
+VisionPilot</code></pre>
+        <p style="color:var(--text-faint);font-size:14.5px">
+          Config lives in <code>/usr/share/visionpilot/config</code> for package installs.
+        </p>
+      </div>
+
+      <div class="tabpanel" role="tabpanel" id="panel-doc" aria-labelledby="tab-doc" hidden>
+        <p>Best for a reproducible environment. GPU/CPU and ROS&nbsp;2 variants are all built from the same scripts.</p>
+<pre><code>cd VisionPilot/docker
+
+./build.sh --gpu --ros2      # or --cpu, and optionally --occupancy
+./run.sh   --gpu --ros2</code></pre>
+        <p style="color:var(--text-faint);font-size:14.5px">
+          Edit <code>config/*.conf</code> <em>before</em> building — the config is baked into the image.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-3 reveal" style="margin-top:26px">
+      <a class="card" href="{{ '/github-io/getting-started/' | relative_url }}">
+        <span class="card-tag">Step by step</span>
+        <h3>Getting started →</h3>
+        <p>Prerequisites, all three install paths, and running on the sample dataset.</p>
+      </a>
+      <a class="card" href="{{ '/github-io/configuration/' | relative_url }}">
+        <span class="card-tag">Reference</span>
+        <h3>Configuration →</h3>
+        <p>Every key in <code>vision_pilot.conf</code> and its companion files, explained.</p>
+      </a>
+      <a class="card" href="{{ site.links.sample_data }}" rel="noopener">
+        <span class="card-tag">Data</span>
+        <h3>Sample data ↗</h3>
+        <p>OpenLane image sequences plus matching vehicle speed logs, on Google Drive.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- == Demos =============================================================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-kicker">In action</span>
+      <h2>Open-loop and closed-loop</h2>
+      <p>Replay recorded drives for evaluation, or close the loop in CARLA to test how the
+         stack actually behaves when its own commands move the vehicle.</p>
+    </div>
+
+    <div class="grid grid-2 reveal">
+      <div>
+        <button class="vframe" type="button"
+                data-embed="https://drive.google.com/file/d/{{ site.videos.overview }}/preview"
+                data-title="Vision Pilot on real-world data">
+          <img src="{{ '/assets/img/Vision_Pilot_Thumbnail.jpg' | relative_url }}"
+               alt="Vision Pilot detecting surrounding vehicles and the drivable path on a highway" loading="lazy">
+          <span class="play" aria-hidden="true"><span></span></span>
+          <span class="label">Open loop · real-world data</span>
+        </button>
+        <p style="color:var(--text-dim);font-size:15px;margin-top:12px">
+          Object detection, closest-in-path distance, ego path, lane departure and speed limit,
+          rendered live alongside the heuristic Occupancy bird's-eye panel.
+        </p>
+      </div>
+
+      <div>
+        <button class="vframe" type="button"
+                data-embed="https://drive.google.com/file/d/{{ site.videos.carla }}/preview"
+                data-title="Vision Pilot in the CARLA simulator">
+          <img src="{{ '/assets/img/Vision_Pilot_CARLA.jpg' | relative_url }}"
+               alt="Vision Pilot driving in the CARLA simulator" loading="lazy">
+          <span class="play" aria-hidden="true"><span></span></span>
+          <span class="label">Closed loop · CARLA 0.9.16</span>
+        </button>
+        <p style="color:var(--text-dim);font-size:15px;margin-top:12px">
+          The same binary, fed by a ROS&nbsp;2 bridge from CARLA, steering and braking a virtual
+          vehicle. See the <a href="{{ '/github-io/simulation/' | relative_url }}">simulation guide</a>.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- == Releases ============================================================ -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-kicker">Releases</span>
+      <h2>Where the project is</h2>
+      <p>Tagged releases land on GitHub with source, Debian packages and model weights.</p>
+    </div>
+
+    <div class="grid grid-2 reveal" style="align-items:start">
+      <div class="timeline">
+        <div class="tl-item current">
+          <div class="tl-head"><span class="v">v1.2</span><span class="pill latest">Latest</span><span class="d">10 Aug 2026</span></div>
+          <ul>
+            <li>Occupancy bird's-eye view, with configurable colours</li>
+            <li>Rerun logging: stream per-frame data straight to an <code>.rrd</code> recording</li>
+          </ul>
+        </div>
+        <div class="tl-item">
+          <div class="tl-head"><span class="v">v1.1</span><span class="d">27 Jul 2026</span></div>
+          <ul>
+            <li>Optional Occupancy BEV window beside the HUD</li>
+            <li>Camera calibration guide and homography tooling</li>
+          </ul>
+        </div>
+        <div class="tl-item">
+          <div class="tl-head"><span class="v">v1.0</span><span class="pill">Milestone</span><span class="d">6 Jul 2026</span></div>
+          <ul>
+            <li>First full L2 feature set on the hybrid end-to-end architecture</li>
+            <li>Debian packaging, Docker images, CARLA closed-loop support</li>
+          </ul>
+        </div>
+        <div class="tl-item">
+          <div class="tl-head"><span class="v">v0.9</span><span class="d">2 Mar 2026</span></div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-head"><span class="v">v0.5</span><span class="d">20 Jan 2026</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <span class="card-tag">Roadmap</span>
+          <h3>What is coming next</h3>
+          <ul style="color:var(--text-dim);font-size:15px;padding-left:20px;margin:10px 0 0">
+            <li>Fusion between the front-facing camera and automotive RADAR</li>
+            <li>8&nbsp;MP camera support at 120° horizontal field of view</li>
+            <li>Safety verification and standards compliance (ISO&nbsp;26262, ISO&nbsp;8800)</li>
+            <li>SODA.Sim simulator integration</li>
+          </ul>
+        </div>
+        <p style="margin-top:18px">
+          <a class="btn btn-ghost" href="{{ '/github-io/releases/' | relative_url }}">Full release history →</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- == Community =========================================================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="section-kicker">Community</span>
+      <h2>Built in the open, weekly</h2>
+      <p>Vision Pilot is developed by the Privately Owned Vehicle working group of the
+         Autoware Foundation. Everything happens in public.</p>
+    </div>
+
+    <div class="grid grid-3 reveal">
+      <a class="card" href="{{ site.links.discord }}" rel="noopener">
+        <div class="card-icon" aria-hidden="true">💬</div>
+        <h3>Discord ↗</h3>
+        <p>Introduce yourself in the <em>privately owned vehicles</em> channel and ask anything.</p>
+      </a>
+      <a class="card" href="{{ site.links.discussions }}" rel="noopener">
+        <div class="card-icon" aria-hidden="true">📅</div>
+        <h3>Working group ↗</h3>
+        <p>Weekly meetings in two time-zone-friendly slots. Minutes and recordings are public.</p>
+      </a>
+      <a class="card" href="{{ '/github-io/contributing/' | relative_url }}">
+        <div class="card-icon" aria-hidden="true">🛠️</div>
+        <h3>Contribute →</h3>
+        <p>Onboarding steps, coding conventions and the pull request workflow.</p>
+      </a>
+    </div>
+
+    <div class="note tip reveal" style="margin-top:34px">
+      <strong>Not a production system out of the box.</strong> Vision Pilot is designed to be
+      productionizable and safety-certifiable, but any deployment on a real vehicle is your
+      responsibility. Read the
+      <a href="{{ site.links.repo }}/blob/main/DISCLAIMER.md" rel="noopener">disclaimer</a> and the
+      <a href="{{ '/github-io/functional-safety/' | relative_url }}">functional safety documentation</a> first.
+    </div>
+  </div>
+</section>

@@ -1,7 +1,7 @@
 ---
 name: deploy-github-io-site
 
-# Builds the Jekyll site in docs/ and publishes it to GitHub Pages.
+# Builds the Jekyll site in github-io/ and publishes it to GitHub Pages.
 #
 # One-time repository setup: Settings => Pages => Build and deployment =>
 # Source: "GitHub Actions".
