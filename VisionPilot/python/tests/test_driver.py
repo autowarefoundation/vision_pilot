@@ -1,4 +1,4 @@
-"""VisionPilotDriver over real gRPC, driven by autoware_carla_egodriver's FakeLoop.
+"""VisionPilotDriver over real gRPC, driven by carla_driver_interface's FakeLoop.
 
 FakeLoop (a straight road, rendered through the declared pinhole camera) stands in
 for CARLA, so this exercises the whole closed loop: start_session -> camera
@@ -13,11 +13,11 @@ import grpc
 import numpy as np
 import pytest
 
-pytest.importorskip("autoware_carla_egodriver")
+pytest.importorskip("carla_driver_interface")
 
-from autoware_carla_egodriver.driver import DriveContext, DriveResult  # noqa: E402
-from autoware_carla_egodriver.server import serving  # noqa: E402
-from autoware_carla_egodriver.testing import FakeCamera, FakeLoop, LoopResult  # noqa: E402
+from carla_driver_interface.driver import DriveContext, DriveResult  # noqa: E402
+from carla_driver_interface.server import serving  # noqa: E402
+from carla_driver_interface.testing import FakeCamera, FakeLoop, LoopResult  # noqa: E402
 from vision_pilot.driver import VisionPilotDriver, camera_ground_homography  # noqa: E402
 
 import vision_pilot as vp  # noqa: E402

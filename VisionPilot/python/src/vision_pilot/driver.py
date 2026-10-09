@@ -1,10 +1,10 @@
 """VisionPilot as an alpasim ``egodriver`` policy, for closed-loop simulation.
 
 :class:`VisionPilotDriver` plugs a :class:`vision_pilot.Pilot` into
-``autoware-carla-egodriver`` (the policy side of alpasim's ``EgodriverService``,
-from the autoware_carla_scenario workspace). Any runtime of that protocol can then
+``carla-driver-interface`` (the policy side of alpasim's ``EgodriverService``,
+which autoware_carla_scenario speaks). Any runtime of that protocol can then
 drive VisionPilot unmodified: autoware_carla_scenario's scenarios against CARLA
-(``scenario driver=vision_pilot``), ``autoware_carla_egodriver.testing.FakeLoop``
+(``scenario driver=vision_pilot``), ``carla_driver_interface.testing.FakeLoop``
 without a simulator, or upstream alpasim.
 
 Per ``drive`` call:
@@ -32,15 +32,15 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
-from autoware_carla_egodriver.driver import (
+from carla_driver_interface.driver import (
     BaseDriver,
     CameraFrame,
     DriveContext,
     DriveResult,
     SessionState,
 )
-from autoware_carla_egodriver.geometry import Pose, Trajectory
-from autoware_carla_egodriver.protocol import AvailableCamera
+from carla_driver_interface.geometry import Pose, Trajectory
+from carla_driver_interface.protocol import AvailableCamera
 
 from ._core import ChannelOrder, Command, Pilot, PilotConfig, StepResult, Warning
 from .camera import ground_homography_from_extrinsics
@@ -183,7 +183,8 @@ class VisionPilotDriver(BaseDriver):
         with episode.lock:
             with session.lock:
                 frame = session.latest_frame(episode.camera_id)
-            if frame is not None and frame.frame_end_us != episode.last_frame_us:
+            # The logical id is the camera's, so a LiDAR sweep never lands here.
+            if isinstance(frame, CameraFrame) and frame.frame_end_us != episode.last_frame_us:
                 self._step(episode, frame, speed)
             command = episode.command
             step = episode.last_step
@@ -255,7 +256,7 @@ def main(argv: list[str] | None = None) -> None:
     import argparse
     import os
 
-    from autoware_carla_egodriver.server import run_server
+    from carla_driver_interface.server import run_server
 
     from ._core import EngineConfig, InferenceConfig
 

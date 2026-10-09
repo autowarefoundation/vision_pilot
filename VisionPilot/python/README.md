@@ -121,9 +121,10 @@ the networks.
 ## Closed loop: scenarios in CARLA
 
 `vision_pilot.driver.VisionPilotDriver` is a policy for alpasim's `EgodriverService`,
-built on `autoware-carla-egodriver`, the policy-side package of the
+built on [`carla-driver-interface`](https://pypi.org/project/carla-driver-interface/)
+1.x, the policy side of the contract
 [autoware_carla_scenario](https://github.com/autowarefoundation/autoware_carla_scenario)
-workspace. The `closed-loop-test` extra brings it:
+speaks. The `closed-loop-test` extra brings it:
 
 ```bash
 uv sync --extra closed-loop-test
@@ -142,12 +143,12 @@ uv run scenario driver=vision_pilot                 # in autoware_carla_scenario
 A runtime whose camera is far from ~52° (alpasim's default 120° camera, say) still
 works, but the driver logs a warning.
 
-Without a simulator, `autoware_carla_egodriver.testing.FakeLoop` drives the same
+Without a simulator, `carla_driver_interface.testing.FakeLoop` drives the same
 server over real gRPC on a straight road, rendering the declared camera; the tests use
 it (`python/tests/test_driver.py`), and so can a quick check from the command line:
 
 ```bash
-uv run autoware-carla-egodriver demo --driver localhost:50051 \
+uv run carla-driver-interface demo --driver localhost:50051 \
     --camera-width 1920 --camera-height 1280 --camera-fov 50 --steps 20
 ```
 

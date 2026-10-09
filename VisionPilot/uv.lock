@@ -73,9 +73,9 @@ wheels = [
 ]
 
 [[package]]
-name = "autoware-carla-egodriver"
-version = "0.1.0"
-source = { git = "https://github.com/autowarefoundation/autoware_carla_scenario?subdirectory=autoware_carla_egodriver&rev=916363b85a90d46a75278c0b8092a9e003bf074a#916363b85a90d46a75278c0b8092a9e003bf074a" }
+name = "carla-driver-interface"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -86,6 +86,10 @@ dependencies = [
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b4/fa/bd109689fae687e47b3ae2e895d350892ab1213573140eabbacc5ceda66e/carla_driver_interface-1.0.0.tar.gz", hash = "sha256:68d7f659cb52c60cddf843a8c7f94d6f821c2fc580473a6fddc35305ccff18c1", size = 49825, upload-time = "2026-10-09T05:14:24.861Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/57/7c/5c174478fe364b3ecc6544b080e997fc91289837a9b6d35d8312aca688c7/carla_driver_interface-1.0.0-py3-none-any.whl", hash = "sha256:e0dc4c8cde6fd2f8b0c83c026bd4ffe2b9e2193198cd782ac52d28fdcba45489", size = 63422, upload-time = "2026-10-09T05:14:23.547Z" },
 ]
 
 [[package]]
@@ -1166,7 +1170,7 @@ dependencies = [
 
 [package.optional-dependencies]
 closed-loop-test = [
-    { name = "autoware-carla-egodriver" },
+    { name = "carla-driver-interface" },
 ]
 
 [package.dev-dependencies]
@@ -1178,7 +1182,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "autoware-carla-egodriver", marker = "extra == 'closed-loop-test'", git = "https://github.com/autowarefoundation/autoware_carla_scenario?subdirectory=autoware_carla_egodriver&rev=916363b85a90d46a75278c0b8092a9e003bf074a" },
+    { name = "carla-driver-interface", marker = "extra == 'closed-loop-test'", specifier = ">=1.0,<2" },
     { name = "casadi", specifier = "==3.8.1" },
     { name = "cmeel-cppad", specifier = "==20250000.2" },
     { name = "numpy", specifier = ">=1.24" },

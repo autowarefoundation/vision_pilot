@@ -32,12 +32,15 @@ classifiers = [
 
 [project.optional-dependencies]
 # Closed-loop testing: VisionPilot as an alpasim EgodriverService policy
-# (vision_pilot.driver, `vision-pilot-driver`) on autoware-carla-egodriver, which
+# (vision_pilot.driver, `vision-pilot-driver`) on carla-driver-interface, which
 # also brings FakeLoop, the simulator-free runtime the tests drive it with. The
 # CARLA runtime is autoware_carla_scenario itself (`scenario driver=vision_pilot`),
 # run from its own environment.
 closed-loop-test = [
-    "autoware-carla-egodriver>=0.1",
+    # The policy side of the egodriver contract. Its 1.x line is what
+    # autoware_carla_scenario speaks; the gRPC contract is the compatibility
+    # unit, so any 1.x serves.
+    "carla-driver-interface>=1.0,<2",
 ]
 
 [project.scripts]
@@ -84,7 +87,3 @@ cache-keys = [
     { file = "modules/**/*.hpp" },
     { file = "python/bindings.cpp" },
 ]
-
-[tool.uv.sources]
-# The policy-side package of the autoware_carla_scenario workspace.
-autoware-carla-egodriver = { git = "https://github.com/autowarefoundation/autoware_carla_scenario", subdirectory = "autoware_carla_egodriver", rev = "916363b85a90d46a75278c0b8092a9e003bf074a" }
