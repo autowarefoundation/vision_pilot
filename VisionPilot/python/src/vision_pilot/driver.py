@@ -39,7 +39,7 @@ from carla_driver_interface.driver import (
     DriveResult,
     SessionState,
 )
-from carla_driver_interface.geometry import Pose, Trajectory
+from carla_driver_interface.geometry import Pose, Trajectory, optical_to_body
 from carla_driver_interface.protocol import AvailableCamera
 
 from ._core import ChannelOrder, Command, Pilot, PilotConfig, StepResult, Warning
@@ -96,7 +96,9 @@ def camera_ground_homography(camera: AvailableCamera) -> npt.NDArray[np.float64]
             name,
             hfov,
         )
-    pose_in_rig = Pose.from_proto(camera.rig_to_camera)
+    # rig_to_camera is the camera's optical frame (carla-driver-interface 2.x, as
+    # alpasim declares it); the homography takes the camera body.
+    pose_in_rig = optical_to_body(Pose.from_proto(camera.rig_to_camera))
     height = float(pose_in_rig.position[2])
     return ground_homography_from_extrinsics(
         intrinsics=intrinsics,

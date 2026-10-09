@@ -122,7 +122,7 @@ the networks.
 
 `vision_pilot.driver.VisionPilotDriver` is a policy for alpasim's `EgodriverService`,
 built on [`carla-driver-interface`](https://pypi.org/project/carla-driver-interface/)
-1.x, the policy side of the contract
+2.x, the policy side of the contract
 [autoware_carla_scenario](https://github.com/autowarefoundation/autoware_carla_scenario)
 speaks. The `closed-loop-test` extra brings it:
 

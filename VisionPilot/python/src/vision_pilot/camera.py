@@ -93,9 +93,10 @@ def ground_homography_from_extrinsics(
 
     ``rotation_ego_from_camera`` and ``position_m`` are the camera's pose in the
     ego frame, with the camera *body* axes (x along the optical axis, y left,
-    z up) -- the convention of alpasim's ``AvailableCamera.rig_to_camera`` and
-    of NVIDIA DriveWorks rigs. ``intrinsics`` is the 3x3 pinhole matrix of an
-    undistorted image.
+    z up). alpasim's ``AvailableCamera.rig_to_camera`` is the optical frame
+    instead (x right, y down, z along the optical axis);
+    ``carla_driver_interface.geometry.optical_to_body`` turns one into the other.
+    ``intrinsics`` is the 3x3 pinhole matrix of an undistorted image.
     """
     k = np.asarray(intrinsics, dtype=np.float64)
     ego_from_body = np.asarray(rotation_ego_from_camera, dtype=np.float64)

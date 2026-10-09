@@ -37,10 +37,10 @@ classifiers = [
 # CARLA runtime is autoware_carla_scenario itself (`scenario driver=vision_pilot`),
 # run from its own environment.
 closed-loop-test = [
-    # The policy side of the egodriver contract. Its 1.x line is what
-    # autoware_carla_scenario speaks; the gRPC contract is the compatibility
-    # unit, so any 1.x serves.
-    "carla-driver-interface>=1.0,<2",
+    # The policy side of the egodriver contract. 2.x hands the policy alpasim's
+    # optical camera frame, and translates from a runtime on 1.x (contract
+    # revisions), so any 2.x serves every autoware_carla_scenario and alpasim.
+    "carla-driver-interface>=2.0,<3",
 ]
 
 [project.scripts]

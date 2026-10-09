@@ -10,7 +10,7 @@ dependencies = [
     # The policy, served from the scenario's own process.
     "vision-pilot[closed-loop-test]",
     # The runtime: CARLA, the scenarios and the `scenario` CLI.
-    "autoware-carla-scenario>=4.1,<5",
+    "autoware-carla-scenario>=5.0,<6",
 ]
 
 # The `scenario` CLI (autoware_carla_scenario) calls `register()` at start-up,

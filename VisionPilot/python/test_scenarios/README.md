@@ -2,7 +2,7 @@
 
 VisionPilot's closed-loop test scenarios, as a scenario package for
 [autoware_carla_scenario](https://github.com/autowarefoundation/autoware_carla_scenario)
-(`autoware-carla-scenario` 4.x). A member of VisionPilot's uv workspace: it
+(`autoware-carla-scenario` 5.x). A member of VisionPilot's uv workspace: it
 registers itself with the `scenario` CLI by entry point and brings
 
 - `scenario=vision_pilot/cut_in`, `vision_pilot/intersection_straight`,
