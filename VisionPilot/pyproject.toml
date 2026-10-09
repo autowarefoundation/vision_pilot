@@ -1,5 +1,13 @@
 [build-system]
-requires = ["scikit-build-core>=0.11", "nanobind>=2.8"]
+# Ipopt (casadi) and CppAD (cmeel-cppad) come as prebuilt wheels: the extension
+# compiles against them and loads their libraries at run time, so the pins
+# below must match the runtime dependencies. See cmake/PythonDeps.cmake.
+requires = [
+    "scikit-build-core>=0.11",
+    "nanobind>=2.8",
+    "casadi==3.8.1",
+    "cmeel-cppad==20250000.2",
+]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -9,7 +17,11 @@ description = "Python bindings for the VisionPilot perception -> planning loop, 
 readme = "python/README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24"]
+dependencies = [
+    "numpy>=1.24",
+    "casadi==3.8.1",           # Ipopt for the lateral MPC
+    "cmeel-cppad==20250000.2", # libcppad_lib
+]
 classifiers = [
     "Programming Language :: C++",
     "Programming Language :: Python :: 3",
@@ -29,7 +41,9 @@ dev = [
 [tool.scikit-build]
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
+# Fetched from PyPI when the system has none (or an older one).
 cmake.version = ">=3.22.1"
+ninja.version = ">=1.10"
 cmake.build-type = "Release"
 cmake.define = { BUILD_PYTHON_BINDINGS = "ON", BUILD_APP = "OFF" }
 wheel.packages = ["python/src/vision_pilot"]

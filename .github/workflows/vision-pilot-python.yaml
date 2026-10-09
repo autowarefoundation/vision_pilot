@@ -29,19 +29,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Install system libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build \
-            libopencv-dev coinor-libipopt-dev libcppad-dev liblapack-dev libblas-dev
-          sudo ln -sf "$(dirname "$(find /usr/include -name IpIpoptApplication.hpp | head -1)")" /usr/include/coin-or
-
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
 
+      # No apt step: the native dependencies come from uv (cmake/PythonDeps.cmake).
       - name: Build and install
         run: uv sync --locked --python ${{ matrix.python-version }}
 

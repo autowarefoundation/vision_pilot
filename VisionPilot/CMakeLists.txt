@@ -64,6 +64,9 @@ if(BUILD_PYTHON_BINDINGS)
 endif()
 
 include(cmake/OnnxRuntime.cmake)
+if(BUILD_PYTHON_BINDINGS)
+    include(cmake/PythonDeps.cmake)
+endif()
 
 if(BUILD_APP)
     set(Python3_EXECUTABLE /usr/bin/python3 CACHE FILEPATH "" FORCE)

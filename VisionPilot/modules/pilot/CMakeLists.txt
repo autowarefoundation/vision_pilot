@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-find_package(OpenCV REQUIRED COMPONENTS core imgproc calib3d)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc)
 
 # One iteration of the VisionPilot loop (preprocess → inference → fusion →
 # planning) with no I/O, shared by the app and the Python bindings so a

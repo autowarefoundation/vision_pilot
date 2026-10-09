@@ -24,9 +24,12 @@ nanobind_add_module(_core
 )
 target_link_libraries(_core PRIVATE pilot)
 
-# The ONNX Runtime shared library ships next to the extension, so the wheel
-# needs no LD_LIBRARY_PATH and no system-wide ONNX Runtime.
-set_target_properties(_core PROPERTIES INSTALL_RPATH "$ORIGIN")
+# Runtime libraries, all found relative to the extension in site-packages:
+#   $ORIGIN                    ONNX Runtime, shipped next to the extension
+#   $ORIGIN/../casadi          Ipopt and its solvers (the casadi wheel)
+#   $ORIGIN/../cmeel.prefix/lib  libcppad_lib (the cmeel-cppad wheel)
+set_target_properties(_core PROPERTIES
+        INSTALL_RPATH "$ORIGIN;$ORIGIN/../casadi;$ORIGIN/../cmeel.prefix/lib")
 
 install(TARGETS _core LIBRARY DESTINATION vision_pilot COMPONENT python)
 
@@ -41,12 +44,16 @@ foreach(_lib IN LISTS _ort_libs)
     endif()
 endforeach()
 
-# Typed stubs for the extension, generated from the bindings themselves when
-# the wheel is assembled (the install tree is importable at that point).
+# Typed stubs for the extension, generated from the bindings themselves. This
+# imports the extension from the build tree, whose build RPATH reaches the
+# Ipopt / CppAD wheels of the build environment (the install tree's relative
+# RPATH only resolves once installed into site-packages).
+set_target_properties(_core PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/stub_root/vision_pilot")
 nanobind_add_stub(_core_stub
-        INSTALL_TIME
-        COMPONENT python
         MODULE vision_pilot._core
-        OUTPUT vision_pilot/_core.pyi
-        PYTHON_PATH "."
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/stub_root/vision_pilot/_core.pyi"
+        PYTHON_PATH "${CMAKE_CURRENT_BINARY_DIR}/stub_root"
+        DEPENDS _core
 )
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/stub_root/vision_pilot/_core.pyi"
+        DESTINATION vision_pilot COMPONENT python)

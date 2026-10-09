@@ -73,6 +73,66 @@ wheels = [
 ]
 
 [[package]]
+name = "casadi"
+version = "3.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c5/7a/4d3c8edfbddaedc0a99b64f8154a7169b951ac2462e2f30474aac5c1ee2a/casadi-3.8.1.tar.gz", hash = "sha256:04141daf3ab7934f881a476294bf965173d1599412db0baf19f65341a612f217", size = 6471066, upload-time = "2026-09-16T07:14:25.974Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/e5/331310431bbfe0f31aa20d367dc5595c106fc68e182d31e349104673c5f3/casadi-3.8.1-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:c4ae559ebf1ff549ac9d7a957950e210f71ffca6dce8d96b71cbdb5ad5ef916c", size = 52018186, upload-time = "2026-09-16T06:13:58.015Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/ba/09529597a7c84ce6d394d9487432f0315cb8756a4f50978561c59dd32b59/casadi-3.8.1-cp310-none-macosx_11_0_x86_64.macosx_11_0_intel.whl", hash = "sha256:8d62efb5e6b39299c6da37553515faddfdc7965c30f797f472d9b2cf5cac2ef4", size = 53831865, upload-time = "2026-09-16T06:14:35.971Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/67/4d685192eb7ed780bae72bfc90415b8241ce5e675365a367441e04a1a38b/casadi-3.8.1-cp310-none-manylinux2014_aarch64.whl", hash = "sha256:e3ce6e5b9d38917ae0b538c0db839f4016f51aef739cf92ca621a2067e413413", size = 54187085, upload-time = "2026-09-16T06:15:12.806Z" },
+    { url = "https://files.pythonhosted.org/packages/28/25/ab5717064264b71af4d13cf44ebede485a641ae017fa8013308079b748c5/casadi-3.8.1-cp310-none-manylinux2014_i686.whl", hash = "sha256:3290b1fd3a3f5284e66b110d5acd8733e915e6c2bd38e985966764fe230a69c4", size = 83544889, upload-time = "2026-09-16T06:16:06.334Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/02/487a7cfb7c53dd95c504d92e217bf152530031711fa3fd2fc2e2c27a8638/casadi-3.8.1-cp310-none-manylinux2014_x86_64.whl", hash = "sha256:b53e139e72e3f203af9dbdcc74a7ac459c55e96398d12b7637cd4f85ddb5fa8b", size = 88535429, upload-time = "2026-09-16T06:17:06.179Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/22/2fce778a6c6ccacc857d8aeb5b39d5ec6373f6f7dd018140be41470ca0f0/casadi-3.8.1-cp310-none-manylinux_2_28_aarch64.whl", hash = "sha256:ecdfc6096c15c1c5187b2c90711f8655019cc0e72634653f94db8d964db26d0c", size = 56736091, upload-time = "2026-09-16T06:17:43.736Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/a4/d1a802ba457a0a49b2eb0c3d47b0edc2e3e7b0a9dc8551a23edf7a41e364/casadi-3.8.1-cp310-none-manylinux_2_28_x86_64.whl", hash = "sha256:d61686b0a3e1902811a461f14d8f9a1ae072899fc7ce59be10633f02b590b7fb", size = 89401965, upload-time = "2026-09-16T06:18:40.708Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/7f/56bd533b055c7086ed764c3b33cc16b53607601a96939ec6b772fa9e50b0/casadi-3.8.1-cp310-none-win_amd64.whl", hash = "sha256:4507f07d0c22777ad3a5f9f716b5a5899b5a958f90631818a00f28de34d64c3c", size = 57673410, upload-time = "2026-09-16T06:19:17.943Z" },
+    { url = "https://files.pythonhosted.org/packages/21/a8/5a61763109d40c6fed835cdc906a2a4a9c11ce8977b9d311bec0424e5f2f/casadi-3.8.1-cp311-abi3-macosx_11_0_arm64.whl", hash = "sha256:67bb7c3fd247cd840521d820aba9d7021d4d60d61732861d53ada20844a9410a", size = 52036464, upload-time = "2026-09-16T06:19:52.434Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/7b/312ac1a9eaeaca9dd92f4bfc5b703cb2449ca1c20557664e7524bb5a1542/casadi-3.8.1-cp311-abi3-macosx_11_0_x86_64.macosx_11_0_intel.whl", hash = "sha256:1d3a4f124b28cd4bd0e4218777ab6e8ee204c74a9a8db86cbd21d76703b9c96a", size = 53657225, upload-time = "2026-09-16T06:20:28.097Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/c0/07f34c91d1a9a7a278611f36c212462daaec5d3680731afbbc515b7f68dd/casadi-3.8.1-cp311-abi3-manylinux2014_aarch64.whl", hash = "sha256:dd7c359faa65c1ab77e3ddfe179fa725ff28f4c9f9b1c90a95e7a7bb3495be5d", size = 54202846, upload-time = "2026-09-16T06:21:02.986Z" },
+    { url = "https://files.pythonhosted.org/packages/63/95/e78db537ed7ec4bc637ee493050fa4b1bcaa5aa96093b2fbf3bb8cb83007/casadi-3.8.1-cp311-abi3-manylinux2014_i686.whl", hash = "sha256:110714f57e36e5f9b917de7af6d00cfd41e46ad16f9d265da9965c18a152206d", size = 83550406, upload-time = "2026-09-16T06:21:58.653Z" },
+    { url = "https://files.pythonhosted.org/packages/54/38/80f9d07c6ed55392524e786dc5391f1e068cb9d7a6a13343750c68141f1d/casadi-3.8.1-cp311-abi3-manylinux2014_x86_64.whl", hash = "sha256:c9d161e1427dc306a34ad33bccd25e70d8dd863bad2ee3b4194afb5f0d8d2c8d", size = 88536827, upload-time = "2026-09-16T06:22:55.477Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/b8/3847f0b2c67eb5c12aa0540d780f1dbda965e3376e31b6c1682f54be564c/casadi-3.8.1-cp311-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:61e53644a4a00965a45a5170b2b26e12489952a106aab0ef5118cbcfb772de65", size = 56740071, upload-time = "2026-09-16T06:23:32.389Z" },
+    { url = "https://files.pythonhosted.org/packages/63/88/79cdbd539a62e971b881dd5d598c2b65ab5c646e7d58fe5ba22f2cad5e13/casadi-3.8.1-cp311-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:99c32594513bec827ba51e6b24f6d84bb94abbf95f7fe9c2b924f62bec3e02ea", size = 89403549, upload-time = "2026-09-16T06:24:31.399Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/5b/62721e8962acc2385829ac51a938ce0213e86981fda158ee03c6335d6040/casadi-3.8.1-cp311-abi3-win_amd64.whl", hash = "sha256:7376d81ef20b65e021cc74ff729fea6b37db0a5f6392876130d0cbbc99dc226c", size = 57655196, upload-time = "2026-09-16T06:25:09.021Z" },
+]
+
+[[package]]
+name = "cmeel"
+version = "0.61.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2d/78/7b98621fe4cf98dfee1bc5df514f0fdacfb064637539229c386a09f23b4f/cmeel-0.61.0.tar.gz", hash = "sha256:5fe70c905da45cca02575b37b37f22750eee81b36d288e2fc6231c31a6cf4b35", size = 15173, upload-time = "2026-08-27T00:11:40.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/7f/4fe25f742a3dc50335371515e48761207cb8d6f51e55351486dc329ae6b0/cmeel-0.61.0-py3-none-any.whl", hash = "sha256:924f04ac525c1e2c4c42963b3a18a423926d019f81a683dfbab18143721963a8", size = 20754, upload-time = "2026-08-27T00:11:38.556Z" },
+]
+
+[[package]]
+name = "cmeel-cppad"
+version = "20250000.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cmeel" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d9/b8/813128fafef3b1d2b043354f311254254c103a9ae3ee367da622548389cf/cmeel_cppad-20250000.2.tar.gz", hash = "sha256:c7c22707a20cfd94f5c3335cc7911d6fb8f5cdb3e7639e7549bd09d6128f2951", size = 1543787, upload-time = "2025-02-06T14:13:51.682Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1b/c7/24f87045be0021e412e6dd53a6d72f94a08fd4b7dbf980a6ca8769795841/cmeel_cppad-20250000.2-0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:33ceb164f2cfe6625341d805ae46fafa950bccfbf6a725bccb819bfa3776167c", size = 1047714, upload-time = "2025-02-06T14:13:34.935Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/76/895ebfda22ff71b5d965dbfb323190e8651e6adcbd757e7977ba5e5f3fc9/cmeel_cppad-20250000.2-0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:95ea6d7d49d16ec35966e6c075561b27905bbf3f4a28b7339aef42edfa61c306", size = 1043261, upload-time = "2025-02-06T14:13:37.168Z" },
+    { url = "https://files.pythonhosted.org/packages/76/fc/8e4a6e700b9137e62d42a8297bc476c3fa6454b7d7fcb2be8b516de61749/cmeel_cppad-20250000.2-0-py3-none-manylinux_2_17_i686.whl", hash = "sha256:febd4220765660871a1552882d483d21d71b07d96d883508d926a770d7430594", size = 1139761, upload-time = "2025-02-06T14:13:39.157Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/5d/46240629d47214d9b3afd15c28fbf5c1bfee46b00708f0343ae8cb115bed/cmeel_cppad-20250000.2-0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:622ec83faec69e6f1a7832b9647f94bf9bf75318bbf2b854b4cf0308af90137e", size = 1225730, upload-time = "2025-02-06T14:13:41.547Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/75/691f88f64a5c0337f26cf8f79aa13db88204bebec45cf00d3089eae62ec7/cmeel_cppad-20250000.2-0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:63a0f397040797905bc782144544554adcb4f283703fe589bf78aebd84d16d2c", size = 1253350, upload-time = "2025-02-06T14:13:43.159Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/89/3eb410d9153711deea86ba2c57c3bbf13fca5270b1c835993de7bbfd198e/cmeel_cppad-20250000.2-0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:08f9f9a78dd081042a3961359eb1c3de3021ac880022283dc2a949f3bfc13d7d", size = 1064809, upload-time = "2025-02-06T14:13:46.41Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/48/5f141c2c0bbffb7de896ee85187e1c6ad831c3a95da266dda3d27d3e2246/cmeel_cppad-20250000.2-0-py3-none-musllinux_1_2_i686.whl", hash = "sha256:6fd01931f78b19deed7f42f56daac44dafa67cb79ffeff0269758481c15570db", size = 1083326, upload-time = "2025-02-06T14:13:48.512Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/66/d7a979e172940ff6650f0b3beb3dd9da572b0bac8b62a22c6685563e4a91/cmeel_cppad-20250000.2-0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:9824e9f1514d052fa0cf1db3d02a661a16eb86bf61cd05a8d3b0a45fa15c8f58", size = 1075368, upload-time = "2025-02-06T14:13:50.171Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -693,6 +753,8 @@ name = "vision-pilot"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "casadi" },
+    { name = "cmeel-cppad" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -706,7 +768,11 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "numpy", specifier = ">=1.24" }]
+requires-dist = [
+    { name = "casadi", specifier = "==3.8.1" },
+    { name = "cmeel-cppad", specifier = "==20250000.2" },
+    { name = "numpy", specifier = ">=1.24" },
+]
 
 [package.metadata.requires-dev]
 dev = [
