@@ -36,9 +36,9 @@ jobs:
 
       # No apt step: the native dependencies come from uv (cmake/PythonDeps.cmake).
       - name: Build and install
-        # The driver extra resolves to nothing on 3.10 (alpasim's protos need 3.11+);
+        # closed-loop-test resolves to nothing on 3.10 (alpasim's protos need 3.11+);
         # its tests skip there.
-        run: uv sync --locked --extra driver --python ${{ matrix.python-version }}
+        run: uv sync --locked --extra closed-loop-test --python ${{ matrix.python-version }}
 
       - name: Type-check against the generated stubs
         run: uv run mypy python/src/vision_pilot python/tests --ignore-missing-imports

@@ -124,11 +124,14 @@ the networks.
 [carla_driver_interface](https://github.com/hakuturu583/carla_driver_interface)'s
 driver half, so anything that speaks alpasim's `EgodriverService` (that
 project's `CarlaRuntime`, a scenario runner owning a CARLA world, or upstream
-alpasim) drives VisionPilot unmodified. It needs the `driver` extra (CPython
-3.11 or 3.12, the limit of alpasim's protos):
+alpasim) drives VisionPilot unmodified. The `closed-loop-test` extra brings
+both ends of the loop, the driver and carla_driver_interface's runtime
+(CPython 3.11 or 3.12, the limit of alpasim's protos). The CARLA client is not
+in it, since it has to match your server: `uv pip install carla==0.9.x` for a
+0.9 server, or `--carla-python-path` to a 0.10 server's PythonAPI.
 
 ```bash
-uv sync --extra driver
+uv sync --extra closed-loop-test
 uv run vision-pilot-driver --model-dir modules/models/weights --port 50051 --seed 0
 # in another shell: carla_driver_interface's runtime, with VisionPilot's rig
 uv run carla-driver-interface run --rig vision_pilot --driver localhost:50051 ...
