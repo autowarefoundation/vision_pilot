@@ -116,7 +116,7 @@ wheels = [
 
 [[package]]
 name = "autoware-carla-scenario"
-version = "4.1.0"
+version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "carla-driver-interface" },
@@ -144,14 +144,14 @@ dependencies = [
     { name = "typesafe-carla", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/59/18/0fae004d0ae6f05851915c2ef4773ef7361a3bb905acfb359b127fa84662/autoware_carla_scenario-4.1.0.tar.gz", hash = "sha256:a0326d01dace671d12ff41ab9bcea5832182e6dfa93b92d6df1cefb16d93a0a7", size = 607975, upload-time = "2026-10-09T06:27:27.898Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/47/36ec056e71fde6981493964f80ed563f9428b575d9164c09b7d2a36dc9ee/autoware_carla_scenario-5.0.0.tar.gz", hash = "sha256:0f0aa4e72f8b93219c37850af19780e20dd59fd622c38db2cce56ad93cb53b21", size = 628786, upload-time = "2026-10-10T00:52:05.378Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1c/7d/f53c9987b2a53e51c6f59423a4b1836378963b1050fee8d55917901ae9bf/autoware_carla_scenario-4.1.0-py3-none-any.whl", hash = "sha256:4c335990f234ae8e404d32bd7ffeb7e1927f94c43284802324a1e64a3e961b10", size = 781022, upload-time = "2026-10-09T06:27:26.287Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/e1/af88c169c8a1d11d0ec3d14aea34d4758f6d88c4bfbf30f14a9a5261d4cf/autoware_carla_scenario-5.0.0-py3-none-any.whl", hash = "sha256:518ca439e983ec352f8b00df1772d51c36a8b9f8242c0359a062f2f10b3b0497", size = 783175, upload-time = "2026-10-10T00:52:03.134Z" },
 ]
 
 [[package]]
 name = "carla-driver-interface"
-version = "1.0.0"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },
@@ -164,9 +164,9 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/fa/bd109689fae687e47b3ae2e895d350892ab1213573140eabbacc5ceda66e/carla_driver_interface-1.0.0.tar.gz", hash = "sha256:68d7f659cb52c60cddf843a8c7f94d6f821c2fc580473a6fddc35305ccff18c1", size = 49825, upload-time = "2026-10-09T05:14:24.861Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/c5/2ad141d68dfe02470b1b5249d0e64a23f7702ebfb482a8a3d396c191a72f/carla_driver_interface-2.0.0.tar.gz", hash = "sha256:db058b92d608c4b8db1994f32d8ffdcd9c5b271945b615af1bf34ec77e0b349a", size = 71248, upload-time = "2026-10-10T00:11:42.481Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/7c/5c174478fe364b3ecc6544b080e997fc91289837a9b6d35d8312aca688c7/carla_driver_interface-1.0.0-py3-none-any.whl", hash = "sha256:e0dc4c8cde6fd2f8b0c83c026bd4ffe2b9e2193198cd782ac52d28fdcba45489", size = 63422, upload-time = "2026-10-09T05:14:23.547Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/4b/0567c8c1a7d23b1e5d96b7f091283f7880d595e4dcc0c2832845c0f7bb28/carla_driver_interface-2.0.0-py3-none-any.whl", hash = "sha256:8903c5664110eb2276f9d9c1471f40c969de4bc98b45c80a42a358f89bd970aa", size = 78972, upload-time = "2026-10-10T00:11:41.04Z" },
 ]
 
 [[package]]
@@ -2681,7 +2681,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "carla-driver-interface", marker = "extra == 'closed-loop-test'", specifier = ">=1.0,<2" },
+    { name = "carla-driver-interface", marker = "extra == 'closed-loop-test'", specifier = ">=2.0,<3" },
     { name = "casadi", specifier = "==3.8.1" },
     { name = "cmeel-cppad", specifier = "==20250000.2" },
     { name = "numpy", specifier = ">=1.24" },
@@ -2706,7 +2706,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "autoware-carla-scenario", specifier = ">=4.1,<5" },
+    { name = "autoware-carla-scenario", specifier = ">=5.0,<6" },
     { name = "vision-pilot", extras = ["closed-loop-test"], editable = "." },
 ]
 
