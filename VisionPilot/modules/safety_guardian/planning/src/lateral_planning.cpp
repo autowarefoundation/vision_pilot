@@ -117,7 +117,10 @@ public:
     }
 };
 
-LateralPlanner::LateralPlanner() = default;
+LateralPlanner::LateralPlanner(const double max_cpu_time_s)
+    : max_cpu_time_s_(max_cpu_time_s)
+{
+}
 LateralPlanner::~LateralPlanner() = default;
 
 std::vector<double> LateralPlanner::compute_steering(const double L,
@@ -203,7 +206,7 @@ std::vector<double> LateralPlanner::compute_steering(const double L,
     options += "Integer print_level 0\n";
     options += "Sparse true forward\n";
     options += "Sparse true reverse\n";
-    options += "Numeric max_cpu_time 0.015\n"; // Strict 15ms budget
+    options += "Numeric max_cpu_time " + std::to_string(max_cpu_time_s_) + "\n"; // 15 ms on the vehicle
 
     CppAD::ipopt::solve_result<Dvector> solution;
     CppAD::ipopt::solve<Dvector, FG_eval>(

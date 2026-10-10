@@ -9,7 +9,13 @@ extern size_t N;
 
 class LateralPlanner {
 public:
-    LateralPlanner();
+    // IPOPT's CPU-time budget per solve on the vehicle. A solve that hits it
+    // returns its current iterate, so the result depends on machine speed.
+    static constexpr double kRealTimeBudgetS = 0.015;
+
+    // max_cpu_time_s: per-solve budget. An offline simulation can raise it so
+    // that every solve converges and runs are reproducible.
+    explicit LateralPlanner(double max_cpu_time_s = kRealTimeBudgetS);
     ~LateralPlanner();
 
     // Solve the MPC for the steering sequence.
@@ -29,6 +35,9 @@ public:
                                         const Eigen::VectorXd& state,
                                         const Eigen::VectorXd& v_schedule,
                                         const Eigen::VectorXd& kappa_schedule);
+
+private:
+    double max_cpu_time_s_;
 };
 
 #endif //VISIONPILOT_LATERAL_HPP

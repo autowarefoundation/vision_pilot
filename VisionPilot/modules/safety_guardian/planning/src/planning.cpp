@@ -5,7 +5,7 @@
 // Spatial step size matching the spatial Lateral MPC horizon step (meters)
 constexpr double DS = 0.5;
 
-Planner::Planner(const double speed_limit, const double Lf)
+Planner::Planner(const double speed_limit, const double Lf, const double mpc_max_cpu_time_s)
     : L_(Lf)
       , longitudinal_planner([&]
       {
@@ -13,6 +13,7 @@ Planner::Planner(const double speed_limit, const double Lf)
           c.speed_limit = speed_limit;
           return c;
       }())
+      , lateral_planner(mpc_max_cpu_time_s)
 {
 }
 

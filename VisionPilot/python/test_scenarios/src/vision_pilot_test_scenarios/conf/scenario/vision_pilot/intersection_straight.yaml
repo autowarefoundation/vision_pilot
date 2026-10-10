@@ -1,0 +1,51 @@
+# @package _global_
+# The ego drives straight on through a signalised junction, every light green:
+# AutoSteer / AutoDrive lane keeping and the lateral MPC, across the gap in the
+# lane lines the junction leaves.
+#
+# Logical: the lanelets are constraints on the map, not ids, so the scenario
+# runs on any map. `scenario-expand scenario=vision_pilot/intersection_straight
+# map=<map>` lists the concrete cases.
+scenario:
+  name: intersection_passing
+  # Straight on: VisionPilot follows the lane and never turns.
+  turn_direction: straight
+  expected_route_lanelet_ids: ???
+  # 25 m to the stop line, the junction, and onto the lane beyond it.
+  timeout_seconds: 15.0
+  # Below the 5 km/h it starts at: "does not stop", not "never dips at all".
+  min_speed_kmh: 3.0
+  speed_check_delay_seconds: 0.3
+
+ego:
+  initial_speed_kmh: 5.0
+  spawn_lanelet_id: ???
+  spawn_s: 25.0
+
+sweep:
+  constraints:
+    # The straight-through movements of the map: junction lanelets whose
+    # turn_direction says so.
+    ego.spawn_lanelet_id:
+      - type: and
+        constraints:
+          - type: turn_direction
+            value: straight
+          # A signal's stop line at its start, to measure the spawn from. A
+          # signalised junction only: every light is set green, so the ego never
+          # has to stop -- which min_speed_kmh asserts.
+          - type: has_traffic_light_stop_line
+          - type: not
+            constraint:
+              type: in_set
+              values: ${map.no_3d_model_lanelet_ids}
+  bindings:
+    # 25 m before the junction lanelet's stop line falls on the lane that
+    # approaches it, where the run starts; the spawn lanelet moves with it.
+    ego.spawn_s:
+      type: stop_line_offset
+      offset: 25.0
+    # The junction lanelet, then the lane it comes out on: what the run asserts on.
+    scenario.expected_route_lanelet_ids:
+      type: route_through
+      depth: 1

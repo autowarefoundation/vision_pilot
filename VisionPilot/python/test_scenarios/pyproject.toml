@@ -1,0 +1,33 @@
+[project]
+name = "vision-pilot-test-scenarios"
+version = "1.0.0"
+description = "VisionPilot's closed-loop test scenarios, as an autoware_carla_scenario scenario package"
+readme = "README.md"
+license = "Apache-2.0"
+# autoware-carla-scenario's own range.
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    # The policy, served from the scenario's own process.
+    "vision-pilot[closed-loop-test]",
+    # The runtime: CARLA, the scenarios and the `scenario` CLI.
+    "autoware-carla-scenario>=5.0,<6",
+]
+
+# The `scenario` CLI (autoware_carla_scenario) calls `register()` at start-up,
+# which adds this package's conf/ directory.
+[project.entry-points."autoware_carla_scenario.scenarios"]
+vision_pilot = "vision_pilot_test_scenarios:register"
+
+[build-system]
+requires = ["uv_build>=0.9.7,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# The Hydra configs sit inside the module, so the wheel carries them.
+module-name = ["vision_pilot_test_scenarios"]
+
+[tool.uv.sources]
+vision-pilot = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

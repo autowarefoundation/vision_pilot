@@ -31,8 +31,8 @@ set(BUILD_TESTING OFF CACHE BOOL "Build the testing tree")
 # GPU support
 option(GPU "Enable GPU support" ON)
 
-# ROS2 packages
-option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
+# ROS 2 packages
+option(ENABLE_ROS2_INTERFACE "Enable ROS 2 support" OFF)
 
 # Build testing code
 option(BUILD_TESTING "Build the testing tree" OFF)
@@ -43,14 +43,41 @@ option(BUILD_TESTING "Build the testing tree" OFF)
 # or downloaded via FetchContent.
 option(ENABLE_RERUN "Log directly to a Rerun .rrd via the Rerun C++ SDK" OFF)
 
-set(Python3_EXECUTABLE /usr/bin/python3 CACHE FILEPATH "" FORCE)
-find_package(Python3 REQUIRED)
+# Python bindings (the `vision_pilot` package). scikit-build-core sets SKBUILD;
+# that build needs only the libraries behind the loop step, not the app.
+if(SKBUILD)
+    set(_vp_python_default ON)
+    set(_vp_app_default OFF)
+else()
+    set(_vp_python_default OFF)
+    set(_vp_app_default ON)
+endif()
+option(BUILD_PYTHON_BINDINGS "Build the vision_pilot Python extension" ${_vp_python_default})
+option(BUILD_APP "Build the VisionPilot executable and its I/O modules" ${_vp_app_default})
+option(VISIONPILOT_FETCH_ONNXRUNTIME
+        "Download the pinned ONNX Runtime CPU release when ONNXRUNTIME_ROOT is unset"
+        ${_vp_python_default})
 
-add_custom_target(generate_config ALL
-        COMMAND Python3::Interpreter
-        ${CMAKE_SOURCE_DIR}/scripts/find_homography_C_matrix.py
-        --output ${CMAKE_BINARY_DIR}/config/homography_C_matrix.yaml
-)
+if(BUILD_PYTHON_BINDINGS)
+    # The modules are static libraries linked into a shared extension.
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
+include(cmake/OnnxRuntime.cmake)
+if(BUILD_PYTHON_BINDINGS)
+    include(cmake/PythonDeps.cmake)
+endif()
+
+if(BUILD_APP)
+    set(Python3_EXECUTABLE /usr/bin/python3 CACHE FILEPATH "" FORCE)
+    find_package(Python3 REQUIRED)
+
+    add_custom_target(generate_config ALL
+            COMMAND Python3::Interpreter
+            ${CMAKE_SOURCE_DIR}/scripts/find_homography_C_matrix.py
+            --output ${CMAKE_BINARY_DIR}/config/homography_C_matrix.yaml
+    )
+endif()
 
 # Modules
 add_subdirectory(modules/logging)
@@ -71,6 +98,16 @@ add_subdirectory(modules/models)
 
 add_subdirectory(modules/safety_guardian/fusion)   # tracking is embedded inside fusion
 add_subdirectory(modules/safety_guardian/planning)
+
+add_subdirectory(modules/pilot)
+
+if(BUILD_PYTHON_BINDINGS)
+    add_subdirectory(python)
+endif()
+
+if(NOT BUILD_APP)
+    return()
+endif()
 
 add_subdirectory(modules/sensing/vehicle_interface)
 add_subdirectory(modules/sensing/camera_interface)

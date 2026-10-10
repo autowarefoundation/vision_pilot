@@ -1,5 +1,9 @@
 #include <common/utils.hpp>
 
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 std::string find_config(const std::string& filename)
 {
     const std::string local = "config/" + filename;
@@ -24,4 +28,33 @@ cv::Mat load_matrix(const std::string& filename, const std::string& matrix)
     fs[matrix] >> M;
 
     return M;
+}
+
+cv::Mat compute_preprocess_homography(const cv::Mat& H)
+{
+    if (H.rows != 3 || H.cols != 3)
+        throw std::invalid_argument("compute_preprocess_homography: H must be 3x3");
+
+    // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world).
+    // Must match V in scripts/find_homography_C_matrix.py.
+    const cv::Matx33d V(
+        0.00209514907, -0.000941721466, -9.24906396,
+        0.00662758637, -0.000352940531, -3.33396502,
+        0.000120077371, -0.00411343505, 1.0);
+    // Canonical ground points (x forward, y left) [m], as in the script.
+    const std::vector<cv::Point2d> world = {{15, 5}, {150, 5}, {15, -5}, {150, -5}};
+
+    cv::Mat H64;
+    H.convertTo(H64, CV_64F);
+    std::vector<cv::Point2d> raw_px, bev_px;
+    cv::perspectiveTransform(world, raw_px, cv::Mat(H64.inv()));
+    cv::perspectiveTransform(world, bev_px, cv::Mat(V.inv()));
+
+    // Four exact correspondences: the script's findHomography(method=0) is the
+    // same solve as getPerspectiveTransform, which needs only imgproc.
+    const std::vector<cv::Point2f> src(raw_px.begin(), raw_px.end());
+    const std::vector<cv::Point2f> dst(bev_px.begin(), bev_px.end());
+    cv::Mat C = cv::getPerspectiveTransform(src, dst);
+    C.convertTo(C, CV_32F);  // the script stores C as float32
+    return C;
 }

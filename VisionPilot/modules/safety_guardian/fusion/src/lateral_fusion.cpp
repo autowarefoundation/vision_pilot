@@ -18,7 +18,7 @@ LateralFusion::LateralFusion()
 
 LateralFusion::LateralFusion(Config cfg)
     : cfg_(cfg)
-    , rng_(std::random_device{}())
+    , rng_(cfg_.seed ? *cfg_.seed : std::random_device{}())
 {
     if (cfg_.n_particles < 10)
         throw std::invalid_argument("LateralFusion: n_particles must be >= 10");

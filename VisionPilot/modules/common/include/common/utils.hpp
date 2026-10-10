@@ -18,4 +18,10 @@ inline int compute_top_crop_2_1(int height, int width)
         static_cast<double>(height) - static_cast<double>(width) / 2.0)));
 }
 
+// Raw-camera pixel → warped 1024×512 BEV homography ("C") for a camera whose
+// ground homography H maps raw pixel → world (x forward, y left) [m].
+// C++ port of scripts/find_homography_C_matrix.py, so a caller that knows H at
+// run time (a simulator camera) does not need the build-time YAML.
+cv::Mat compute_preprocess_homography(const cv::Mat& H);
+
 #endif //VISIONPILOT_UTILS_HPP

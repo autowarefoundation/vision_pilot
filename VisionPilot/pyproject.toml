@@ -1,0 +1,94 @@
+[build-system]
+# Ipopt (casadi) and CppAD (cmeel-cppad) come as prebuilt wheels: the extension
+# compiles against them and loads their libraries at run time, so the pins
+# below must match the runtime dependencies. See cmake/PythonDeps.cmake.
+requires = [
+    "scikit-build-core>=0.11",
+    "nanobind>=2.8",
+    "casadi==3.8.1",
+    "cmeel-cppad==20250000.2",
+    # Renames the bundled ONNX Runtime (python/CMakeLists.txt).
+    "patchelf>=0.17",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "vision-pilot"
+version = "1.0.0"
+description = "Python bindings for the VisionPilot perception -> planning loop, for closed-loop simulation"
+readme = "python/README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "casadi==3.8.1",           # Ipopt for the lateral MPC
+    "cmeel-cppad==20250000.2", # libcppad_lib
+]
+classifiers = [
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.optional-dependencies]
+# Closed-loop testing: VisionPilot as an alpasim EgodriverService policy
+# (vision_pilot.driver, `vision-pilot-driver`) on carla-driver-interface, which
+# also brings FakeLoop, the simulator-free runtime the tests drive it with. The
+# CARLA runtime is autoware_carla_scenario itself (`scenario driver=vision_pilot`),
+# run from its own environment.
+closed-loop-test = [
+    # The policy side of the egodriver contract. 2.x hands the policy alpasim's
+    # optical camera frame, and translates from a runtime on 1.x (contract
+    # revisions), so any 2.x serves every autoware_carla_scenario and alpasim.
+    "carla-driver-interface>=2.0,<3",
+]
+
+[project.scripts]
+vision-pilot-driver = "vision_pilot.driver:main"
+
+[project.urls]
+Repository = "https://github.com/autowarefoundation/vision_pilot"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "mypy>=1.10",
+    "opencv-python-headless>=5.0.0.93",
+]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+# Fetched from PyPI when the system has none (or an older one).
+cmake.version = ">=3.22.1"
+ninja.version = ">=1.10"
+cmake.build-type = "Release"
+cmake.define = { BUILD_PYTHON_BINDINGS = "ON", BUILD_APP = "OFF" }
+wheel.packages = ["python/src/vision_pilot"]
+# Only the extension, its ONNX Runtime and stubs: not what dependencies install.
+install.components = ["python"]
+# abi3 wheels on CPython >= 3.12 (nanobind's STABLE_ABI); a per-version wheel below that.
+wheel.py-api = "cp312"
+# The weights are large and sit in the source tree; Pilot takes model_dir instead.
+sdist.exclude = ["modules/models/weights", "docker", "build", "python/test_scenarios"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+
+[tool.uv.workspace]
+# The closed-loop test scenarios (autoware_carla_scenario scenario package):
+#   uv sync --package vision-pilot-test-scenarios
+members = ["python/test_scenarios"]
+
+[tool.uv]
+# Rebuild the extension whenever a C++ source or build file changes.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "CMakeLists.txt" },
+    { file = "modules/**/CMakeLists.txt" },
+    { file = "python/CMakeLists.txt" },
+    { file = "cmake/*.cmake" },
+    { file = "modules/**/*.cpp" },
+    { file = "modules/**/*.hpp" },
+    { file = "python/bindings.cpp" },
+]
