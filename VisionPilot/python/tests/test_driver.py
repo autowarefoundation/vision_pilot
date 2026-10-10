@@ -15,12 +15,13 @@ import pytest
 
 pytest.importorskip("carla_driver_interface")
 
+import vision_pilot as vp  # noqa: E402
 from carla_driver_interface.driver import DriveContext, DriveResult  # noqa: E402
+from carla_driver_interface.geometry import Pose  # noqa: E402
 from carla_driver_interface.server import serving  # noqa: E402
 from carla_driver_interface.testing import FakeCamera, FakeLoop, LoopResult  # noqa: E402
+from scipy.spatial.transform import Rotation  # noqa: E402
 from vision_pilot.driver import VisionPilotDriver, camera_ground_homography  # noqa: E402
-
-import vision_pilot as vp  # noqa: E402
 
 from .conftest import WEIGHTS  # noqa: E402
 
@@ -48,6 +49,22 @@ def test_camera_homography_matches_the_pinhole_model() -> None:
     np.testing.assert_allclose(
         camera_ground_homography(camera.available_camera()), expected, rtol=1e-6, atol=1e-9
     )
+
+
+def test_camera_homography_reads_the_optical_frame() -> None:
+    """Built by hand rather than through ``FakeCamera``: rig_to_camera's axes are
+    image right, image down and the optical axis (carla-driver-interface 2.x)."""
+    camera = FakeCamera(width=640, height=360, fov_deg=52.0, z=1.6).available_camera()
+    pitch = np.radians(3.0)
+    right = [0.0, -1.0, 0.0]
+    down = [-np.sin(pitch), 0.0, -np.cos(pitch)]
+    forward = [np.cos(pitch), 0.0, -np.sin(pitch)]
+    optical = Rotation.from_matrix(np.column_stack([right, down, forward]))
+    camera.rig_to_camera.CopyFrom(Pose.from_rotation(np.array([0.0, 0.0, 1.6]), optical).to_proto())
+    expected = vp.ground_homography(
+        width=640, height=360, horizontal_fov_deg=52.0, camera_height_m=1.6, pitch_down_deg=3.0
+    )
+    np.testing.assert_allclose(camera_ground_homography(camera), expected, rtol=1e-6, atol=1e-9)
 
 
 def test_warns_about_a_wide_camera(caplog: pytest.LogCaptureFixture) -> None:
