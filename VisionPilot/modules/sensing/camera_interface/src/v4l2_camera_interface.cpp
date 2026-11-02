@@ -11,14 +11,14 @@ namespace camera_interface
     V4L2CameraInterface::V4L2CameraInterface(
         const std::string& device_path,
         const uint32_t fps
-    ) : device_path(device_path),
+    ) : CameraInterface(),
+        device_path(device_path),
         fps_(static_cast<double>(fps))
     {
         log_info("Initializing V4L2 Reader");
         log_info("  Device Path: " + device_path);
         log_info("  Target FPS: " + std::to_string(fps));
 
-        // stats.device_path = device_path;
         stats.current_fps = static_cast<double>(fps);
 
         // Init display rate throttling
@@ -26,7 +26,7 @@ namespace camera_interface
         last_display_time = std::chrono::steady_clock::now();
 
         // Parse device number from path (for example, "/dev/video0" => 0)
-        int device_number = 0;
+        int32_t device_number = 0;
         try
         {
             size_t last_slash = device_path.find_last_of('/');

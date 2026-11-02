@@ -12,10 +12,11 @@ namespace camera_interface
     {
     public:
         FileInterface(const std::string& path, bool loop, bool realtime);
+        ~FileInterface() override = default;
 
-        virtual bool is_device_open() const override;
-        virtual std::tuple<bool, cv::Mat> get_latest_frame() override;
-        virtual CameraStats get_camera_stats() const override;
+        bool is_device_open() const override;
+        std::tuple<bool, cv::Mat> get_latest_frame() override;
+        CameraStats get_camera_stats() const override;
 
     private:
         std::string path_;

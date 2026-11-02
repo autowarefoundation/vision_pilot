@@ -5,11 +5,11 @@
 namespace camera_interface
 {
     FileInterface::FileInterface(const std::string& path, bool loop, bool realtime)
-        : path_(path), loop_(loop), realtime_(realtime)
+        : CameraInterface(), path_(path), loop_(loop), realtime_(realtime)
     {
         if (cap_.open(path))
         {
-            if (const double fps = cap_.get(cv::CAP_PROP_FPS); realtime_ && fps > 1.0)
+            if (const double fps = cap_.get(cv::CAP_PROP_FPS); realtime_ && (fps > 1.0))
             {
                 frame_period_ = std::chrono::duration<double>(1.0 / fps);
             }

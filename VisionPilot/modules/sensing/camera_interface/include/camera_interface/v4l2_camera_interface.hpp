@@ -36,7 +36,7 @@ namespace camera_interface
         *
         * Properly cleans up camera resources and closes video capture threads.
         */
-        virtual ~V4L2CameraInterface() override;
+        ~V4L2CameraInterface() override;
 
         // FRAME HANDLINGS
         /**
@@ -51,7 +51,7 @@ namespace camera_interface
         *
         * Thread-safe with the frame cloned and removed from buffer after retrieval.
         */
-        virtual std::tuple<bool, cv::Mat> get_latest_frame() override;
+        std::tuple<bool, cv::Mat> get_latest_frame() override;
 
         /**
         * @brief Check if latest frame is currently available
@@ -79,7 +79,7 @@ namespace camera_interface
         * 
         * @return true if VideoCapture is successfully opened, false otherwise
         */
-        virtual bool is_device_open() const override;
+        bool is_device_open() const override;
 
         /**
         * @brief Get statistics about V4L2 capture operations
@@ -91,7 +91,7 @@ namespace camera_interface
         *         - current_fps: frames per second
         *         - device_path: V4L2 device being used
         */
-        virtual CameraStats get_camera_stats() const override;
+        CameraStats get_camera_stats() const override;
 
         /**
         * @brief Reset statistics counters
@@ -117,7 +117,7 @@ namespace camera_interface
         // Display rate throttling
         mutable std::mutex display_time_mutex;
         std::chrono::steady_clock::time_point last_display_time;
-        uint32_t frame_period_ms;
+        uint32_t frame_period_ms{0U};
 
         // Statistics tracking
         mutable std::mutex stats_mutex;
