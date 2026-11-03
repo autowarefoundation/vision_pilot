@@ -32,7 +32,7 @@ namespace camera_interface
             size_t last_slash = device_path.find_last_of('/');
             if (last_slash != std::string::npos)
             {
-                std::string dev_num_str = device_path.substr(last_slash + 1U);
+                std::string dev_num_str = device_path.substr(last_slash).substr(1U);
                 if (dev_num_str.find("video") != std::string::npos)
                 {
                     device_number = std::stoi(dev_num_str.substr(5U));

@@ -16,6 +16,7 @@ namespace camera_interface
     class V4L2CameraInterface : public CameraInterface
     {
     public:
+        V4L2CameraInterface(const V4L2CameraInterface&) = delete;
         /**
         * @brief Constructor for V4L2Reader
         *
@@ -30,6 +31,7 @@ namespace camera_interface
             uint32_t fps = 10U
         );
 
+        V4L2CameraInterface& operator=(const V4L2CameraInterface&) = delete;
 
         /**
         * @brief Destructor for V4L2Reader
