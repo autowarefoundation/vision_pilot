@@ -47,27 +47,12 @@ namespace camera_interface
         * Attempts to read one from the V4L2 stream and applies target FPS throttling to
         * match target FPS. Handles ann timing and sleeping internally.
         *
-        * @return A tuple containing:
-        *     - bool: true if frame is valid, false otherwise
+        * @return cv::Mat:
         *     - cv::Mat: latest captured frame (empty if invalid)
         *
         * Thread-safe with the frame cloned and removed from buffer after retrieval.
         */
-        std::tuple<bool, cv::Mat> get_latest_frame() override;
-
-        /**
-        * @brief Check if latest frame is currently available
-        * 
-        * @return true if a frame is available in the buffer, false otherwise
-        */
-        bool has_frames() const;
-
-        /**
-        * @brief Reset frame buffer (clear latest frame slot)
-        * 
-        * Kinda useful for resetting state or handling error conditions
-        */
-        void clear_frame_buffer();
+        cv::Mat get_latest_frame() override;
 
         /**
         * @brief Check if V4L2 camera stream is active
@@ -103,11 +88,6 @@ namespace camera_interface
     private:
         // OpenCV VideoCapture with V4L2 backend
         cv::VideoCapture camera_capture;
-
-        // Single latest-frame slot with thread safety
-        mutable std::mutex frame_mutex;
-        cv::Mat latest_frame;
-        bool has_latest_frame = false;
 
         // Flag for started stream
         bool is_stream_started = false;

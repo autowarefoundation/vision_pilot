@@ -45,7 +45,7 @@ namespace camera_interface
         }
 
         // Open camera with V4L2 "one-liner" approach (suggested by Zain)
-        if (camera_capture.open(device_number, cv::CAP_V4L2))
+        if (camera_capture.open(static_cast<int>(device_number), cv::CAP_V4L2))
         {
             // Config stream properties
             // Reference: https://docs.opencv.org/master/d8/dfe/classcv_1_1VideoCapture.html
@@ -103,9 +103,9 @@ namespace camera_interface
     };
 
 
-    std::tuple<bool, cv::Mat> V4L2CameraInterface::get_latest_frame()
+    cv::Mat V4L2CameraInterface::get_latest_frame()
     {
-        std::tuple<bool, cv::Mat> result{false, cv::Mat()};
+        cv::Mat result;
 
         if (!camera_capture.isOpened())
         {
@@ -120,8 +120,6 @@ namespace camera_interface
             // Core one-liner frame capture from V4L2 stream
             cv::Mat frame;
             camera_capture >> frame;
-
-            // Declare stream has started
             is_stream_started = true;
 
             if (frame.empty())
@@ -134,21 +132,6 @@ namespace camera_interface
             }
             else
             {
-                // Store frame in single latest-frame slot with thread safety
-                {
-                    std::lock_guard<std::mutex> lock(frame_mutex);
-
-                    // Single-slot buffering
-                    if (has_latest_frame)
-                    {
-                        std::lock_guard<std::mutex> stats_lock(stats_mutex);
-                    }
-
-                    // Store latest frame
-                    latest_frame = frame.clone();
-                    has_latest_frame = true;
-                }
-
                 // Update statistics
                 {
                     std::lock_guard<std::mutex> stats_lock(stats_mutex);
@@ -172,21 +155,13 @@ namespace camera_interface
                         std::this_thread::sleep_for(std::chrono::milliseconds(period_ms - elapsed_ms));
                         last_display_time = std::chrono::steady_clock::now();
                     }
-                    result = std::make_tuple(true, frame);
+                    result = frame;
                 }
             }
         }
 
         return result;
     }
-
-
-    bool V4L2CameraInterface::has_frames() const
-    {
-        std::lock_guard<std::mutex> lock(frame_mutex);
-        return has_latest_frame;
-    }
-
 
     bool V4L2CameraInterface::is_stream_active() const
     {
@@ -198,19 +173,6 @@ namespace camera_interface
     {
         return camera_capture.isOpened();
     }
-
-
-    void V4L2CameraInterface::clear_frame_buffer()
-    {
-        std::lock_guard<std::mutex> lock(frame_mutex);
-        latest_frame.release();
-        has_latest_frame = false;
-        log_info("Frame buffer cleared");
-    }
-
-
-    // Statistics handling
-
 
     CameraStats V4L2CameraInterface::get_camera_stats() const
     {

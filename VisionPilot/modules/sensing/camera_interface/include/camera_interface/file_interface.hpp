@@ -15,7 +15,7 @@ namespace camera_interface
         ~FileInterface() override = default;
 
         bool is_device_open() const override;
-        std::tuple<bool, cv::Mat> get_latest_frame() override;
+        cv::Mat get_latest_frame() override;
         CameraStats get_camera_stats() const override;
 
     private:

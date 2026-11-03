@@ -114,8 +114,8 @@ int main(int argc, char** argv)
     cv::Mat H = load_matrix("H.yaml", "H");
     while (true)
     {
-        auto [ok, frame] = camera_interface->get_latest_frame();
-        if (!ok || frame.empty())
+        frame = camera_interface->get_latest_frame();
+        if (frame.empty())
         {
             if (cfg.source.mode == SourceMode::Video && !cfg.source.video_loop) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(5));

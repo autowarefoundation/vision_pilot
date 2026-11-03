@@ -21,15 +21,17 @@ namespace camera_interface
         return cap_.isOpened();
     }
 
-    std::tuple<bool, cv::Mat> FileInterface::get_latest_frame()
+    cv::Mat FileInterface::get_latest_frame()
     {
         cv::Mat frame;
         bool ok = cap_.read(frame) && !frame.empty();
 
         if (!ok && loop_)
         {
-            static_cast<void>(cap_.set(cv::CAP_PROP_POS_FRAMES, 0.0));
-            ok = cap_.read(frame) && !frame.empty();
+            if (cap_.set(cv::CAP_PROP_POS_FRAMES, 0.0))
+            {
+                ok = cap_.read(frame) && !frame.empty();
+            }
         }
 
         if (ok && (frame_period_.count() > 0.0))
@@ -50,7 +52,7 @@ namespace camera_interface
         {
             frame = cv::Mat();
         }
-        return {ok, frame};
+        return frame;
     }
 
     CameraStats FileInterface::get_camera_stats() const
