@@ -45,7 +45,7 @@ namespace camera_interface
         }
 
         // Open camera with V4L2 "one-liner" approach (suggested by Zain)
-        if (camera_capture.open(static_cast<int>(device_number), cv::CAP_V4L2))
+        if (cap_.open(static_cast<int>(device_number), cv::CAP_V4L2))
         {
             // Config stream properties
             // Reference: https://docs.opencv.org/master/d8/dfe/classcv_1_1VideoCapture.html
@@ -54,23 +54,23 @@ namespace camera_interface
             {
                 // Set codec to MJPEG for better compatibility and efficiency
                 auto fourcc_mjpg =  static_cast<double>(cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-                if (!camera_capture.set(cv::CAP_PROP_FOURCC, fourcc_mjpg))
+                if (!cap_.set(cv::CAP_PROP_FOURCC, fourcc_mjpg))
                 {
-                    camera_capture.release();
+                    cap_.release();
                     throw std::runtime_error("Failed to set CAP_PROP_FOURCC");
                 }
 
                 // Set FPS
-                if (!camera_capture.set(cv::CAP_PROP_FPS, fps_))
+                if (!cap_.set(cv::CAP_PROP_FPS, fps_))
                 {
-                    camera_capture.release();
+                    cap_.release();
                     throw std::runtime_error("Failed to set CAP_PROP_FPS");
                 }
 
                 // Get actual configs set by driver
-                double actual_width = camera_capture.get(cv::CAP_PROP_FRAME_WIDTH);
-                double actual_height = camera_capture.get(cv::CAP_PROP_FRAME_HEIGHT);
-                double actual_fps = camera_capture.get(cv::CAP_PROP_FPS);
+                double actual_width = cap_.get(cv::CAP_PROP_FRAME_WIDTH);
+                double actual_height = cap_.get(cv::CAP_PROP_FRAME_HEIGHT);
+                double actual_fps = cap_.get(cv::CAP_PROP_FPS);
 
                 stats.current_width = static_cast<uint32_t>(actual_width);
                 stats.current_height = static_cast<uint32_t>(actual_height);
@@ -95,9 +95,9 @@ namespace camera_interface
 
     V4L2CameraInterface::~V4L2CameraInterface()
     {
-        if (camera_capture.isOpened())
+        if (cap_.isOpened())
         {
-            camera_capture.release();
+            cap_.release();
             log_info("V4L2 device closed and resources released");
         }
     };
@@ -107,7 +107,7 @@ namespace camera_interface
     {
         cv::Mat result;
 
-        if (!camera_capture.isOpened())
+        if (!cap_.isOpened())
         {
             {
                 std::lock_guard<std::mutex> stats_lock(stats_mutex);
@@ -119,7 +119,7 @@ namespace camera_interface
         {
             // Core one-liner frame capture from V4L2 stream
             cv::Mat frame;
-            camera_capture >> frame;
+            cap_ >> frame;
             is_stream_started = true;
 
             if (frame.empty())
@@ -171,7 +171,7 @@ namespace camera_interface
 
     bool V4L2CameraInterface::is_device_open() const
     {
-        return camera_capture.isOpened();
+        return cap_.isOpened();
     }
 
     CameraStats V4L2CameraInterface::get_camera_stats() const

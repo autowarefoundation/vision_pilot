@@ -87,7 +87,7 @@ namespace camera_interface
 
     private:
         // OpenCV VideoCapture with V4L2 backend
-        cv::VideoCapture camera_capture;
+        cv::VideoCapture cap_;
 
         // Flag for started stream
         bool is_stream_started = false;
