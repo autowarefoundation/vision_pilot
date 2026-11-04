@@ -45,7 +45,7 @@ namespace vehicle_interface
         {
             if (loop_)
             {
-                frame_cnt_ = 0;
+                frame_cnt_ = 0U;
             }
             else
             {
@@ -56,7 +56,7 @@ namespace vehicle_interface
         return speeds_[frame_cnt_++];
     }
 
-    void FileInterface::write(double steering, double acceleration)
+    void FileInterface::write(double /* steering */, double /* acceleration */)
     {
     }
 } // namespace vehicle_interface
