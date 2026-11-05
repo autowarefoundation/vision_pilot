@@ -18,5 +18,5 @@ void ImagePreprocessor::preprocess(const cv::Mat& image, cv::Mat& warped_image, 
     const int crop_top = compute_top_crop_2_1(image.rows, image.cols);
     const cv::Rect roi(0, crop_top, image.cols, image.rows - crop_top);
     cv::Mat cropped = image(roi);
-    cv::resize(cropped, resized_image, size, 0, 0, cv::INTER_LINEAR);
+    cv::resize(cropped, resized_image, size, 0.0, 0.0, cv::INTER_LINEAR);
 }
