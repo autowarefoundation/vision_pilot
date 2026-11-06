@@ -5,7 +5,6 @@
 class VehicleInterface
 {
 public:
-    VehicleInterface() = default;
     virtual ~VehicleInterface() = default;
 
     // Read vehicle speed via CAN frame
@@ -13,6 +12,13 @@ public:
 
     // Send steering and acceleration via CAN frame
     virtual void write(double steering, double acceleration) = 0;
+
+protected:
+    VehicleInterface() = default;
+    VehicleInterface(const VehicleInterface& other) = default;
+    VehicleInterface(VehicleInterface&& other) noexcept = default;
+    VehicleInterface& operator=(const VehicleInterface& other) & = default;
+    VehicleInterface& operator=(VehicleInterface&& other) & noexcept = default;
 };
 
 

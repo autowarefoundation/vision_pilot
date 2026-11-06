@@ -7,6 +7,6 @@ double CanInterface::read()
     return 0.0;
 }
 
-void CanInterface::write(double steering, double acceleration)
+void CanInterface::write(double /* steering */, double /* acceleration */)
 {
 }

@@ -22,7 +22,7 @@ namespace vehicle_interface
     private:
         bool loop_;
         std::vector<double> speeds_;
-        int frame_cnt_ = 0;
+        std::size_t frame_cnt_ = 0U;
     };
 } // namespace vehicle_interface
 

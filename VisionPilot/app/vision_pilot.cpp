@@ -17,9 +17,9 @@
 #include <planning/planning.hpp>
 #include <visualization/debug_display.hpp>
 
-#include "camera_interface/v4l2_camera_interface.hpp"
-#include "camera_interface/file_interface.hpp"
-#include "vehicle_interface/file_interface.hpp"
+#include <camera_interface/v4l2_camera_interface.hpp>
+#include <camera_interface/file_interface.hpp>
+#include <vehicle_interface/file_interface.hpp>
 
 #if ENABLE_ROS2_INTERFACE
 #include <rclcpp/rclcpp.hpp>
@@ -53,7 +53,7 @@ int main(int argc, char** argv)
         if (arg == "--debug-viz") debug_viz = true;
     }
 
-    std::shared_ptr<CameraInterface> camera_interface;
+    std::shared_ptr<camera_interface::CameraInterface> camera_interface;
     std::shared_ptr<VehicleInterface> vehicle_interface;
     std::unique_ptr<VisualInterface> visual_interface;
 #if ENABLE_ROS2_INTERFACE
@@ -114,8 +114,8 @@ int main(int argc, char** argv)
     cv::Mat H = load_matrix("H.yaml", "H");
     while (true)
     {
-        auto [ok, frame] = camera_interface->get_latest_frame();
-        if (!ok || frame.empty())
+        frame = camera_interface->get_latest_frame();
+        if (frame.empty())
         {
             if (cfg.source.mode == SourceMode::Video && !cfg.source.video_loop) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
