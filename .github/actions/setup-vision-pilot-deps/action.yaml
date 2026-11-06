@@ -1,0 +1,83 @@
+name: setup-vision-pilot-deps
+description: Install the dependencies needed to configure and build VisionPilot (CPU variant) on Ubuntu 24.04.
+
+inputs:
+  onnxruntime-version:
+    description: ONNX Runtime release to install.
+    default: 1.26.0
+    required: false
+  onnxruntime-root:
+    description: Directory to install ONNX Runtime into.
+    default: /opt/onnxruntime
+    required: false
+  extra-packages:
+    description: Additional apt packages to install.
+    default: ""
+    required: false
+  enable-ros2:
+    description: Install ROS 2 Jazzy, needed for ENABLE_ROS2_INTERFACE=ON.
+    default: "false"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    # Mirrors the builder stage of VisionPilot/docker/Dockerfile.cpu.
+    - name: Install apt packages
+      run: |
+        sudo apt-get -yqq update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get -yqq install --no-install-recommends \
+          build-essential \
+          cmake \
+          git \
+          python3 \
+          python3-numpy \
+          python3-opencv \
+          libopencv-dev \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          libgstreamer-plugins-bad1.0-dev \
+          libnice-dev \
+          libsrtp2-dev \
+          libboost-system-dev \
+          nlohmann-json3-dev \
+          coinor-libipopt-dev \
+          libcppad-dev \
+          liblapack-dev \
+          libblas-dev \
+          ${{ inputs.extra-packages }}
+      shell: bash
+
+    # CppAD includes <coin-or/IpIpoptApplication.hpp>, but Ubuntu 24.04 installs
+    # the Ipopt headers under a different directory. See Dockerfile.cpu.
+    - name: Link Ipopt headers for CppAD
+      run: |
+        hdr_dir="$(dirname "$(find /usr/include -name IpIpoptApplication.hpp | head -1)")"
+        [ -n "$hdr_dir" ]
+        [ -e /usr/include/coin-or ] || sudo ln -s "$hdr_dir" /usr/include/coin-or
+      shell: bash
+
+    # Same packages as the ENABLE_ROS2=ON branch of Dockerfile.cpu.
+    - name: Install ROS 2 Jazzy
+      if: ${{ inputs.enable-ros2 == 'true' }}
+      run: |
+        sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+          -o /usr/share/keyrings/ros-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+          | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+        sudo apt-get -yqq update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get -yqq install --no-install-recommends \
+          ros-jazzy-ros-base \
+          ros-jazzy-cv-bridge \
+          ros-jazzy-image-transport
+      shell: bash
+
+    - name: Install ONNX Runtime
+      run: |
+        extract_dir=$(mktemp -d)
+        wget -q -O "$extract_dir/ort.tgz" \
+          "https://github.com/microsoft/onnxruntime/releases/download/v${{ inputs.onnxruntime-version }}/onnxruntime-linux-x64-${{ inputs.onnxruntime-version }}.tgz"
+        tar -xzf "$extract_dir/ort.tgz" -C "$extract_dir"
+        rm "$extract_dir/ort.tgz"
+        sudo mv "$extract_dir"/*/ "${{ inputs.onnxruntime-root }}"
+      shell: bash
