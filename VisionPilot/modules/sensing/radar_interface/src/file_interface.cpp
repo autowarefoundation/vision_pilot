@@ -2,7 +2,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
-
+#include <array>
 #include <radar_interface/file_interface.hpp>
 
 // RadarPoint is 3 contiguous floats with no padding, so a sweep can be read

@@ -1,0 +1,67 @@
+name: build-vision-pilot
+
+# Builds VisionPilot (CPU variant) including the test executables, with and
+# without the ROS 2 interface, to catch build breakages before merging.
+
+on:
+  pull_request:
+    paths:
+      - VisionPilot/**
+      - .github/actions/setup-vision-pilot-deps/**
+      - .github/workflows/build-vision-pilot.yaml
+  push:
+    branches:
+      - main
+    paths:
+      - VisionPilot/**
+      - .github/actions/setup-vision-pilot-deps/**
+      - .github/workflows/build-vision-pilot.yaml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ONNXRUNTIME_ROOT: /opt/onnxruntime
+
+jobs:
+  build-vision-pilot:
+    name: build-vision-pilot (ros2-${{ matrix.ros2 }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ros2:
+          - "OFF"
+          - "ON"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-vision-pilot-deps
+        with:
+          onnxruntime-root: ${{ env.ONNXRUNTIME_ROOT }}
+          enable-ros2: ${{ matrix.ros2 == 'ON' }}
+
+      - name: Configure
+        run: |
+          if [ "${{ matrix.ros2 }}" = "ON" ]; then
+            . /opt/ros/jazzy/setup.bash
+          fi
+          cmake -S VisionPilot -B VisionPilot/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DONNXRUNTIME_ROOT="${ONNXRUNTIME_ROOT}" \
+            -DGPU=OFF \
+            -DENABLE_ROS2_INTERFACE=${{ matrix.ros2 }} \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib"
+        shell: bash
+
+      - name: Build
+        run: cmake --build VisionPilot/build -j "$(nproc)"
+        shell: bash

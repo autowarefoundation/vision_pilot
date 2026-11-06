@@ -72,17 +72,17 @@ instance/
 # dependency tree, and a committed lock only causes platform conflicts between
 # local Ruby and the version CI runs.
 _site/
-docs/.jekyll-cache/
-docs/.jekyll-metadata
-docs/.bundle/
-docs/vendor/
-docs/Gemfile.lock
+github-io/.jekyll-cache/
+github-io/.jekyll-metadata
+github-io/.bundle/
+github-io/vendor/
+github-io/Gemfile.lock
 
 # Scrapy stuff:
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+github-io/_build/
 
 # PyBuilder
 .pybuilder/
