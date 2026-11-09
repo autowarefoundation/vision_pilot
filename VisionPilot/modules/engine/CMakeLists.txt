@@ -20,6 +20,7 @@ target_include_directories(engine
 
 target_link_libraries(engine
     PUBLIC
+        logging
         ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so
 )
 
