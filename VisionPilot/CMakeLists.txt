@@ -56,13 +56,20 @@ add_custom_target(generate_config ALL
 # ONNX Runtime: pass -DONNXRUNTIME_ROOT=<path>, for example for a GPU build.
 # Without it, the CPU build from the onnxruntime_vendor ROS package is used.
 if(ONNXRUNTIME_ROOT)
+    get_filename_component(ONNXRUNTIME_ROOT "${ONNXRUNTIME_ROOT}" ABSOLUTE BASE_DIR "${CMAKE_BINARY_DIR}")
     add_library(onnxruntime::onnxruntime SHARED IMPORTED)
     set_target_properties(onnxruntime::onnxruntime PROPERTIES
             IMPORTED_LOCATION ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so
             INTERFACE_INCLUDE_DIRECTORIES ${ONNXRUNTIME_ROOT}/include
     )
 else()
-    find_package(onnxruntime_vendor REQUIRED)
+    find_package(onnxruntime_vendor QUIET)
+    if(NOT onnxruntime_vendor_FOUND)
+        message(FATAL_ERROR
+            "ONNX Runtime not found. Pass -DONNXRUNTIME_ROOT=<path/to/onnxruntime>, "
+            "or build in a ROS 2 environment that has the onnxruntime_vendor package.")
+    endif()
+    message(STATUS "ONNX Runtime: CPU build from onnxruntime_vendor (${onnxruntime_vendor_DIR})")
 endif()
 
 # Modules

@@ -3,10 +3,13 @@ add_executable(VisionPilot
 )
 
 set_target_properties(VisionPilot PROPERTIES
-        BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib"
         INSTALL_RPATH "/usr/share/visionpilot/onnxruntime/lib"
         BUILD_WITH_INSTALL_RPATH FALSE
 )
+
+if(ONNXRUNTIME_ROOT)
+    set_target_properties(VisionPilot PROPERTIES BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib")
+endif()
 
 add_dependencies(VisionPilot generate_config)
 

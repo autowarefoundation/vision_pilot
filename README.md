@@ -101,6 +101,8 @@ To get started with the project, download the source code from:
 
 Download ONNX Runtime from the GitHub [releases](https://github.com/microsoft/onnxruntime/releases) page.
 
+If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` package (for example `ros-jazzy-onnxruntime-vendor`, which `rosdep install` installs), you can skip this step and leave out `-DONNXRUNTIME_ROOT` in the commands below. The build then uses the CPU build of ONNX Runtime, so set `engine.provider = cpu` in `config/vision_pilot.conf`.
+
 Build the project:
 
 ```bash
