@@ -18,42 +18,45 @@
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
-class VehicleRos2Interface : public VehicleInterface
+namespace vehicle_interface
 {
-public:
-    VehicleRos2Interface(std::string vehicle_speed_topic, std::string vehicle_steering_topic,
-                         std::string vehicle_acceleration_topic);
-    ~VehicleRos2Interface() override;
-
-    // Returns the latest ego speed received on /vehicle/speed (m/s).
-    // Thread-safe — updated by the ROS2 spin thread via atomic.
-    double read() override;
-
-    // Publish tyre angle (rad) and acceleration (m/s²) to ROS2.
-    void write(double steering, double acceleration) override;
-
-private:
-    // Inner node — owns all ROS 2 concerns
-    class VehicleRos2Node : public rclcpp::Node
+    class VehicleRos2Interface : public VehicleInterface
     {
     public:
-        explicit VehicleRos2Node(std::string vehicle_speed_topic,
-                                 std::string vehicle_steering_topic,
-                                 std::string vehicle_acceleration_topic,
-                                 std::function<void(double)> on_speed);
-        ~VehicleRos2Node() = default;
+        VehicleRos2Interface(std::string vehicle_speed_topic, std::string vehicle_steering_topic,
+                             std::string vehicle_acceleration_topic);
+        ~VehicleRos2Interface() override;
 
-        rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_;
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr steering_pub_;
-        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr throttle_pub_;
+        // Returns the latest ego speed received on /vehicle/speed (m/s).
+        // Thread-safe — updated by the ROS2 spin thread via atomic.
+        double read() override;
+
+        // Publish tyre angle (rad) and acceleration (m/s²) to ROS2.
+        void write(double steering, double acceleration) override;
+
+    private:
+        // Inner node — owns all ROS 2 concerns
+        class VehicleRos2Node : public rclcpp::Node
+        {
+        public:
+            explicit VehicleRos2Node(std::string vehicle_speed_topic,
+                                     std::string vehicle_steering_topic,
+                                     std::string vehicle_acceleration_topic,
+                                     std::function<void(double)> on_speed);
+            ~VehicleRos2Node() = default;
+
+            rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr sub_;
+            rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr steering_pub_;
+            rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr throttle_pub_;
+        };
+
+        std::shared_ptr<VehicleRos2Node> node_;
+        rclcpp::executors::SingleThreadedExecutor executor_;
+        std::thread spin_thread_;
+
+        // Latest ego speed — written by the ROS2 callback, read by main loop.
+        std::atomic<double> speed_{0.0};
     };
-
-    std::shared_ptr<VehicleRos2Node> node_;
-    rclcpp::executors::SingleThreadedExecutor executor_;
-    std::thread spin_thread_;
-
-    // Latest ego speed — written by the ROS2 callback, read by main loop.
-    std::atomic<double> speed_{0.0};
-};
+} // namespace vehicle_interface
 
 #endif //VISIONPILOT_VEHICLE_ROS2_INTERFACE_HPP
