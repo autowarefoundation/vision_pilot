@@ -644,6 +644,7 @@ void VisualInterface::build_frame(
 
 #if defined(ENABLE_OCCUPANCY)
     // Single upstream hook — Occupancy module owns scene build + rendering.
-    visualization::occupancy::publish(this, result, plan, H_resized);
+    visualization::occupancy::publish(
+      this, result, plan, H_resized, static_cast<float>(ego_speed_ms));
 #endif
 }

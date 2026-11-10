@@ -19,7 +19,7 @@ constexpr int kNetH = 512;
 
 Scene make_scene(
   const visionpilot::models::InferenceFrameResult & r, const Plan & /*plan*/,
-  const cv::Mat & H_resized)
+  const cv::Mat & H_resized, float ego_speed_ms)
 {
   Scene s;
 
@@ -76,6 +76,27 @@ Scene make_scene(
   s.cipo_valid = r.cipo.valid;
   s.cipo_distance_m = r.cipo.distance_m;
 
+  const auto & radar = r.cipo.radar;
+  s.radar_enabled = radar.enabled;
+  if (radar.enabled && !radar.points.empty()) {
+    const float ego = (ego_speed_ms > 0.5f) ? ego_speed_ms : 0.f;
+    const bool have_ego = ego > 0.5f;
+    s.radar_points.resize(radar.points.size());
+    for (size_t i = 0; i < radar.points.size(); ++i) {
+      const auto & p = radar.points[i];
+      Scene::RadarReturn rr;
+      rr.x = p.range_m * std::cos(p.azimuth_rad);
+      rr.y = p.range_m * std::sin(p.azimuth_rad);
+      rr.range_rate = p.range_rate;
+      rr.in_match = (i < radar.in_match.size() && radar.in_match[i] != 0);
+      const float abs_v = have_ego
+                            ? std::abs(p.range_rate + ego * std::cos(p.azimuth_rad))
+                            : std::abs(p.range_rate);
+      rr.moving = abs_v > 1.0f;
+      s.radar_points[i] = rr;
+    }
+  }
+
   // AutoDrive-only CIPO: AD confirms in-path object, AutoSpeed has no bbox.
   static constexpr float kDMaxM = 150.f;
   if (r.auto_drive.valid && r.auto_drive.flag_prob >= 0.40f && !r.cipo.cipo_raw_found) {
@@ -88,17 +109,17 @@ Scene make_scene(
 
 cv::Mat build_frame(
   const visionpilot::models::InferenceFrameResult & result, const Plan & plan,
-  const cv::Mat & H_resized)
+  const cv::Mat & H_resized, float ego_speed_ms)
 {
-  return render(make_scene(result, plan, H_resized));
+  return render(make_scene(result, plan, H_resized, ego_speed_ms));
 }
 
 void publish(
   VisualInterface * visual_interface, const visionpilot::models::InferenceFrameResult & result,
-  const Plan & plan, const cv::Mat & H_resized)
+  const Plan & plan, const cv::Mat & H_resized, float ego_speed_ms)
 {
   if (!visual_interface) return;
-  visual_interface->set_aux_frame(build_frame(result, plan, H_resized));
+  visual_interface->set_aux_frame(build_frame(result, plan, H_resized, ego_speed_ms));
 }
 
 }  // namespace occupancy

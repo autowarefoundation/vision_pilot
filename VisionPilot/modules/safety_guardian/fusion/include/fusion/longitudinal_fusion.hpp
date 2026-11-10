@@ -26,6 +26,9 @@ struct RadarAssocDebug {
     std::vector<RadarPoint> points;
     std::vector<uint8_t> in_match;   // per point: belongs to the selected cluster
     PathPoly path;
+    // How far association actually followed the poly this frame. The fit
+    // itself still ends at path.x_max_m; this is the search cap beyond it.
+    float search_x_max_m = 0.f;
     bool  fov_valid      = false;
     float fov_az_rad     = 0.f;
     RadarHit hit         = RadarHit::None;
@@ -55,7 +58,7 @@ struct CIPOFusionEstimate {
     bool  radar_meas_valid  = false;
     float radar_dist_m      = 0.f;
     float radar_vel_ms      = 0.f;
-    int   radar_scenario    = 0;  // 0 none, 1 L1/L2 present, 3 in-path (no CIPO box)
+    int   radar_scenario    = 0;  // 0 none, 1 path mover, 2 path static, 3 box azimuth
 
     RadarAssocDebug radar;
 };
@@ -68,7 +71,12 @@ struct CIPOFusionEstimate {
 //    3. Particle filter [distance_m, velocity_ms]:
 //         • radar match  → track radar only (camera does not reweight)
 //         • radar miss   → AS L1/L2 (+ AD if present); else AD if flag ≥ 0.40
-//         • source switch radar↔camera → reset and re-init
+//         • source switch radar↔camera → reset and re-init when the range agrees
+//    4. Two-frame confirmation: a new range, or one that disagrees with the
+//       confirmed track, must repeat for confirm_frames before it may seed
+//       or pull the filter. Until then the planner keeps the previous track,
+//       or free road (d_max) when there is no track. One dropped frame still
+//       clears the track, same as before.
 //
 class LongitudinalFusion {
 public:
@@ -92,14 +100,20 @@ public:
         // Reinitialise filter when a measurement jumps this far from the
         // particle cloud (genuine cut-in / cut-out only).
         float reset_gate_m          = 25.f;
+        // Consecutive agreeing frames before a new or jumped range may brake.
+        // 1 disables the hold. At 20 Hz one extra frame is about 1.5 m of
+        // travel at 30 m/s; at 10 Hz it is about 3 m.
+        int   confirm_frames        = 2;
         bool  debug                = false;
 
         bool  radar_enabled        = false;
         float radar_hfov_deg       = 50.f;   // AutoSpeed crop HFOV (not ZOD's ~120° full cam)
         float radar_lat_buffer_m   = 0.5f;
-        // Half a lane either side of the fused path. Search along the poly
-        // out to radar_max_range_m, not only as far as the waypoint fit.
-        float radar_path_buffer_m  = 1.8f;
+        // Half a lane either side of the fused path. The poly is followed past
+        // the waypoint fit, but not blindly out to radar_max_range_m: at most
+        // twice the measured length, and less when curvature would bend the
+        // tube by a full lane.
+        float radar_path_buffer_m  = 1.6f;
         float radar_max_range_m    = 150.f;
         // T_sensor→ego 4×4. Ego = ISO-8855 (X fwd, Y left, Z up). Same as ZOD.
         // Default cam: OpenCV optical (X right, Y down, Z fwd) → ego. Default radar: identity.
@@ -153,6 +167,7 @@ private:
         std::vector<int> members;
         int scenario = 0;
         RadarHit hit = RadarHit::None;
+        float search_x_max_m = 0.f;
     };
     CIPOSelection select_cipo(const std::vector<models::Detection>& dets) const;
     CIPOSelection select_cipo_radar(const std::vector<models::Detection>& dets,
@@ -169,6 +184,11 @@ private:
     float effective_n() const;
     void  resample();
     static float gaussian_loglik(float z, float mean, float sigma);
+    // True when two ranges can be the same object for one frame of motion
+    // and sensor noise (floor 8 m, growing with range² like the homography).
+    bool  same_candidate(float a, float b) const;
+    // Count a consecutive candidate. True once confirm_frames is reached.
+    bool  note_candidate(float dist_m);
 
     enum class TrackSrc { None, Radar, Camera };
 
@@ -177,6 +197,8 @@ private:
     bool   initialised_ = false;
     bool   prev_cut_in_ = false;
     TrackSrc track_src_ = TrackSrc::None;
+    int    pending_hits_ = 0;
+    float  pending_dist_m_ = 0.f;
     std::mt19937 rng_;
     // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
     cv::Mat H_ = (cv::Mat_<double>(3, 3) <<
