@@ -64,8 +64,8 @@ int main(int argc, char** argv)
     std::unique_ptr<VisualInterface> visual_interface;
 #if ENABLE_ROS2_INTERFACE
     rclcpp::init(argc, argv);
-    camera_interface = std::make_unique<CameraRos2Interface>(cfg.source.input_camera_topic);
-    vehicle_interface = std::make_shared<VehicleRos2Interface>(cfg.vehicle_speed_topic,
+    camera_interface = std::make_unique<camera_interface::CameraRos2Interface>(cfg.source.input_camera_topic);
+    vehicle_interface = std::make_shared<::vehicle_interface::VehicleRos2Interface>(cfg.vehicle_speed_topic,
                                                                cfg.vehicle_steering_topic,
                                                                cfg.vehicle_acceleration_topic);
 #else

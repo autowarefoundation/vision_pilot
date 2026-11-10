@@ -1,6 +1,7 @@
 #ifndef VISIONPILOT_TYPES_HPP
 #define VISIONPILOT_TYPES_HPP
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
