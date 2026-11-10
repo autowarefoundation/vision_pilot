@@ -71,6 +71,8 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/modules/models/weights/"
         PATTERN "trt_cache" EXCLUDE
 )
 
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/onnxruntime/"
-        DESTINATION "share/visionpilot/onnxruntime"
-)
+if(ONNXRUNTIME_ROOT)
+    install(DIRECTORY "${ONNXRUNTIME_ROOT}/"
+            DESTINATION "share/visionpilot/onnxruntime"
+    )
+endif()

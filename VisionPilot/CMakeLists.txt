@@ -50,7 +50,20 @@ add_custom_target(generate_config ALL
         COMMAND Python3::Interpreter
         ${CMAKE_SOURCE_DIR}/scripts/find_homography_C_matrix.py
         --output ${CMAKE_BINARY_DIR}/config/homography_C_matrix.yaml
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/scripts
 )
+
+# ONNX Runtime: pass -DONNXRUNTIME_ROOT=<path>, for example for a GPU build.
+# Without it, the CPU build from the onnxruntime_vendor ROS package is used.
+if(ONNXRUNTIME_ROOT)
+    add_library(onnxruntime::onnxruntime SHARED IMPORTED)
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES
+            IMPORTED_LOCATION ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so
+            INTERFACE_INCLUDE_DIRECTORIES ${ONNXRUNTIME_ROOT}/include
+    )
+else()
+    find_package(onnxruntime_vendor REQUIRED)
+endif()
 
 # Modules
 add_subdirectory(modules/logging)

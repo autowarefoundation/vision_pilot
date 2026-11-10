@@ -23,13 +23,11 @@ target_include_directories(logging
         PUBLIC
         ${CMAKE_SOURCE_DIR}/modules/engine/include
 )
-if(DEFINED ONNXRUNTIME_ROOT)
-        target_include_directories(logging PUBLIC ${ONNXRUNTIME_ROOT}/include)
-endif()
 
 target_link_libraries(logging
         PUBLIC
         ${OpenCV_LIBS}
+        onnxruntime::onnxruntime
 )
 
 
