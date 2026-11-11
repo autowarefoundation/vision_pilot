@@ -16,6 +16,34 @@ constexpr float kPi     = 3.14159265f;
 
 float path_y(const PathPoly& p, float x) { return p.a * x * x + p.b * x + p.c; }
 
+// How far the camera quadratic may be used as a radar search.
+//
+// The fit is only measured out to path.x_max_m (often 40–50 m on a hill, up
+// to ~120 m on a flat straight road). Past that point two limits apply:
+//   * length — at most twice the measured path, and never past radar_max_m.
+//     A 40 m fit searches 80 m, not 150 m.
+//   * curvature — continuing y = ax²+bx+c past the fit bends off the tangent
+//     by |a|·dx². Stop once that extra bend reaches one lane (lane_m), so a
+//     next-lane return cannot enter the tube. A straight fit, straighter
+//     than about a 2 km radius, is not cut by this and may use the full
+//     doubled length (which reaches radar_max_m once the camera saw ≥75 m).
+float path_search_horizon_m(const PathPoly& path, float radar_max_m, float lane_m)
+{
+    const float cap = std::max(0.f, radar_max_m);
+    const float measured = std::clamp(path.x_max_m, 0.f, cap);
+    if (!(measured > 1.f) || !(lane_m > 0.f)) return measured;
+
+    const float by_length = std::min(cap, 2.f * measured);
+
+    // |a| ≈ kappa/2. Below this the road is straighter than a 2 km radius.
+    constexpr float kStraightA = 2.5e-4f;
+    const float a = std::abs(path.a);
+    if (a <= kStraightA) return by_length;
+
+    const float by_curve = std::min(cap, measured + std::sqrt(lane_m / a));
+    return std::min(by_length, by_curve);
+}
+
 struct RadarCluster {
     float range_m = 0.f;
     float azimuth_rad = 0.f;
@@ -427,9 +455,9 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
     if (path && path->valid) {
         const float lat_zone = cfg_.radar_path_buffer_m;
         PathPoly search = *path;
-        // Waypoint fits often end at ~25 m; still evaluate the poly out to
-        // radar range so a cluster at 80–150 m can be in-path.
-        search.x_max_m = std::max(search.x_max_m, cfg_.radar_max_range_m);
+        const float horizon = path_search_horizon_m(
+            *path, cfg_.radar_max_range_m, lat_zone);
+        search.x_max_m = horizon;
         std::vector<int> candidates;
         for (int i = 0; i < static_cast<int>(clusters.size()); ++i) {
             const auto& c = clusters[static_cast<std::size_t>(i)];
@@ -441,16 +469,26 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
         }
 
         const int ic = closest_of(clusters, candidates);
-        if (ic >= 0)
-            return fill_c(clusters[static_cast<std::size_t>(ic)], cut_in,
-                          RadarHit::Path, have_box ? 1 : 3, have_box, az);
+        if (ic >= 0) {
+            const auto& won = clusters[static_cast<std::size_t>(ic)];
+            // 1 = moving cluster in the path tube. 2 = static cluster in the
+            // tube that agreed with the camera range. A Level-1/2 box does
+            // not change this search.
+            const int scenario = cluster_is_moving(won, ego, have_ego) ? 1 : 2;
+            auto sel = fill_c(won, cut_in, RadarHit::Path, scenario, have_box, az);
+            sel.search_x_max_m = horizon;
+            return sel;
+        }
 
         CIPOSelection miss;
-        miss.fov_valid  = have_box;
-        miss.fov_az_rad = az;
+        miss.fov_valid      = have_box;
+        miss.fov_az_rad     = az;
+        miss.search_x_max_m = horizon;
         return miss;
     }
 
+    // No path: a Level-1/2 box can still pick radar in its azimuth window.
+    // Scenario 3. Level-3 boxes do not open this search.
     if (have_box) {
         const float prior = range_prior_m ? *range_prior_m : d_h;
         const bool  prior_ok = std::isfinite(prior) && prior > 1.f &&
@@ -462,7 +500,7 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
                               prior_ok ? std::max(1.f, prior - band) : 0.f,
                               prior_ok ? prior + band : cfg_.radar_max_range_m,
                               az, kBoxLatM, 1.0f, mc) >= 0)
-            return fill_c(mc, cut_in, RadarHit::Fov, 1, true, az);
+            return fill_c(mc, cut_in, RadarHit::Fov, 3, true, az);
         CIPOSelection miss;
         miss.fov_valid  = true;
         miss.fov_az_rad = az;

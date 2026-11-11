@@ -365,6 +365,12 @@ static void draw_extruded_vehicle(
   }
 }
 
+static cv::Scalar radar_return_paint(const Scene::RadarReturn & p)
+{
+  if (p.in_match) return cv::Scalar(0, 255, 100);
+  return p.moving ? cv::Scalar(0, 90, 160) : cv::Scalar(88, 88, 88);
+}
+
 // ─── Occupancy BEV panel (extruded boxes) — separate interactive 3D window ────
 cv::Mat render(const Scene & scene)
 {
@@ -655,6 +661,39 @@ cv::Mat render(const Scene & scene)
   // Ego: slides laterally with CTE (lane change / lane departure) and yaws with heading error.
   draw_extruded_vehicle(panel, basis, 1.5f, ego_y, 4.5f, 1.8f, false, 0, 1.0f, false, ego_yaw);
 
+  // Radar returns only. Vehicle volumes remain camera-derived so roadside
+  // structure cannot appear as a vehicle box.
+  if (scene.radar_enabled) {
+    struct Stick
+    {
+      float depth;
+      cv::Point g;
+      cv::Point t;
+      cv::Scalar c;
+      int r;
+    };
+    std::vector<Stick> sticks;
+    sticks.reserve(scene.radar_points.size());
+    for (const auto & p : scene.radar_points) {
+      if (p.x < -1.f || p.x > kXMax) continue;
+      if (std::abs(p.y - y_shift) > kYMax + 2.f) continue;
+      const float y = p.y - y_shift;
+      Stick s;
+      if (!project_xyz(basis, p.x, y, 0.f, s.g, &s.depth)) continue;
+      if (!project_xyz(basis, p.x, y, 0.55f, s.t)) continue;
+      s.c = radar_return_paint(p);
+      s.r = p.in_match ? 4 : 2;
+      sticks.push_back(s);
+    }
+    std::sort(sticks.begin(), sticks.end(), [](const Stick & a, const Stick & b) {
+      return a.depth > b.depth;
+    });
+    for (const auto & s : sticks) {
+      cv::line(panel, s.g, s.t, s.c, 1, cv::LINE_AA);
+      cv::circle(panel, s.t, s.r, s.c, -1, cv::LINE_AA);
+    }
+  }
+
   // Small lane-offset cue when meaningfully off the path center.
   if (std::abs(g_cte_s) > 0.35f) {
     char cte_lbl[32];
@@ -669,8 +708,8 @@ cv::Mat render(const Scene & scene)
   fill_rect_alpha(panel, cv::Rect(0, 0, pw, 26), cv::Scalar(10, 9, 8), 0.62);
   cv::line(panel, cv::Point(0, 26), cv::Point(pw, 26), cv::Scalar(90, 110, 55), 1, cv::LINE_AA);
   cv::putText(
-    panel, "OCCUPANCY", cv::Point(12, 18), cv::FONT_HERSHEY_SIMPLEX, 0.45,
-    cv::Scalar(210, 220, 180), 1, cv::LINE_AA);
+    panel, scene.radar_enabled ? "OCCUPANCY | RADAR" : "OCCUPANCY", cv::Point(12, 18),
+    cv::FONT_HERSHEY_SIMPLEX, 0.45, cv::Scalar(210, 220, 180), 1, cv::LINE_AA);
   char range_lbl[32];
   std::snprintf(range_lbl, sizeof(range_lbl), "0-%.0fm", static_cast<double>(kXMax));
   int bl = 0;
@@ -680,9 +719,19 @@ cv::Mat render(const Scene & scene)
     cv::Scalar(150, 160, 130), 1, cv::LINE_AA);
 
   // Interaction hint
-  cv::putText(
-    panel, "L-drag orbit  R-drag pan  wheel zoom  R reset", cv::Point(12, ph - 12),
-    cv::FONT_HERSHEY_SIMPLEX, 0.38, cv::Scalar(140, 150, 120), 1, cv::LINE_AA);
+  if (scene.radar_enabled) {
+    char radar_lbl[128];
+    std::snprintf(
+      radar_lbl, sizeof(radar_lbl), "%zu radar pts   L-drag orbit  R-drag pan  wheel zoom  R reset",
+      scene.radar_points.size());
+    cv::putText(
+      panel, radar_lbl, cv::Point(12, ph - 12), cv::FONT_HERSHEY_SIMPLEX, 0.36,
+      cv::Scalar(140, 150, 120), 1, cv::LINE_AA);
+  } else {
+    cv::putText(
+      panel, "L-drag orbit  R-drag pan  wheel zoom  R reset", cv::Point(12, ph - 12),
+      cv::FONT_HERSHEY_SIMPLEX, 0.38, cv::Scalar(140, 150, 120), 1, cv::LINE_AA);
+  }
 
   (void)world_to_panel;
   return panel;

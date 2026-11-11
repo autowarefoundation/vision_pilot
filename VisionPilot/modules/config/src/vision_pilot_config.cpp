@@ -151,7 +151,7 @@ Config load_vision_pilot_config()
     cfg.inference.long_fusion.radar_lat_buffer_m = static_cast<float>(
         parse_double(optional(kv, "radar.lat_buffer_m", "0.5"), "radar.lat_buffer_m"));
     cfg.inference.long_fusion.radar_path_buffer_m = static_cast<float>(
-        parse_double(optional(kv, "radar.path_buffer_m", "1.8"), "radar.path_buffer_m"));
+        parse_double(optional(kv, "radar.path_buffer_m", "1.6"), "radar.path_buffer_m"));
     cfg.inference.long_fusion.radar_max_range_m = static_cast<float>(
         parse_double(optional(kv, "radar.max_range_m", "150"), "radar.max_range_m"));
     cfg.source.input_radar_topic = optional(kv, "radar.topic", "/radar/points");
