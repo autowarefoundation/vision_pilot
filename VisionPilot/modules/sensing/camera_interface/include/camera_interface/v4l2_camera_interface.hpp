@@ -24,7 +24,7 @@ namespace camera_interface
         @ @param fps Desired FPS for outputing frames. Current default is 10.
         * 
         * Inits the V4L2 camera device with specified parameters and start capture/vis thread.
-        * Also logs these details and subscribtion info.
+        * Also logs these details and subscription info.
         */
         explicit V4L2CameraInterface(
             const std::string& device_path,

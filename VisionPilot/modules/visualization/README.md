@@ -265,8 +265,8 @@ ffmpeg -re -stream_loop -1 -i <absolute path to local video> -f v4l2 -pix_fmt yu
 
 **Arguments:**
 
-- `1`: V4L2 mode (use `0` for ROS2 mode)
-- `/dev/video0`: V4L2 device path (if ROS2 mode, this second arg will be ROS2 topic name)
+- `1`: V4L2 mode (use `0` for ROS 2 mode)
+- `/dev/video0`: V4L2 device path (if ROS 2 mode, this second arg will be ROS 2 topic name)
 - `10`: target FPS
 - `1`: enable WebRTC (use `0` to disable)
 - `8080`: WebRTC server port (not available if WebRTC is disabled)
@@ -299,7 +299,7 @@ Local OpenCV preview is disabled while WebRTC is enabled.
 
 ### 3. Troubleshooting
 
-These are known/enountered bugs and errors. If you encounter a completely new one, try posting it as new issue
+These are known/encountered bugs and errors. If you encounter a completely new one, try posting it as new issue
 at [Autoware VisionPilot repository](https://github.com/autowarefoundation/autoware_vision_pilot).
 
 1. **Black/blank video**: frame may not be arriving from the camera. Test with WebRTC disabled:

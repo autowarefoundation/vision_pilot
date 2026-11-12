@@ -10,9 +10,9 @@ For the baseline version of Vision Pilot, we recommend using an automotive grade
 
 We recommend mounting the camera behind the front windscreen, underneath the rear-view mirror - similar to how stock ADAS cameras are mounted by automotive OEMs. The camera should be mounted with zero roll angle along the centreline of the vehicle facing forward, with a slight pitch angle downward of 1-3 degrees for passenger cars and a larger pitch down angle of between 10-15 degrees for taller vehicles such as shuttles, buses or trucks.
 
-Typically, automotive GMSL evaluation cameras are designed with screw holes which can be used to mount the camera to the body frame. We recommend using an L-brack which affixes to the back face of the camera using the pre-designed screw-holes available in most cameras.
+Typically, automotive GMSL evaluation cameras are designed with screw holes which can be used to mount the camera to the body frame. We recommend using an L-bracket which affixes to the back face of the camera using the pre-designed screw-holes available in most cameras.
 
-We recommend using the [Pixelman camera mount](https://www.amazon.com/Pixelman-Adhesive-2PCS-Universal-Windshield-Bracket/dp/B0C5XQ8ZX8) - although it is typically designed for adding cameras to the rear windsheild, it can also easily be used to mount a camera to the front windshield.
+We recommend using the [Pixelman camera mount](https://www.amazon.com/Pixelman-Adhesive-2PCS-Universal-Windshield-Bracket/dp/B0C5XQ8ZX8) - although it is typically designed for adding cameras to the rear windshield, it can also easily be used to mount a camera to the front windshield.
 
 To attach your automotive camera to the Pixelman camera mount, you will need to use an L-faced bracket which screws into the back face mounting holes of your automotive camera and then screws into the mounting plate of the Pixelman camera as per the above reference image. 
 
