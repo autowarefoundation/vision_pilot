@@ -65,6 +65,10 @@ std::unique_ptr<Ort::Session> OnnxEngine::create_cuda_session(
 
     OrtCUDAProviderOptions cuda_opts{};
     cuda_opts.device_id = cfg_.device_id;
+    // Zero-init means OrtCudnnConvAlgoSearchExhaustive, a known trigger for
+    // "SafeIntOnOverflow: Integer overflow" in Conv on CUDA 12
+    // (microsoft/onnxruntime#14985). Heuristic search avoids it.
+    cuda_opts.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
     opts.AppendExecutionProvider_CUDA(cuda_opts);
 
     printf("[OnnxEngine] Creating CUDA session (device %d) → %s\n",
@@ -127,6 +131,7 @@ std::unique_ptr<Ort::Session> OnnxEngine::create_tensorrt_session(
     // CUDA fallback for any subgraph TRT cannot handle
     OrtCUDAProviderOptions cuda_opts{};
     cuda_opts.device_id = cfg_.device_id;
+    cuda_opts.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchHeuristic;
     opts.AppendExecutionProvider_CUDA(cuda_opts);
 
     api.ReleaseTensorRTProviderOptions(trt_opts);
