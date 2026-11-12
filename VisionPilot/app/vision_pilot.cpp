@@ -88,7 +88,11 @@ int main(int argc, char** argv)
     std::signal(SIGINT, handle_signal);
     std::signal(SIGTERM, handle_signal);
 
-    ImagePreprocessor preprocessor;
+    // H (raw px → world) feeds the fusion modules; the preprocessor derives the
+    // BEV warp C from the same H so both always match the input camera.
+    const cv::Mat H = load_matrix(cfg.homography_file, "H");
+    VP_INFO("[Config] Homography: %s", cfg.homography_file.c_str());
+    ImagePreprocessor preprocessor(H);
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
     Planner planner(cfg.speed_limit, cfg.L);
@@ -121,7 +125,6 @@ int main(int argc, char** argv)
     const cv::Size net_size(vm::AutoDrive::NET_W, vm::AutoDrive::NET_H);
     cv::Mat frame, warped, resized;
     bool h_resized_set = false;
-    cv::Mat H = load_matrix("H.yaml", "H");
 #if ENABLE_ROS2_INTERFACE
     while (g_running && rclcpp::ok())
 #else

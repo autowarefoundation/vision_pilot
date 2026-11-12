@@ -137,6 +137,7 @@ Config load_vision_pilot_config()
 
     cfg.speed_limit = parse_double(optional(kv, "speed_limit", ""), "speed_limit");
     cfg.L = parse_double(optional(kv, "L", ""), "L");
+    cfg.homography_file = optional(kv, "homography_file", "H.yaml");
 
     cfg.visualization_on = parse_bool(optional(kv, "visualization_on", "false"), "visualization_on");
     cfg.webrtc_on = parse_bool(optional(kv, "webrtc_on", "false"), "webrtc_on");

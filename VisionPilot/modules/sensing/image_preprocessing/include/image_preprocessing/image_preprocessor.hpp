@@ -5,7 +5,15 @@
 
 class ImagePreprocessor {
 public:
+    // Loads C from the build-time generated homography_C_matrix.yaml (derived from config/H.yaml).
     ImagePreprocessor();
+
+    // Derives C at runtime from a ground homography H (raw camera pixel → world),
+    // so the BEV warp always matches the H used by the fusion modules.
+    explicit ImagePreprocessor(const cv::Mat& H);
+
+    // Same computation as scripts/find_homography_C_matrix.py.
+    static cv::Mat compute_C(const cv::Mat& H);
 
     ~ImagePreprocessor() = default;
 

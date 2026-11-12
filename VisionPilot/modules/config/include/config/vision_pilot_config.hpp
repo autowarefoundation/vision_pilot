@@ -42,6 +42,10 @@ struct Config {
     double speed_limit;
     double L;
 
+    // Ground homography (raw camera pixel → world) under config/. Must match the
+    // input camera; the BEV warp C is derived from it at startup.
+    std::string homography_file = "H.yaml";
+
     bool visualization_on = false;
     bool webrtc_on = false;
     int webrtc_port;
