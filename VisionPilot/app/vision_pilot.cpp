@@ -1,5 +1,7 @@
 // VisionPilot — preprocess → inference → fusion → display
+#include <atomic>
 #include <chrono>
+#include <csignal>
 #include <memory>
 #include <string>
 #include <thread>
@@ -29,6 +31,14 @@
 namespace ve = visionpilot::engine;
 namespace vm = visionpilot::models;
 namespace vd = visionpilot::debug;
+
+namespace
+{
+// SIGINT/SIGTERM must break the main loop instead of killing the process so
+// the Rerun log gets flushed and visualization.stop() reports a clean exit.
+std::atomic<bool> g_running{true};
+void handle_signal(int) { g_running = false; }
+}
 
 int main(int argc, char** argv)
 {
@@ -73,6 +83,11 @@ int main(int argc, char** argv)
     }
 #endif
 
+    // Installed after rclcpp::init() so this replaces rclcpp's SIGINT handler,
+    // which would otherwise swallow Ctrl+C without ending the main loop.
+    std::signal(SIGINT, handle_signal);
+    std::signal(SIGTERM, handle_signal);
+
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
@@ -107,7 +122,11 @@ int main(int argc, char** argv)
     cv::Mat frame, warped, resized;
     bool h_resized_set = false;
     cv::Mat H = load_matrix("H.yaml", "H");
-    while (true)
+#if ENABLE_ROS2_INTERFACE
+    while (g_running && rclcpp::ok())
+#else
+    while (g_running)
+#endif
     {
         auto [ok, frame] = camera_interface->get_latest_frame();
         if (!ok || frame.empty())
