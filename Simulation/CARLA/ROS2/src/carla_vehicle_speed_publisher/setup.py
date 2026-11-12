@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'carla_vehicle_speed_publisher_node = carla_vehicle_speed_publisher.carla_vehicle_speed_publisher_node:main'
+            'carla_vehicle_speed_publisher_node = carla_vehicle_speed_publisher.carla_vehicle_speed_publisher_node:main',
+            'velocity_status_bridge_node = carla_vehicle_speed_publisher.velocity_status_bridge_node:main'
         ],
     },
 )

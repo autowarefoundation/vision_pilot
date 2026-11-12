@@ -1,0 +1,76 @@
+# Sensor mapping for autoware_carla_interface when driving with VisionPilot.
+# Pass via:  sensor_mapping_file:=<this file>
+#
+# Derived from autoware_carla_interface/config/sensor_mapping_light_weight.yaml with
+# CAM_FRONT set to the VisionPilot rig (carla916.json "main_cam": 1920x1280, fov 50,
+# 10 Hz). The camera pose still comes from carla_sensor_kit_description's
+# sensor_kit_calibration.yaml (CAM_FRONT/camera_link), not from carla916.json.
+# LiDAR is disabled: VisionPilot is camera-only and the ray-cast sensor is the most
+# expensive one to simulate.
+
+default_sensor_kit_name: carla_sensor_kit_description
+
+sensor_mappings:
+  CAM_FRONT/camera_link:
+    carla_type: sensor.camera.rgb
+    id: CAM_FRONT
+    ros_config:
+      frame_id: CAM_FRONT/camera_optical_link
+      topic_image: /sensing/camera/CAM_FRONT/image_raw
+      topic_info: /sensing/camera/CAM_FRONT/camera_info
+      frequency_hz: 10
+      qos_profile: reliable
+    parameters:
+      image_size_x: 1920
+      image_size_y: 1280
+      fov: 50.0
+      exposure_mode: manual
+      shutter_speed: 200.0
+      iso: 100.0
+      fstop: 8.0
+
+  tamagawa/imu_link:
+    carla_type: sensor.other.imu
+    id: imu
+    ros_config:
+      frame_id: tamagawa/imu_link
+      topic: /sensing/imu/tamagawa/imu_raw
+      frequency_hz: 50
+      qos_profile: reliable
+    parameters:
+      noise_accel_stddev_x: 0.0
+      noise_accel_stddev_y: 0.0
+      noise_accel_stddev_z: 0.0
+      noise_gyro_stddev_x: 0.0
+      noise_gyro_stddev_y: 0.0
+      noise_gyro_stddev_z: 0.0
+
+  gnss_link:
+    carla_type: sensor.other.gnss
+    id: gnss
+    ros_config:
+      frame_id: map
+      topic: /sensing/gnss/pose_with_covariance
+      frequency_hz: 2
+      qos_profile: reliable
+    parameters:
+      noise_alt_stddev: 0.0
+      noise_lat_stddev: 0.0
+      noise_lon_stddev: 0.0
+      noise_alt_bias: 0.0
+      noise_lat_bias: 0.0
+      noise_lon_bias: 0.0
+    covariance:
+      position_variance: 0.01
+      orientation_variance: 1.0
+
+normalization:
+  strip_suffixes:
+    - _base_link
+    - _link
+    - /camera_link
+
+enabled_sensors:
+  - CAM_FRONT/camera_link
+  - tamagawa/imu_link
+  - gnss_link
