@@ -96,14 +96,15 @@ namespace visionpilot::models
 
         const int64_t C = shape[1];
         const int64_t N = shape[2];
-        const int num_classes = static_cast<int>(C) - 4;
 
-        if (num_classes <= 0)
+        if (C <= 4)
         {
             printf("[AutoSpeed] Invalid channel count C=%lld\n",
                    static_cast<long long>(C));
             return out;
         }
+        // MISRA 4.1.3 justified: C > 4 is guaranteed by the check above, so C - 4 is in [1, C).
+        const int num_classes = static_cast<int>(C - 4);
 
         // data[c * N + n] gives channel c for anchor n
         const float* data = tensor.GetTensorData<float>();
@@ -111,6 +112,12 @@ namespace visionpilot::models
         std::vector<Detection> candidates;
         candidates.reserve(256);
 
+        // MISRA C++:2023 Rule 4.1.3 (overflow) — justified, not a defect:
+        // Output tensor is [1, C, N], channel-major: element (k, n) is at data[k * N + n],
+        // with 0 <= k < C and 0 <= n < N. The largest index is C * N - 1, which is the
+        // size of the tensor ONNX Runtime allocated, so it always fits in int64_t
+        // (AutoSpeed: C = 8, N = 10752 → max index 86015).
+        // CodeQL cannot bound runtime C/N and reports this as a possible overflow.
         for (int64_t n = 0; n < N; ++n)
         {
             const float cx = data[0 * N + n];
@@ -122,6 +129,12 @@ namespace visionpilot::models
             int best_cls = 0;
             for (int c = 0; c < num_classes; ++c)
             {
+                // MISRA 4.1.3 justified:
+                //  - int  '4 + c':   c < num_classes = C - 4, so 4 + c <= C - 1 (AutoSpeed: <= 7),
+                //                    far below INT_MAX.
+                //  - long '* N' and '+ n': index (4 + c) * N + n <= C * N - 1, the tensor size
+                //                    (see tensor-indexing note above).
+                // MISRA Dir 0.3.1 justified: exp() → +inf gives 1/inf = 0, the correct sigmoid limit.
                 const float prob = 1.f / (1.f + std::exp(-data[(4 + c) * N + n]));
                 if (prob > best_prob)
                 {
@@ -164,8 +177,9 @@ namespace visionpilot::models
     std::vector<Detection> AutoSpeed::nms(
         std::vector<Detection> dets, float iou_thres)
     {
+        // MISRA 15.1.3: [&] instead of [] avoids the implicit function-pointer conversion; nothing is captured.
         std::sort(dets.begin(), dets.end(),
-                  [](const Detection& a, const Detection& b)
+                  [&](const Detection& a, const Detection& b)
                   {
                       return a.score > b.score;
                   });

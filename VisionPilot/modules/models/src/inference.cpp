@@ -5,8 +5,8 @@
 
 #include <opencv2/imgproc.hpp>
 
+#include <algorithm>
 #include <chrono>
-#include <cstring>
 #include <future>
 #include <utility>
 #include <vector>
@@ -33,6 +33,8 @@ namespace visionpilot::models
             std::vector<float> out(CHW_SIZE);
             for (int c = 0; c < 3; ++c)
             {
+                // MISRA 4.1.3 justified: c in [0, 2] (loop bound), so c * NET_H * NET_W <= 2 * 512 * 1024
+                // = 1 048 576, far below INT_MAX. CodeQL loses the loop bound (unreachable-code false positive).
                 float* dst = out.data() + c * NET_H * NET_W;
                 // const float* src = reinterpret_cast<const float*>(ch[c].data);
                 const float* src = ch[static_cast<std::size_t>(c)].ptr<float>(0);
@@ -55,8 +57,11 @@ namespace visionpilot::models
             std::vector<float> out(CHW_SIZE);
             for (int c = 0; c < 3; ++c)
             {
-                std::memcpy(out.data() + c * NET_H * NET_W, ch[static_cast<std::size_t>(c)].data,
-                            static_cast<std::size_t>(NET_H * NET_W) * sizeof(float));
+                // MISRA 4.1.3 justified: c in [0, 2] (loop bound), so c * NET_H * NET_W <= 2 * 512 * 1024
+                // = 1 048 576, far below INT_MAX. CodeQL loses the loop bound (unreachable-code false positive).
+                static_cast<void>(std::copy_n(ch[static_cast<std::size_t>(c)].ptr<float>(0),
+                                NET_H * NET_W,
+                                out.data() + (c * NET_H * NET_W)));
             }
 
             return out;
@@ -119,7 +124,7 @@ namespace visionpilot::models
         H.convertTo(H64, CV_64F);
 
         const int crop_top = compute_top_crop_2_1(raw_size.height, raw_size.width);
-        const double crop_h = static_cast<double>(raw_size.height - crop_top);
+        const double crop_h = static_cast<double>(raw_size.height) - static_cast<double>(crop_top);
         const double sx = static_cast<double>(raw_size.width) / 1024.0;
         const double sy = crop_h / 512.0;
 

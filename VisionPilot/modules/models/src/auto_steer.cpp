@@ -72,14 +72,14 @@ namespace visionpilot::models
         }
 
         // Output 0 — xp [1, 1, 64, 1] → 64 floats
-        std::memcpy(out.xp.data(),
-                    results[0].GetTensorData<float>(),
-                    out.xp.size() * sizeof(float));
+        static_cast<void>(std::copy_n(results[0].GetTensorData<float>(),
+                               out.xp.size(),
+                               out.xp.data()));
 
         // Output 1 — h_vector [1, 1, 64, 1] → 64 floats
-        std::memcpy(out.h_vector.data(),
-                    results[1].GetTensorData<float>(),
-                    out.h_vector.size() * sizeof(float));
+        static_cast<void>(std::copy_n(results[1].GetTensorData<float>(),
+                                out.h_vector.size(),
+                                out.h_vector.data()));
 
         out.valid = true;
         return out;

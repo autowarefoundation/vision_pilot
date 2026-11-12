@@ -8,7 +8,6 @@
 #include <models/auto_speed.hpp>
 #include <opencv2/core.hpp>
 
-#include <cstdint>
 #include <optional>
 #include <string>
 #include <filesystem>
