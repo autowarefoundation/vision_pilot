@@ -9,9 +9,12 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#if defined(ENABLE_WEBRTC)
 #include <visualization/webrtc_stream.hpp>
+#endif
 
 #include <algorithm>
+#include <iostream>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -634,12 +637,19 @@ bool Visualization::stop() const
 
 Visualization::Visualization(Config cfg)
 {
+#if defined(ENABLE_WEBRTC)
   if (cfg.webrtc_on) {
     visual_interface = std::make_unique<WebRTCStreamer>();
     static_cast<WebRTCStreamer *>(visual_interface.get())->init(cfg.webrtc_port);
-  } else {
-    visual_interface = std::make_unique<LocalDisplay>(cfg.show_window);
+    return;
   }
+#else
+  if (cfg.webrtc_on) {
+    std::cerr << "[Visualization] WebRTC requested but VisionPilot was built without "
+                 "WebRTC support; falling back to local display." << std::endl;
+  }
+#endif
+  visual_interface = std::make_unique<LocalDisplay>(cfg.show_window);
 }
 
 cv::Mat Visualization::build_frame(
