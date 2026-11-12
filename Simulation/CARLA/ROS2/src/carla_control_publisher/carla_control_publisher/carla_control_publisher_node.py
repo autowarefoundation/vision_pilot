@@ -4,7 +4,7 @@ from rclpy.node import Node
 import numpy as np
 import math
 import carla
-from ackermann_msgs.msg import AckermannDriveStamped
+from autoware_control_msgs.msg import Control
 from carla_msgs.msg import CarlaEgoVehicleControl
 from std_msgs.msg import Float64
 
@@ -20,7 +20,7 @@ class CarlaControlPublisher(Node):
         self.steering_sub_ = self.create_subscription(Float64, '/vehicle/steering_cmd', self.steering_callback, 1)
         self.throttle_sub_ = self.create_subscription(Float64, '/vehicle/throttle_cmd', self.throttle_callback, 1)
         self.speed_sub_ = self.create_subscription(Float64, '/vehicle/speed', self.speed_callback, 1)
-        self.ackerman_control_pub_ = self.create_publisher(AckermannDriveStamped, "/carla/hero/ackermann_control_cmd", 1)
+        self.control_cmd_pub_ = self.create_publisher(Control, "/control/command/control_cmd", 1)
 
         self.speed = 0.0
         self.v_ref = 30.0
@@ -43,15 +43,30 @@ class CarlaControlPublisher(Node):
     def publish_control(self):
         v = max(0.0, self.speed + self.acceleration * 2.0)
 
-        cmd = AckermannDriveStamped()
-        cmd.header.stamp = self.get_clock().now().to_msg()
-        cmd.header.frame_id = 'hero'
-        cmd.drive.steering_angle = float(self.steering_angle_cmd)  # radians
-        cmd.drive.steering_angle_velocity = 0.0
-        cmd.drive.speed = v
-        cmd.drive.acceleration = self.acceleration
-        cmd.drive.jerk = 10.0
-        self.ackerman_control_pub_.publish(cmd)
+        now = self.get_clock().now().to_msg()
+
+        cmd = Control()
+        cmd.stamp = now
+        cmd.control_time = now
+
+        cmd.lateral.stamp = now
+        cmd.lateral.control_time = now
+        # VisionPilot uses CARLA's convention (positive = right); autoware_control_msgs
+        # uses Autoware's (positive = left). autoware_carla_interface negates again
+        # when applying the actuation cmd, so this flip is required.
+        cmd.lateral.steering_tire_angle = -float(self.steering_angle_cmd)  # radians
+        cmd.lateral.steering_tire_rotation_rate = 0.0
+        cmd.lateral.is_defined_steering_tire_rotation_rate = False
+
+        cmd.longitudinal.stamp = now
+        cmd.longitudinal.control_time = now
+        cmd.longitudinal.velocity = float(v)
+        cmd.longitudinal.acceleration = float(self.acceleration)
+        cmd.longitudinal.jerk = 10.0
+        cmd.longitudinal.is_defined_acceleration = True
+        cmd.longitudinal.is_defined_jerk = True
+
+        self.control_cmd_pub_.publish(cmd)
 
         # self.last_cmd_time = now
 
