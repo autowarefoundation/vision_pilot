@@ -53,7 +53,8 @@ namespace visionpilot::models
         try
         {
             Ort::RunOptions run_options;
-            run_options.AddConfigEntry(kOrtRunOptionsConfigEnableMemoryArenaShrinkage, arena_shrink_.c_str());
+            static_cast<void>(run_options.AddConfigEntry(kOrtRunOptionsConfigEnableMemoryArenaShrinkage,
+                                                         arena_shrink_.c_str()));
             results = session_->Run(
                 run_options,
                 in_names_.data(), &input_tensor, 1,
