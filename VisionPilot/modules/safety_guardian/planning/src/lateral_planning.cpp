@@ -1,6 +1,7 @@
 #include <planning/lateral_planning.hpp>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
+#include <cstddef>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -9,12 +10,12 @@
 using CppAD::AD;
 using Eigen::VectorXd;
 
-size_t N = 20;
+std::size_t N = 20;
 
-size_t cte_start        = 0;
-size_t epsi_start       = cte_start + N;
-size_t kappa_road_start = epsi_start + N;
-size_t delta_start      = kappa_road_start + N;
+std::size_t cte_start        = 0;
+std::size_t epsi_start       = cte_start + N;
+std::size_t kappa_road_start = epsi_start + N;
+std::size_t delta_start      = kappa_road_start + N;
 
 class FG_eval
 {
@@ -46,8 +47,8 @@ public:
         // 1. CURVATURE-AWARE STATE WEIGHTS:
         // On heavy curves, boost CTE tracking weight so staying centered outweighs steering smoothness.
         double max_kappa = 0.0;
-        for (int s = 0; s < (int)N; ++s) {
-            max_kappa = std::max(max_kappa, std::abs(kappa_schedule[s]));
+        for (std::size_t s = 0U; s < N; ++s) {
+            max_kappa = std::max(max_kappa, std::abs(kappa_schedule[static_cast<Eigen::Index>(s)]));
         }
 
         // Scale CTE weight aggressively when previewing sharp curves (> 0.05 /m)
@@ -62,7 +63,7 @@ public:
         const double ddelta_weight = (15000.0 * std::min(v2, 25.0)); // Cap multiplier at 25x (~5 m/s or 18 km/h base)
 
         // State Tracking Cost
-        for (int s = 0; s < (int)N; s++)
+        for (std::size_t s = 0U; s < N; s++)
         {
             AD<double> cte_err = vars[cte_start + s];
             fg[0] += cte_weight * CppAD::pow(cte_err, 2);
@@ -74,9 +75,9 @@ public:
         }
 
         // Steering Effort Cost with Understeer Gradient Compensation
-        for (int s = 0; s < (int)N - 1; s++)
+        for (std::size_t s = 0U; s < N - 1U; s++)
         {
-            double k = kappa_schedule[s];
+            double k = kappa_schedule[static_cast<Eigen::Index>(s)];
             // Feedforward steering = Ackermann angle + Understeer slip angle compensation
             double delta_ff = std::atan(L_ * k) + (K_us * v2 * k);
 
@@ -84,7 +85,7 @@ public:
         }
 
         // Steering Rate / Slew Cost
-        for (int s = 0; s < (int)N - 2; s++)
+        for (std::size_t s = 0U; s < N - 2U; s++)
         {
             fg[0] += ddelta_weight * CppAD::pow(
                 vars[delta_start + s + 1] - vars[delta_start + s], 2);
@@ -96,23 +97,23 @@ public:
         fg[1 + kappa_road_start] = vars[kappa_road_start];
 
         // Kinematic Spatial Model Constraints
-        for (int s = 1; s < (int)N; s++)
+        for (std::size_t s = 1U; s < N; s++)
         {
-            AD<double> cte0   = vars[cte_start + s - 1];
-            AD<double> epsi0  = vars[epsi_start + s - 1];
-            AD<double> delta0 = vars[delta_start + s - 1];
+            AD<double> cte0   = vars[cte_start + s - 1U];
+            AD<double> epsi0  = vars[epsi_start + s - 1U];
+            AD<double> delta0 = vars[delta_start + s - 1U];
 
-            AD<double> kappa_road0 = kappa_schedule[s - 1];
+            AD<double> kappa_road0 = kappa_schedule[static_cast<Eigen::Index>(s - 1U)];
             AD<double> kappa_cmd   = CppAD::tan(delta0) / L_;
 
-            fg[1 + cte_start + s] = vars[cte_start + s]
+            fg[1U + cte_start + s] = vars[cte_start + s]
                 - (cte0 + CppAD::sin(epsi0) * ds_);
 
-            fg[1 + epsi_start + s] = vars[epsi_start + s]
+            fg[1U + epsi_start + s] = vars[epsi_start + s]
                 - (epsi0 + (kappa_cmd - kappa_road0) * ds_);
 
-            fg[1 + kappa_road_start + s] = vars[kappa_road_start + s]
-                - kappa_schedule[s];
+            fg[1U + kappa_road_start + s] = vars[kappa_road_start + s]
+                - kappa_schedule[static_cast<Eigen::Index>(s)];
         }
     }
 };
@@ -150,19 +151,19 @@ std::vector<double> LateralPlanner::compute_steering(const double L,
     const double cte  = cte_raw + std::sin(epsi_raw) * ds;
     const double epsi = epsi_raw + (kappa_cmd_0 - kappa_road) * ds;
 
-    const size_t n_vars        = N * 3 + (N - 1);
-    const size_t n_constraints = N * 3;
+    const std::size_t n_vars        = N * 3 + (N - 1);
+    const std::size_t n_constraints = N * 3;
 
     Dvector vars(n_vars);
 
     // Warm-start spatial trajectory
     double current_cte  = cte;
     double current_epsi = epsi;
-    for (size_t i = 0; i < N; ++i)
+    for (std::size_t i = 0; i < N; ++i)
     {
         vars[cte_start + i]        = current_cte;
         vars[epsi_start + i]       = current_epsi;
-        vars[kappa_road_start + i] = kappa_schedule[i];
+        vars[kappa_road_start + i] = kappa_schedule[static_cast<Eigen::Index>(i)];
 
         current_cte += std::sin(current_epsi) * ds;
     }
@@ -170,29 +171,32 @@ std::vector<double> LateralPlanner::compute_steering(const double L,
     // Warm-start steering at feedforward angles + understeer offset
     constexpr double K_us = 0.0015;
     const double v2 = v_curr * v_curr;
-    for (size_t i = 0; i < N - 1; ++i)
+    for (std::size_t i = 0; i < N - 1; ++i)
     {
-        double k = kappa_schedule[i];
+        double k = kappa_schedule[static_cast<Eigen::Index>(i)];
         double delta_ff = std::atan(L * k) + (K_us * v2 * k);
         vars[delta_start + i] = delta_ff;
     }
 
     Dvector vars_lb(n_vars), vars_ub(n_vars);
-    for (int i = 0; i < (int)delta_start; i++)
+    for (std::size_t i = 0U; i < delta_start; i++)
     {
         vars_lb[i] = -1.0e19;
         vars_ub[i] =  1.0e19;
     }
 
     // Physical steering limits (rad)
-    for (int i = delta_start; i < (int)n_vars; i++)
+    for (std::size_t i = delta_start; i < n_vars; i++)
     {
         vars_lb[i] = -0.442; // ~23 degrees wheel angle
         vars_ub[i] =  0.442;
     }
 
     Dvector con_lb(n_constraints), con_ub(n_constraints);
-    for (int i = 0; i < (int)n_constraints; i++) con_lb[i] = con_ub[i] = 0.0;
+    for (std::size_t i = 0U; i < n_constraints; i++)
+    {
+        con_lb[i] = con_ub[i] = 0.0;
+    }
     con_lb[cte_start]        = con_ub[cte_start]        = cte;
     con_lb[epsi_start]       = con_ub[epsi_start]       = epsi;
     con_lb[kappa_road_start] = con_ub[kappa_road_start] = kappa_road;
@@ -213,7 +217,7 @@ std::vector<double> LateralPlanner::compute_steering(const double L,
         fg_eval, solution);
 
     std::vector<double> result;
-    for (int i = 0; i < (int)N - 1; i++)
+    for (std::size_t i = 0U; i < N - 1U; i++)
     {
         result.push_back(solution.x[delta_start + i]);
     }

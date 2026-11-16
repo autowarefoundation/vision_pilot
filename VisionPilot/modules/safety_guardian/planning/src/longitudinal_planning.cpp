@@ -2,8 +2,6 @@
 #include <cmath>
 #include <algorithm>
 
-double dt = 0.05;
-
 LongitudinalPlanner::LongitudinalPlanner(const Config& config)
     : config_(config) {}
 

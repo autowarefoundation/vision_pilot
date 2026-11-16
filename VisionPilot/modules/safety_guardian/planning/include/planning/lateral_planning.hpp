@@ -5,7 +5,7 @@
 #include <Eigen/Core>
 
 // ── Horizon parameters ───────────────────────────────────────────────────────
-extern size_t N;
+extern std::size_t N;
 
 class LateralPlanner {
 public:

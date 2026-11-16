@@ -5,6 +5,9 @@
 // Spatial step size matching the spatial Lateral MPC horizon step (meters)
 constexpr double DS = 0.5;
 
+// 50Hz control period — used by planning.cpp
+constexpr double dt = 0.05;
+
 Planner::Planner(const double speed_limit, const double Lf)
     : L_(Lf)
       , longitudinal_planner([&]
@@ -55,9 +58,9 @@ Plan Planner::compute_plan(
     {
         double v_plan = ego_v;
         double cipo_plan = cipo_distance;
-        for (int i = 0; i < (int)N; i++)
+        for (std::size_t i = 0U; i < N; i++)
         {
-            v_schedule[i] = v_plan;
+            v_schedule[static_cast<Eigen::Index>(i)] = v_plan;
             double a_plan = longitudinal_planner.compute_acceleration(kappa, v_plan, has_cipo, cipo_v, cipo_plan);
             if (has_cipo)
                 cipo_plan = std::max(0.5, cipo_plan + (cipo_v - v_plan) * dt);
@@ -79,13 +82,13 @@ Plan Planner::compute_plan(
         const double c3 = dkappa_ds / 6.0;
         double x = 0.0; // Spatial distance along path-tangent (meters)
 
-        for (int i = 0; i < (int)N; i++)
+        for (std::size_t i = 0U; i < N; i++)
         {
             double yp  = c1 + 2.0 * c2 * x + 3.0 * c3 * x * x; // Spatial slope y'(x)
             double ypp = 2.0 * c2 + 6.0 * c3 * x;             // Spatial curvature y''(x)
 
             double k = ypp / std::pow(1.0 + yp * yp, 1.5);
-            kappa_schedule[i] = std::max(-KAPPA_MAX, std::min(KAPPA_MAX, k));
+            kappa_schedule[static_cast<Eigen::Index>(i)] = std::max(-KAPPA_MAX, std::min(KAPPA_MAX, k));
 
             x += DS; // Advance by fixed spatial increment DS (meters)
         }
@@ -109,6 +112,10 @@ Plan Planner::compute_plan(
     {
         warnings.push_back(Warning::RLDW);
     }
+    else
+    {
+        // No LLDW / RLDW lane departure warning: |cte| <= 0.5
+    }
 
     // FCW / AEB
     if (-5.0 <= acceleration && acceleration <= -3.0)
@@ -118,6 +125,10 @@ Plan Planner::compute_plan(
     else if (acceleration < -5.0)
     {
         warnings.push_back(Warning::AEB);
+    }
+    else
+    {
+        // No FCW/AEB warning: acceleration > -3.0 (or NaN)
     }
 
     return {acceleration, steering, warnings};
