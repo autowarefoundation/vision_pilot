@@ -2,7 +2,10 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <planning/config.hpp>
 #include <planning/longitudinal_planning.hpp>
+
+using namespace planning;
 
 struct Scenario {
     std::string name;
