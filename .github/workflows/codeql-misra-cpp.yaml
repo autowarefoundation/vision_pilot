@@ -105,6 +105,14 @@ jobs:
             --threads=0
         shell: bash
 
+      # CodeQL writes the SARIF as a single line; indent it so the artifact is readable
+      - name: Format SARIF
+        run: |
+          sarif="${RUNNER_TEMP}/codeql-result/misra-cpp-2023.sarif"
+          python3 -m json.tool --indent 2 --no-ensure-ascii "${sarif}" "${sarif}.tmp"
+          mv "${sarif}.tmp" "${sarif}"
+        shell: bash
+
       - name: Summarize results
         run: |
           python3 - "${RUNNER_TEMP}/codeql-result/misra-cpp-2023.sarif" >> "${GITHUB_STEP_SUMMARY}" <<'EOF'
