@@ -109,7 +109,7 @@ int main(int argc, char** argv)
     cfg.inference.long_fusion.radar_hfov_deg = cfg.radar_hfov_deg;
 #endif
     vm::InferencePipeline pipeline(engine, cfg.inference);
-    Planner planner(cfg.speed_limit, cfg.L);
+    planning::Planner planner(cfg.speed_limit, cfg.L);
     if (cfg.rrd_on) logging::Rerun::init(cfg.rrd_log);
 
     // ── Initialize camera interface ───────────────────────────────────────────

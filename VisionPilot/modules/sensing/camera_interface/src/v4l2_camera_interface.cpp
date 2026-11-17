@@ -77,7 +77,7 @@ namespace camera_interface
                 stats.current_fps = actual_fps;
 
                 log_info("V4L2 device configured successfully");
-                log_info("  Received sesolution: " +
+                log_info("  Received resolution: " +
                     std::to_string(static_cast<int>(actual_width)) + "x" +
                     std::to_string(static_cast<int>(actual_height)));
                 log_info("  Received FPS: " + std::to_string(actual_fps));

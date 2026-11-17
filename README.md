@@ -36,10 +36,10 @@
 called Vision Pilot.**
 
 Vision Pilot is designed to be integrated with automotive OEMs and Tier-1 suppliers in series production passenger cars,
-and the system can optionally be adopted for transportation and logisitcs use-cases in buses and trucks.
+and the system can optionally be adopted for transportation and logistics use-cases in buses and trucks.
 
 We offer the complete codebase as free and fully open-source, including AI model weights to help democratize access to
-this vital technology. Vision Pilot is available under the persmissive Apache 2.0 licence and can freely be used for
+this vital technology. Vision Pilot is available under the permissive Apache 2.0 license and can freely be used for
 both commercial and research purposes.
 
 
@@ -115,7 +115,7 @@ Build the project:
   cmake -DONNXRUNTIME_ROOT=<ONNX_RUNTIME_ROOT_PATH> ../
 ```
 
-or with ROS2 support
+or with ROS 2 support
 
 ```bash
   cmake -DONNXRUNTIME_ROOT=<ONNX_RUNTIME_ROOT_PATH> -DENABLE_ROS2_INTERFACE=ON ../
@@ -192,7 +192,7 @@ To build Debian DEB package for VisionPilot with CPU support build VisionPilot w
 </details>
 
 <details>
-<summary><b>Option 2 - Use the pre-built Debian pacakge</b></summary>
+<summary><b>Option 2 - Use the pre-built Debian package</b></summary>
 
 ### Install from the pre-built Debian package
 
@@ -256,11 +256,11 @@ VisionPilot
 
 To run Vision Pilot inside a Docker container, build the container using the Dockerfiles provided in the docker
 directory of the repository.
-Docker containers can be built with GPU/CPU support, NO_ROS2/ROS2 support, and optional Occupancy BEV support.
+Docker containers can be built with GPU/CPU support, NO_ROS2/ROS 2 support, and optional Occupancy BEV support.
 
 To build the container, go to the docker subdirectory and run the following commands:
 
-Default is GPU support NO ROS2 support
+Default is GPU support NO ROS 2 support
 
 ```bash
   ./build.sh --gpu --ros2 
@@ -284,7 +284,7 @@ To run the container use the `run.sh` script. For example to run the container w
   ./run.sh --cpu
 ```
 
-or with GPU support and ROS2 support
+or with GPU support and ROS 2 support
 
 ```bash
   ./run.sh --gpu --ros2
@@ -356,7 +356,7 @@ specific directory path.
   bash CarlaUE4.sh -nosound                 # Run the CARLA startup script with -nosound flag
 ```
 
-To run with ROS2 native interface, add `--ros2` at the end
+To run with ROS 2 native interface, add `--ros2` at the end
 
 #### Update VisionPilot config
 
@@ -366,7 +366,7 @@ Update `vision_pilot.conf` set `source.mode`
  source.mode = ros2 
 ```
 
-and also `vision_pilot_ros2.conf` set `ource.input_camera_topic`
+and also `vision_pilot_ros2.conf` set `source.input_camera_topic`
 
 ```bash
   source.input_camera_topic = /carla/hero/main_cam/image
@@ -374,7 +374,7 @@ and also `vision_pilot_ros2.conf` set `ource.input_camera_topic`
 
 #### Build VisionPilot
 
-Build VisionPilot with ROS2 support
+Build VisionPilot with ROS 2 support
 
 ```bash
   cmake -DONNXRUNTIME_ROOT=<ONNX_RUNTIME_ROOT_PATH> -DENABLE_ROS2_INTERFACE=ON ../
@@ -382,7 +382,7 @@ Build VisionPilot with ROS2 support
 
 #### Build CARLA bridge
 
-Go to Simulation/CARLA/ROS2 directory and build the CARLA ROS2 bridge
+Go to Simulation/CARLA/ROS2 directory and build the CARLA ROS 2 bridge
 
 ```bash
   colcon build
@@ -416,7 +416,7 @@ Go to VisionPilot build directory and run the VisionPilot
 
 ## Running Vision Pilot with your own camera
 
-In order to run Vision Pilot with your own camera, you will need to calibrate your camera and provide the calibraiton
+In order to run Vision Pilot with your own camera, you will need to calibrate your camera and provide the calibration
 information to the Vision Pilot app - this is important for Vision Pilot to accurately measure the shape of the road and
 the distance to objects.
 
@@ -424,7 +424,7 @@ the distance to objects.
 
 Please follow the steps in the [calibration guide](/Calibration/) and save the calibration yaml file in
 the [Vision Pilot config folder](/VisionPilot/config/) and overwrite the data of
-the [H.yaml](/VisionPilot/config/H.yaml) file with your calibraiton file parameters - we suggest you retain a copy of
+the [H.yaml](/VisionPilot/config/H.yaml) file with your calibration file parameters - we suggest you retain a copy of
 the original H.yaml parameters so that you can run Vision Pilot on our example data.
 
 ## Roadmap
