@@ -1,0 +1,151 @@
+# Report-only MISRA C++ 2023 analysis of VisionPilot with CodeQL Coding Standards.
+# Results are uploaded to GitHub Code Scanning (category "misra-cpp-2023") and as an artifact;
+# findings never fail the job. This use (CodeQL in Actions + Code Scanning) is compatible with,
+# but not certified under, the Coding Standards ISO 26262 tool qualification.
+name: codeql-misra-cpp
+
+on:
+  schedule:
+    - cron: 0 18 * * 0 # weekly, Monday 03:00 JST
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+env:
+  # Keep these two in sync: see supported_codeql_configs.json at the Coding Standards tag.
+  CODING_STANDARDS_VERSION: v2.63.0
+  CODEQL_CLI_VERSION: 2.23.9
+  ONNXRUNTIME_ROOT: /opt/onnxruntime
+
+jobs:
+  codeql-misra-cpp:
+    # Same environment as build-vision-pilot (Ubuntu 24.04 + ROS 2 Jazzy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-vision-pilot-deps
+        with:
+          onnxruntime-root: ${{ env.ONNXRUNTIME_ROOT }}
+          enable-ros2: true
+          extra-packages: unzip
+
+      - name: Restore CodeQL CLI and Coding Standards packs
+        id: cache-codeql
+        uses: actions/cache@v4
+        with:
+          path: ~/codeql-cs
+          key: codeql-cs-${{ env.CODEQL_CLI_VERSION }}-${{ env.CODING_STANDARDS_VERSION }}
+
+      - name: Download CodeQL CLI and Coding Standards packs
+        if: ${{ steps.cache-codeql.outputs.cache-hit != 'true' }}
+        run: |
+          mkdir -p ~/codeql-cs/dl ~/codeql-cs/qlpacks/misra && cd ~/codeql-cs/dl
+          bundle_url="https://github.com/github/codeql-action/releases/download/codeql-bundle-v${CODEQL_CLI_VERSION}"
+          cs_url="https://github.com/github/codeql-coding-standards/releases/download/${CODING_STANDARDS_VERSION}"
+          wget -q "${bundle_url}/codeql-bundle-linux64.tar.gz" "${bundle_url}/codeql-bundle-linux64.tar.gz.checksum.txt"
+          wget -q "${cs_url}/coding-standards-codeql-packs.zip" "${cs_url}/checksums.txt"
+          echo "$(awk '{print $1}' codeql-bundle-linux64.tar.gz.checksum.txt)  codeql-bundle-linux64.tar.gz" | sha256sum -c
+          sha256sum -c --ignore-missing checksums.txt
+          tar -xzf codeql-bundle-linux64.tar.gz -C ~/codeql-cs
+          unzip -q coding-standards-codeql-packs.zip -d packs
+          tar -xzf packs/misra-cpp-coding-standards.tgz -C ~/codeql-cs/qlpacks/misra
+          cd ~ && rm -rf ~/codeql-cs/dl
+        shell: bash
+
+      - name: Check CodeQL version
+        run: ~/codeql-cs/codeql/codeql version | head -1
+        shell: bash
+
+      - name: Configure
+        run: |
+          . /opt/ros/jazzy/setup.bash
+          # Eigen is fetched from gitlab.com, which intermittently rejects requests under load.
+          # FETCHCONTENT_BASE_DIR keeps fetched sources outside the source root, so third-party
+          # code (Eigen) is not reported as VisionPilot findings.
+          for attempt in 1 2 3; do
+            rm -rf VisionPilot/build "${RUNNER_TEMP}/fetchcontent"
+            cmake -S VisionPilot -B VisionPilot/build \
+              -DFETCHCONTENT_BASE_DIR="${RUNNER_TEMP}/fetchcontent" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DONNXRUNTIME_ROOT="${ONNXRUNTIME_ROOT}" \
+              -DGPU=OFF \
+              -DENABLE_ROS2_INTERFACE=ON \
+              -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib" && break
+            [ "${attempt}" -eq 3 ] && exit 1
+            sleep 60
+          done
+        shell: bash
+
+      - name: Create CodeQL database (traced clean build)
+        run: |
+          . /opt/ros/jazzy/setup.bash
+          ~/codeql-cs/codeql/codeql database create "${RUNNER_TEMP}/codeql-db" --language=cpp \
+            --source-root=. --threads=0 \
+            --command="cmake --build VisionPilot/build --target VisionPilot -j$(nproc)"
+        shell: bash
+
+      - name: Analyze (MISRA C++ 2023)
+        run: |
+          mkdir -p "${RUNNER_TEMP}/codeql-result"
+          ~/codeql-cs/codeql/codeql database analyze "${RUNNER_TEMP}/codeql-db" .github/codeql/misra-cpp-2023.qls \
+            --additional-packs="${HOME}/codeql-cs/qlpacks" \
+            --format=sarifv2.1.0 --sarif-category=misra-cpp-2023 \
+            --output="${RUNNER_TEMP}/codeql-result/misra-cpp-2023.sarif" \
+            --threads=0
+        shell: bash
+
+      - name: Summarize results
+        run: |
+          python3 - "${RUNNER_TEMP}/codeql-result/misra-cpp-2023.sarif" >> "${GITHUB_STEP_SUMMARY}" <<'EOF'
+          import collections, json, sys
+          run = json.load(open(sys.argv[1]))["runs"][0]
+          meta = {}
+          for comp in [run["tool"]["driver"]] + run["tool"].get("extensions", []):
+              for r in comp.get("rules", []):
+                  tags = r.get("properties", {}).get("tags", [])
+                  rid = next((t.split("/")[-1].upper() for t in tags if t.startswith("external/misra/id/")), r["id"])
+                  obl = next((t.split("/")[-1] for t in tags if t.startswith("external/misra/obligation/")), "")
+                  meta[r["id"]] = (rid, obl, r.get("shortDescription", {}).get("text", ""))
+          by_rule, by_obl = collections.Counter(), collections.Counter()
+          for res in run.get("results", []):
+              rid, obl, _ = meta.get(res["ruleId"], (res["ruleId"], "", ""))
+              by_rule[rid] += 1
+              by_obl[obl or "unknown"] += 1
+          # Several queries can implement one rule; their titles are query-specific
+          names, queries = {}, collections.Counter(m[0] for m in meta.values())
+          for rid, obl, title in meta.values():
+              names[rid] = (obl, title if queries[rid] == 1 else f"({queries[rid]} queries)")
+          print("## MISRA C++ 2023 (report-only)\n")
+          print(f"**{sum(by_rule.values())}** findings, **{len(by_rule)}** rules violated "
+                f"({', '.join(f'{k}: {v}' for k, v in sorted(by_obl.items()))}).\n")
+          print("| Rule | Obligation | Findings | Title |\n|---|---|---|---|")
+          for rid, n in by_rule.most_common(25):
+              obl, title = names.get(rid, ("", ""))
+              print(f"| {rid} | {obl} | {n} | {title.split(': ', 1)[-1]} |")
+          EOF
+        shell: bash
+
+      - name: Upload SARIF to Code Scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ runner.temp }}/codeql-result/misra-cpp-2023.sarif
+          category: misra-cpp-2023
+
+      - name: Upload SARIF artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-misra-cpp-2023
+          path: ${{ runner.temp }}/codeql-result/
+          if-no-files-found: ignore
