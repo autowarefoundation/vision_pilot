@@ -2,6 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <planning/config.hpp>
 #include <planning/planning.hpp>
 #include <opencv2/opencv.hpp>
 
@@ -33,6 +34,7 @@ static const double VEHICLE_LENGTH   = 4.5;
 static const double SPEED_LIMIT = 16.666; // m/s
 static const double Lf = 2.67;            // Front axle to CoG (m). Wheelbase L = Lf + Lr
 
+using namespace planning;
 
 cv::Point world2canvas(double x, double y) {
     return cv::Point(
