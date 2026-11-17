@@ -3,6 +3,7 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <planning/config.hpp>
 #include <planning/longitudinal_planning.hpp>
 #include <planning/mpc.hpp>
 #include <opencv2/opencv.hpp>
@@ -32,6 +33,8 @@ static const cv::Scalar COL_PRED       (  0, 200,   0);   // green
 static const cv::Scalar COL_CURRENT_ARC( 80,  80, 255);   // red
 static const cv::Scalar COL_VEHICLE    (255, 255, 255);   // white
 static const cv::Scalar COL_TEXT       (220, 220, 220);
+
+using namespace planning;
 
 // ---------------------------------------------------------------------------
 // world2canvas — camera-relative so vehicle stays centred
