@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
-    Planner planner(cfg.speed_limit, cfg.L);
+    planning::Planner planner(cfg.speed_limit, cfg.L);
     if (cfg.rrd_on) logging::Rerun::init(cfg.rrd_log);
 
     // ── Initialize camera interface ───────────────────────────────────────────
