@@ -15,7 +15,10 @@ namespace visualization
 
     LocalDisplay::~LocalDisplay()
     {
-        cv::destroyAllWindows();
+        if (show_window_)
+        {
+            cv::destroyAllWindows();
+        }
     }
 
     void LocalDisplay::set_aux_frame(const cv::Mat& aux)
@@ -103,7 +106,10 @@ namespace visualization
 
     bool LocalDisplay::stop()
     {
-        cv::destroyAllWindows();
+        if (show_window_)
+        {
+            cv::destroyAllWindows();
+        }
         aux_window_ready_ = false;
         layout_done_ = false;
         return true;
