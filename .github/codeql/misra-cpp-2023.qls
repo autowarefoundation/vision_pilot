@@ -1,0 +1,18 @@
+# MISRA C++ 2023 default suite from CodeQL Coding Standards, minus RULE-8-7-1.
+#
+# cpp/misra/pointer-arithmetic-forms-an-invalid-pointer did not terminate on VisionPilot
+# (Coding Standards v2.62.0 / CodeQL CLI 2.21.4: >35M iterations, ~70 min, no convergence).
+# Its sister query for Rule 8.7.1 (pointer-argument-to-cstring-function-is-invalid) is kept.
+# Remove the last exclude block to retry it on a newer release.
+- description: MISRA C++ 2023 (Default) without the RULE-8-7-1 pointer arithmetic query
+- qlpack: codeql/misra-cpp-coding-standards
+- include:
+    kind:
+      - problem
+      - path-problem
+- exclude:
+    tags contain:
+      - external/misra/audit
+      - external/misra/default-disabled
+- exclude:
+    id: cpp/misra/pointer-arithmetic-forms-an-invalid-pointer
