@@ -64,7 +64,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
     // reset the particle filter so we start fresh when a target reappears.
     if (!ad_cipo_confirmed && !autospeed_cipo_confirmed) {
         if (initialised_) {
-            VP_INFO("[Fusion] No CIPO confirmed (AD=%.0f%%  AS=none) — reset to %.0f m",
+            logging::info("[Fusion] No CIPO confirmed (AD=%.0f%%  AS=none) — reset to %.0f m",
                     autodrive.valid ? autodrive.flag_prob * 100.f : 0.f, D_MAX);
             reset();
         }
@@ -105,12 +105,12 @@ CIPOFusionEstimate LongitudinalFusion::update(
 
         if (cipo_raw.valid &&
             std::abs(cipo_raw.distance_m - cloud_mean) > gate) {
-            VP_INFO("[Fusion] Target change — reinit %.1f→%.1f m (CIPO)  gate=%.1f",
+            logging::info("[Fusion] Target change — reinit %.1f→%.1f m (CIPO)  gate=%.1f",
                     cloud_mean, cipo_raw.distance_m, gate);
             init_from(cipo_raw.distance_m, cfg_.cipo_noise_m);
         } else if (ad_meas.valid &&
                    (ad_meas.distance_m - cloud_mean) > gate) {
-            VP_INFO("[Fusion] Cut-out — reinit %.1f→%.1f m (AD)  gate=%.1f",
+            logging::info("[Fusion] Cut-out — reinit %.1f→%.1f m (AD)  gate=%.1f",
                     cloud_mean, ad_meas.distance_m, gate);
             init_from(ad_meas.distance_m, ad_meas.stddev_m);
         }
@@ -157,7 +157,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
         else
             std::snprintf(cr_buf, sizeof(cr_buf), "(none)");
 
-        VP_INFO("[Fusion] AD=%s | CIPO=%s%s | Fused=%.1f m  v=%.2f m/s  ±%.1f m",
+        logging::info("[Fusion] AD=%s | CIPO=%s%s | Fused=%.1f m  v=%.2f m/s  ±%.1f m",
                 ad_buf, cr_buf,
                 est.cut_in_detected ? " [CUT-IN]" : "",
                 est.distance_m, est.velocity_ms, est.distance_stddev_m);
@@ -191,7 +191,7 @@ LongitudinalFusion::select_cipo(const std::vector<models::Detection>& dets) cons
         const float cx   = (d.x1 + d.x2) * 0.5f;
         const float dist = project_dist(H_, cx, d.y2);
         if (cfg_.debug) {
-            VP_INFO("[CIPO-DBG] cls=%d  bbox=(%.0f,%.0f,%.0f,%.0f)  bottom-center=(%.0f,%.0f) → %.1f m",
+            logging::info("[CIPO-DBG] cls=%d  bbox=(%.0f,%.0f,%.0f,%.0f)  bottom-center=(%.0f,%.0f) → %.1f m",
                     d.class_id, d.x1, d.y1, d.x2, d.y2, cx, d.y2, dist);
         }
         if (d.class_id == 1 && dist < best_l1) best_l1 = dist;
