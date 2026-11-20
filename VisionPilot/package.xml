@@ -9,6 +9,8 @@
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>git</buildtool_depend>
+  <buildtool_depend>pkg-config</buildtool_depend>
 
   <!-- Core ROS2 dependencies -->
   <depend>rclcpp</depend>
@@ -18,6 +20,18 @@
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
   <depend>libopencv-dev</depend>
+
+  <!-- Other dependencies -->
+  <depend>onnxruntime_vendor</depend>
+  <depend>coinor-libipopt-dev</depend>
+  <depend>cppad</depend>
+  <depend>boost</depend>
+  <depend>libgstreamer1.0-dev</depend>
+  <depend>libgstreamer-plugins-base1.0-dev</depend>
+  <depend>libgstreamer-plugins-bad1.0-dev</depend>
+  <build_depend>nlohmann-json-dev</build_depend>
+  <build_depend>python3-numpy</build_depend>
+  <build_depend>python3-opencv</build_depend>
 
   <!-- Testing dependencies -->
   <test_depend>ament_cmake_gtest</test_depend>

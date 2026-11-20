@@ -37,6 +37,15 @@ target_include_directories(planning
         ${IPOPT_INCLUDE_DIRS}
 )
 
+# CppAD includes <coin-or/IpIpoptApplication.hpp>, but Ubuntu 24.04 installs the Ipopt headers in coin/.
+find_path(IPOPT_COIN_OR_INCLUDE_DIR coin-or/IpIpoptApplication.hpp)
+if(NOT IPOPT_COIN_OR_INCLUDE_DIR)
+    find_path(IPOPT_HEADER_DIR IpIpoptApplication.hpp HINTS ${IPOPT_INCLUDE_DIRS} REQUIRED)
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ipopt_include)
+    file(CREATE_LINK ${IPOPT_HEADER_DIR} ${CMAKE_CURRENT_BINARY_DIR}/ipopt_include/coin-or SYMBOLIC)
+    target_include_directories(planning PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ipopt_include)
+endif()
+
 target_compile_definitions(planning
         PRIVATE
         HAVE_CSTDDEF
