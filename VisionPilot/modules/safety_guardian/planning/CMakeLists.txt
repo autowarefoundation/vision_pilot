@@ -42,10 +42,30 @@ target_compile_definitions(planning
         HAVE_CSTDDEF
 )
 
+find_library(
+        CPPAD_LIBRARY
+        NAMES cppad_lib
+        REQUIRED
+)
+
+get_filename_component(
+        CPPAD_LIBRARY_DIR
+        "${CPPAD_LIBRARY}"
+        DIRECTORY
+)
+
+set(
+        CPPAD_LIBRARY_DIR
+        "${CPPAD_LIBRARY_DIR}"
+        CACHE PATH
+        "Directory containing the CppAD runtime library"
+)
+
 target_link_libraries(planning
         PUBLIC
         common
         Eigen3::Eigen
         PRIVATE
         ${IPOPT_LIBRARIES}
+        ${CPPAD_LIBRARY}
 )
