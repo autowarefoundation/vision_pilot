@@ -593,18 +593,6 @@ namespace logging
                 }
             }
 
-            /// "[<seconds>.<microseconds>] ", like dmesg; seconds since boot on Linux.
-            void appendTimestamp(std::uint64_t const nanoseconds) noexcept
-            {
-                constexpr std::uint64_t kNanosPerSecond{1000000000U};
-                constexpr std::uint64_t kNanosPerMicro{1000U};
-                appendChar('[');
-                appendUnsigned(nanoseconds / kNanosPerSecond);
-                appendChar('.');
-                appendUnsigned((nanoseconds % kNanosPerSecond) / kNanosPerMicro, static_cast<std::size_t>(6U));
-                appendLiteral("] ");
-            }
-
             void finish() noexcept
             {
                 buffer_[length_] = '\n';
@@ -754,11 +742,10 @@ namespace logging
             }
         }
 
-        /// Output format:  [<sec>.<usec>] <LEVEL> <message with placeholders substituted>\n
+        /// Output format:  <LEVEL> <message with placeholders substituted>\n
         inline void formatLine(LineSpec const& spec, LineBuilder& line) noexcept
         {
             line.reset();
-            line.appendTimestamp(spec.timestamp);
             appendLevel(line, spec.level);
             line.appendChar(' ');
 

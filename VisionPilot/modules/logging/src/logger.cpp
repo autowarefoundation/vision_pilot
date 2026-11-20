@@ -208,7 +208,6 @@ namespace logging
         if (total != reportedDrops_)
         {
             line_.reset();
-            line_.appendTimestamp(detail::monotonicNanoseconds());
             detail::appendLevel(line_, LogLevel::Warn);
             line_.appendLiteral(" logger: ");
             line_.appendUnsigned(static_cast<std::uint64_t>(total - reportedDrops_));
