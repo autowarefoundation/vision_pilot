@@ -1,222 +1,310 @@
+// =============================================================================
+// Logger.cpp - logger implementation: singleton, background thread, sync
+// writes, batching, plus the platform section (Linux / QNX).
+//
+// All OS calls (write, pthread) are confined to the section marked
+// "PLATFORM SECTION" at the end of this file, so the MISRA analysis can
+// treat it as platform glue; everything above it is portable ISO C++17.
+// =============================================================================
 #include <logging/logger.hpp>
 
-#include <models/inference.hpp>
-#include <common/types.hpp>
-
-#include <opencv2/core.hpp>
+#include <pthread.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <algorithm>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <vector>
+#include <cerrno>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <thread>
 
-#ifdef ENABLE_RERUN
-#include <rerun.hpp>
-#endif
+namespace logging
+{
+    namespace
+    {
+        /// Records written per lock hold by the background thread, so a sync caller
+        /// never waits behind more than one chunk.
+        constexpr std::size_t kDrainChunk{1024U};
 
-namespace logging {
+        /// How often a sync call yields while waiting for a record that another
+        /// thread has claimed but not yet finished writing (normally nanoseconds).
+        constexpr std::size_t kSyncWaitYields{1000U};
 
-#ifdef ENABLE_RERUN
+        /// Background thread sleep when the queue is empty: upper bound on how long
+        /// an async line waits before it is written.
+        constexpr std::chrono::milliseconds kIdleSleep{1};
+    } // namespace
 
-namespace {
+    // MISRA C++:2023 deviation DEV-LOG-001 - Rule 6.7.1 (Required)
+    // Local variable with static storage duration: Logger::instance()::s_instance.
+    // Justification: the process-wide logger is a function-local static so that
+    //  * it is created on first use, also when used during static initialisation
+    //    of other translation units (no initialisation-order dependency);
+    //  * its initialisation is thread-safe ([stmt.dcl]/4);
+    //  * it is destroyed, after flushing, at normal program exit.
+    // Alternatives rejected: a namespace-scope or static-member object violates
+    // Rule 6.7.2 and has unspecified cross-TU initialisation order; allocating it
+    // with new violates Rule 21.6.1/21.6.2 and is never flushed at exit.
+    // Scope: this object only.
+    Logger& Logger::instance() noexcept
+    {
+        static Logger s_instance{};
+        return s_instance;
+    }
 
-std::mutex                              g_mutex;
-std::unique_ptr<rerun::RecordingStream> g_rec;
+    Logger::Logger() noexcept
+        : enqueuePosition_{0U}, dropped_{0U}, orderTimeouts_{0U},
+          minimumLevel_{static_cast<std::uint8_t>(LogLevel::Info)}, modes_{}, stopRequested_{false},
+          lock_{}, dequeuePosition_{0U}, reportedDrops_{0U}, line_{}, batch_{}, batchLength_{0U},
+          console_{}, sink_{&console_}, worker_{}
+    {
+        std::size_t index{0U};
+        for (Slot& slot : slots_)
+        {
+            slot.sequence.store(index, std::memory_order_relaxed);
+            ++index;
+        }
+        modes_[static_cast<std::size_t>(LogLevel::Info)].store(static_cast<std::uint8_t>(Mode::Async),
+                                                               std::memory_order_relaxed);
+        modes_[static_cast<std::size_t>(LogLevel::Warn)].store(static_cast<std::uint8_t>(Mode::Async),
+                                                               std::memory_order_relaxed);
+        modes_[static_cast<std::size_t>(LogLevel::Error)].store(static_cast<std::uint8_t>(Mode::Sync),
+                                                                std::memory_order_relaxed);
+        // Starting a thread synchronises with it, so everything above is visible.
+        worker_ = std::thread{[this]() noexcept { backgroundLoop(); }};
+    }
 
-// AutoSteer / AutoSpeed run on 1024×512 cropped frame.
-constexpr int NET_W = 1024;
-constexpr int NET_H = 512;
+    Logger::~Logger()
+    {
+        stopRequested_.store(true, std::memory_order_release);
+        if (worker_.joinable())
+        {
+            worker_.join();
+        }
+        detail::LockGuard const guard{lock_};
+        static_cast<void>(drainLocked(kQueueCapacity));
+        flushBatchLocked();
+    }
 
-// Log an OpenCV image inplace.
-// Colour conversion or encoding is needed as long as the Mat is contiguous.
-// A non-contiguous Mat (rare here) is made contiguous into `scratch` first.
-void log_image_inplace(const char* entity, const cv::Mat& im, cv::Mat& scratch) {
-	if (im.empty()) return;
-	const cv::Mat& m = im.isContinuous() ? im : (scratch = im.clone());
-	const rerun::WidthHeight res(static_cast<uint32_t>(m.cols), static_cast<uint32_t>(m.rows));
-	switch (m.channels()) {
-		case 3: g_rec->log(entity, rerun::Image(m.data, res, rerun::ColorModel::BGR));  break;
-		case 4: g_rec->log(entity, rerun::Image(m.data, res, rerun::ColorModel::BGRA)); break;
-		case 1: g_rec->log(entity, rerun::Image(m.data, res, rerun::ColorModel::L));    break;
-		default: break;  // unsupported channel count — skip
-	}
-}
+    void Logger::setSink(LogSink& sink) noexcept
+    {
+        detail::LockGuard const guard{lock_};
+        static_cast<void>(drainLocked(kQueueCapacity)); // queued records go to the old sink
+        flushBatchLocked();
+        sink_ = &sink;
+    }
 
-inline void log_scalar(const char* entity, double value) {
-	g_rec->log(entity, rerun::Scalars(value));
-}
+    void Logger::resetSink() noexcept
+    {
+        setSink(console_);
+    }
 
-// Per-section loggers (composed by Rerun::log_frame)
+    void Logger::flush() noexcept
+    {
+        detail::LockGuard const guard{lock_};
+        static_cast<void>(drainLocked(kQueueCapacity));
+        flushBatchLocked();
+    }
 
-void log_images(const cv::Mat& frame, const cv::Mat& warped, const cv::Mat& resized) {
-	cv::Mat scratch;
-	log_image_inplace("images/raw",        frame,   scratch);   // raw input image
-	log_image_inplace("images/warped_bev", warped,  scratch);   // warped BEV (AutoDrive)
-	log_image_inplace("images/cropped",    resized, scratch);   // cropped+resized (AutoSteer/AutoSpeed)
-}
+    void Logger::writeSync(detail::LineSpec const& spec) noexcept
+    {
+        detail::LockGuard const guard{lock_};
 
-void log_inference(const visionpilot::models::InferenceFrameResult& r) {
-	// AutoDrive raw predictions
-	log_scalar("inference/auto_drive/dist_normalized", r.auto_drive.dist_normalized);
-	log_scalar("inference/auto_drive/curvature_raw",   r.auto_drive.curvature_raw);
-	log_scalar("inference/auto_drive/flag_prob",       r.auto_drive.flag_prob);
+        // Every async record claimed before this point must be written first, so
+        // output keeps call order. Records claimed later may follow.
+        std::size_t const target{enqueuePosition_.load(std::memory_order_acquire)};
+        std::size_t waits{0U};
+        while ((dequeuePosition_ != target) && (waits < kSyncWaitYields))
+        {
+            if (!writeNextLocked())
+            {
+                // Head slot claimed by another thread that has not finished
+                // writing it. Bounded wait, so a descheduled thread cannot hang us.
+                ++waits;
+                std::this_thread::yield();
+            }
+        }
+        if (dequeuePosition_ != target)
+        {
+            static_cast<void>(orderTimeouts_.fetch_add(1U, std::memory_order_relaxed));
+        }
+        reportDropsLocked();
 
-	// Latency
-	log_scalar("inference/latency/wall_ms", r.wall_ms);
-	log_scalar("inference/latency/pre_ms",  r.pre_ms);
-	log_scalar("inference/latency/ad_ms",   r.ad_ms);
-	log_scalar("inference/latency/as_ms",   r.as_ms);
-	log_scalar("inference/latency/asp_ms",  r.asp_ms);
+        detail::formatLine(spec, line_);
+        emitLineLocked();
+        flushBatchLocked();
+    }
 
-	// AutoSteer
-	{
-		const auto& xp = r.auto_steer.xp;
-		const auto& hv = r.auto_steer.h_vector;
-		const int   n  = static_cast<int>(xp.size());
-		std::vector<rerun::components::Position2D> pts;
-		pts.reserve(n);
-		for (int i = 0; i < n; ++i) {
-			if (i < static_cast<int>(hv.size()) && hv[i] < 0.5f) continue;  // low confidence
-			const float u = xp[i] * static_cast<float>(NET_W);
-			const float v = (static_cast<float>(i) / std::max(n - 1, 1)) * (NET_H - 1);
-			pts.emplace_back(u, v);
-		}
-		if (!pts.empty()) {
-			g_rec->log("images/cropped/auto_steer_waypoints",
-					   rerun::Points2D(pts).with_radii(3.0f).with_colors(rerun::Color(0, 200, 255)));
-		}
-		log_scalar("inference/auto_steer/num_waypoints", static_cast<double>(n));
-	}
+    void Logger::backgroundLoop() noexcept
+    {
+        while (!stopRequested_.load(std::memory_order_acquire))
+        {
+            std::size_t const written{drainChunk()};
+            if (written == 0U)
+            {
+                std::this_thread::sleep_for(kIdleSleep);
+            }
+        }
+    }
 
-	// AutoSpeed detections
-	{
-		const auto& dets = r.auto_speed.detections;
-		std::vector<rerun::datatypes::Vec2D> mins, sizes;
-		std::vector<rerun::components::Text>  labels;
-		mins.reserve(dets.size());
-		sizes.reserve(dets.size());
-		labels.reserve(dets.size());
-		for (const auto& d : dets) {
-			mins.emplace_back(d.x1, d.y1);
-			sizes.emplace_back(d.x2 - d.x1, d.y2 - d.y1);
-			labels.emplace_back("cls" + std::to_string(d.class_id));
-		}
-		if (!dets.empty()) {
-			g_rec->log("images/cropped/auto_speed_detections",
-					   rerun::Boxes2D::from_mins_and_sizes(mins, sizes)
-						   .with_labels(labels)
-						   .with_colors(rerun::Color(255, 80, 80)));
-		}
-		log_scalar("inference/auto_speed/num_detections", static_cast<double>(dets.size()));
-	}
+    /// Writes up to kDrainChunk queued records and flushes them, holding lock_
+    /// only for this chunk so a sync caller never waits behind more than one.
+    std::size_t Logger::drainChunk() noexcept
+    {
+        detail::LockGuard const guard{lock_};
+        std::size_t const written{drainLocked(kDrainChunk)};
+        flushBatchLocked();
+        return written;
+    }
 
-	// Fusion / Safety Guardian
-	log_scalar("fusion/cipo/distance_m",   r.cipo.distance_m);    // in-path object distance
-	log_scalar("fusion/cipo/velocity_ms",  r.cipo.velocity_ms);   // in-path object speed
-	log_scalar("fusion/lateral/cte_m",       r.lateral.cte_m);        // cross-track error
-	log_scalar("fusion/lateral/cte_rate_mps", r.lateral.cte_rate_mps); // cte rate
-	log_scalar("fusion/lateral/yaw_rad",     r.lateral.yaw_rad);      // yaw error
-	log_scalar("fusion/lateral/yaw_rate_rps", r.lateral.yaw_rate_rps); // yaw-error rate
-	log_scalar("fusion/lateral/curvature",   r.lateral.curvature);    // curvature
+    std::size_t Logger::drainLocked(std::size_t const maxRecords) noexcept
+    {
+        std::size_t processed{0U};
+        bool more{true};
+        while (more && (processed < maxRecords))
+        {
+            more = writeNextLocked();
+            if (more)
+            {
+                ++processed;
+            }
+        }
+        reportDropsLocked();
+        return processed;
+    }
 
-	// BEV coords of filtered path, sampled from y = ax^2 + bx + c in
-	// world/BEV frame (x = forward (m), y = lateral (m, left as +)).
-	{
-		const float a = r.lateral.path_a;
-		const float b = r.lateral.path_b;
-		const float c = r.lateral.path_c;
-		float x0 = r.lateral.path_x_min_m;
-		float x1 = r.lateral.path_x_max_m;
-		if (!(x1 > x0)) { x0 = 2.f; x1 = 40.f; }  // fallback when extent unknown
-		constexpr int N = 30;
-		std::vector<rerun::datatypes::Vec2D> strip;
-		strip.reserve(N);
-		for (int i = 0; i < N; ++i) {
-			const float x = x0 + (x1 - x0) * (static_cast<float>(i) / (N - 1));
-			const float y = a * x * x + b * x + c;
-			strip.emplace_back(-y, -x);
-		}
-		g_rec->log("bev/filtered_path",
-				   rerun::LineStrips2D(rerun::components::LineStrip2D(strip))
-					   .with_colors(rerun::Color(255, 220, 0))
-					   .with_radii(0.15f));
-		g_rec->log("bev/ego",
-				   rerun::Points2D({{0.0f, 0.0f}}).with_radii(0.4f).with_colors(rerun::Color(0, 255, 0)));
-	}
-}
+    bool Logger::writeNextLocked() noexcept
+    {
+        detail::LogRecord record;
+        bool const ready{tryDequeueLocked(record)};
+        if (ready)
+        {
+            detail::formatRecord(record, line_);
+            emitLineLocked();
+        }
+        return ready;
+    }
 
-void log_plan(const Plan& p) {
-	// Desired tyre angle = first element of steering sequence [rad]
-	log_scalar("planner/tyre_angle_rad", p.steering.empty() ? 0.0 : p.steering[0]);
-	log_scalar("planner/acceleration",   p.acceleration);
+    bool Logger::tryDequeueLocked(detail::LogRecord& out) noexcept
+    {
+        bool success{false};
+        Slot& slot{slots_[dequeuePosition_ & (kQueueCapacity - 1U)]};
+        std::size_t const sequence{slot.sequence.load(std::memory_order_acquire)};
+        if (sequence == (dequeuePosition_ + 1U))
+        {
+            out = slot.record; // copy out, then free the slot immediately
+            slot.sequence.store(dequeuePosition_ + kQueueCapacity, std::memory_order_release);
+            ++dequeuePosition_;
+            success = true;
+        }
+        return success;
+    }
 
-	if (!p.warnings.empty()) {
-		static const char* names[] = {"None", "FCW", "AEB", "LLDW", "RLDW"};
-		std::string msg;
-		for (const auto w : p.warnings) {
-			const int id = static_cast<int>(w);
-			if (id == 0) continue;
-			if (!msg.empty()) msg += ", ";
-			msg += (id >= 0 && id <= 4) ? names[id] : std::to_string(id);
-		}
-		if (!msg.empty()) {
-			g_rec->log("planner/warnings",
-					   rerun::TextLog(msg).with_level(rerun::TextLogLevel::Warning));
-		}
-	}
-}
+    void Logger::reportDropsLocked() noexcept
+    {
+        std::size_t const total{dropped_.load(std::memory_order_relaxed)};
+        if (total != reportedDrops_)
+        {
+            line_.reset();
+            line_.appendTimestamp(detail::monotonicNanoseconds());
+            detail::appendLevel(line_, LogLevel::Warn);
+            line_.appendLiteral(" logger: ");
+            line_.appendUnsigned(static_cast<std::uint64_t>(total - reportedDrops_));
+            line_.appendLiteral(" records dropped (queue full)");
+            line_.finish();
+            emitLineLocked();
+            reportedDrops_ = total;
+        }
+    }
 
-}  // namespace
+    void Logger::emitLineLocked() noexcept
+    {
+        std::size_t const length{line_.length()};
+        if ((batchLength_ + length) > kBatchCapacity)
+        {
+            flushBatchLocked();
+        }
+        char const* const data{line_.data()};
+        static_cast<void>(std::copy_n(data, length,
+                                      std::next(batch_.begin(), static_cast<std::ptrdiff_t>(batchLength_))));
+        batchLength_ += length;
+    }
 
-void Rerun::init(const std::string& rrd_path, const std::string& app_id) {
-	std::lock_guard<std::mutex> lk(g_mutex);
-	auto rec = std::make_unique<rerun::RecordingStream>(app_id);
-	if (rec->save(rrd_path).is_err()) {
-		VP_ERROR("[Rerun] Failed to open recording '%s' — logging disabled", rrd_path.c_str());
-		return;
-	}
-	g_rec = std::move(rec);
-	VP_INFO("[Rerun] Streaming recording to '%s'", rrd_path.c_str());
-}
+    void Logger::flushBatchLocked() noexcept
+    {
+        if (batchLength_ > 0U)
+        {
+            sink_->write(batch_.data(), batchLength_);
+            batchLength_ = 0U;
+        }
+    }
+} // namespace logging
 
-void Rerun::log_frame(uint64_t frame_id,
-					  const cv::Mat& frame,
-					  const cv::Mat& warped,
-					  const cv::Mat& resized,
-					  const visionpilot::models::InferenceFrameResult& r,
-					  const Plan& plan,
-					  double ego_speed_ms,
-					  const cv::Mat& viz) {
-	std::lock_guard<std::mutex> lk(g_mutex);
-	if (!g_rec) return;
+// =============================================================================
+// PLATFORM SECTION (POSIX: Linux, QNX)
+// The only code in the logger that calls the operating system.
+// =============================================================================
 
-	// One timeline point for whole frame - every entity below shares it
-	g_rec->set_time_sequence("frame", static_cast<int64_t>(frame_id));
+namespace logging
+{
+    void ConsoleSink::write(char const* const data, std::size_t const length) noexcept
+    {
+        std::size_t written{0U};
+        bool failed{false};
+        while ((written < length) && (!failed))
+        {
+            ssize_t const result{::write(STDOUT_FILENO, &data[written], length - written)};
+            if (result > 0)
+            {
+                written += static_cast<std::size_t>(result);
+            }
+            else if ((result < 0) && (errno == EINTR))
+            {
+                // Interrupted by a signal before anything was written: retry.
+            }
+            else
+            {
+                failed = true; // stdout closed or broken: drop silently
+            }
+        }
+    }
 
-	log_images(frame, warped, resized);
-	log_inference(r);
-	log_plan(plan);
-	log_scalar("vehicle/ego_speed_ms", ego_speed_ms);
-	if (!viz.empty()) {
-		cv::Mat scratch;
-		log_image_inplace("images/visualization", viz, scratch);
-	}
-}
+    namespace detail
+    {
+        PiMutex::PiMutex() noexcept : mutex_{}
+        {
+            pthread_mutexattr_t attributes{};
+            bool initialised{false};
+            if (pthread_mutexattr_init(&attributes) == 0)
+            {
+                if (pthread_mutexattr_setprotocol(&attributes, PTHREAD_PRIO_INHERIT) == 0)
+                {
+                    initialised = (pthread_mutex_init(&mutex_, &attributes) == 0);
+                }
+                static_cast<void>(pthread_mutexattr_destroy(&attributes));
+            }
+            if (!initialised)
+            {
+                // Priority inheritance unavailable: fall back to a default mutex.
+                static_cast<void>(pthread_mutex_init(&mutex_, nullptr));
+            }
+        }
 
-void Rerun::shutdown() {
-	std::lock_guard<std::mutex> lk(g_mutex);
-	g_rec.reset();  // flushes and closes .rrd sink
-}
+        PiMutex::~PiMutex()
+        {
+            static_cast<void>(pthread_mutex_destroy(&mutex_));
+        }
 
-#else  // ENABLE_RERUN not defined - compile every entry point to a no-op
+        void PiMutex::lock() noexcept
+        {
+            static_cast<void>(pthread_mutex_lock(&mutex_));
+        }
 
-void Rerun::init(const std::string&, const std::string&) {}
-void Rerun::log_frame(uint64_t, const cv::Mat&, const cv::Mat&, const cv::Mat&,
-					  const visionpilot::models::InferenceFrameResult&, const Plan&,
-					  double, const cv::Mat&) {}
-void Rerun::shutdown() {}
-
-#endif  // ENABLE_RERUN
-
-}  // namespace logging
+        void PiMutex::unlock() noexcept
+        {
+            static_cast<void>(pthread_mutex_unlock(&mutex_));
+        }
+    } // namespace detail
+} // namespace logging

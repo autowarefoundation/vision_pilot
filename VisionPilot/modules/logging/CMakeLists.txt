@@ -3,6 +3,7 @@ find_package(OpenCV REQUIRED)
 
 add_library(logging
         src/logger.cpp
+        src/rerun.cpp
 )
 
 target_include_directories(logging

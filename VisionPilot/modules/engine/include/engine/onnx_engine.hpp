@@ -2,7 +2,6 @@
 #define VISIONPILOT_ONNX_ENGINE_HPP
 
 #include <onnxruntime_cxx_api.h>
-
 #include <memory>
 #include <string>
 #include <logging/logger.hpp>

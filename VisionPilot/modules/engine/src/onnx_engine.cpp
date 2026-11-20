@@ -1,5 +1,5 @@
-#include "engine/onnx_engine.hpp"
-
+#include <engine/onnx_engine.hpp>
+#include <logging/logger.hpp>
 #include <cstdio>
 #include <filesystem>
 #include <stdexcept>
@@ -14,13 +14,13 @@ namespace visionpilot::engine
           , cfg_(cfg)
     {
         if (cfg_.provider == "cuda")
-            VP_INFO("[OnnxEngine] provider=%s  device=%d", cfg_.provider.c_str(), cfg_.device_id);
+            logging::info("[OnnxEngine] provider=%s  device=%d", cfg_.provider.c_str(), cfg_.device_id);
         else if (cfg_.provider == "tensorrt")
-            VP_INFO("[OnnxEngine] provider=%s  device=%d  precision=%s  workspace=%.1fGB  cache=%s",
+            logging::info("[OnnxEngine] provider=%s  device=%d  precision=%s  workspace=%.1fGB  cache=%s",
                 cfg_.provider.c_str(), cfg_.device_id, cfg_.precision.c_str(),
                 cfg_.workspace_gb, cfg_.cache_dir.c_str());
         else
-            VP_INFO("[OnnxEngine] provider=%s", cfg_.provider.c_str());
+            logging::info("[OnnxEngine] provider=%s", cfg_.provider.c_str());
     }
 
     // ─── Public entry point ───────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ namespace visionpilot::engine
         Ort::SessionOptions opts;
         static_cast<void>(opts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL));
 
-        VP_INFO("[OnnxEngine] Creating CPU session → %s\n", model_path.c_str());
+        logging::info("[OnnxEngine] Creating CPU session → %s\n", model_path.c_str());
         return std::make_unique<Ort::Session>(env_, model_path.c_str(), opts);
     }
 
@@ -70,7 +70,7 @@ namespace visionpilot::engine
         cuda_opts.device_id = cfg_.device_id;
         static_cast<void>(opts.AppendExecutionProvider_CUDA(cuda_opts));
 
-        VP_INFO("[OnnxEngine] Creating CUDA session (device %d) → %s\n",
+        logging::info("[OnnxEngine] Creating CUDA session (device %d) → %s\n",
                 cfg_.device_id, model_path.c_str());
         return std::make_unique<Ort::Session>(env_, model_path.c_str(), opts);
     }
@@ -85,14 +85,14 @@ namespace visionpilot::engine
         const bool created = std::filesystem::create_directories(cfg_.cache_dir, ec);
         if (ec)
         {
-            VP_ERROR("[OnnxEngine] Cannot create TRT cache directory %s: %s",
+            logging::error("[OnnxEngine] Cannot create TRT cache directory %s: %s",
                      cfg_.cache_dir.c_str(), ec.message().c_str());
             throw std::filesystem::filesystem_error(
                 "create_directories", std::filesystem::path(cfg_.cache_dir), ec);
         }
         if (created)
         {
-            VP_INFO("[OnnxEngine] Created TRT cache directory: %s", cfg_.cache_dir.c_str());
+            logging::info("[OnnxEngine] Created TRT cache directory: %s", cfg_.cache_dir.c_str());
         }
 
         Ort::SessionOptions opts;
@@ -146,7 +146,7 @@ namespace visionpilot::engine
 
         api.ReleaseTensorRTProviderOptions(trt_opts);
 
-        VP_INFO("[OnnxEngine] Creating TensorRT session (%s, device %d, prefix=%s) → %s\n",
+        logging::info("[OnnxEngine] Creating TensorRT session (%s, device %d, prefix=%s) → %s\n",
                 cfg_.precision.c_str(), cfg_.device_id,
                 full_prefix.c_str(), model_path.c_str());
 
