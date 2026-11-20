@@ -189,7 +189,8 @@ int main(int argc, char** argv)
             // Submit all required logging params to single logger func
             if (cfg.rrd_on)
             {
-                logging::Rerun::log_frame(r->frame_id, frame, warped, resized, *r,
+                logging::Rerun::log_frame(r->frame_id, frame, warped, resized,
+                                          logging::InferenceResult{*r},
                                           logging::Plan{plan.acceleration, plan.steering, plan.warnings},
                                           ego_v, viz);
             }

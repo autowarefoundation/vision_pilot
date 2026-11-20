@@ -1,10 +1,8 @@
 // Rerun recorder implementation (see logging/rerun.hpp). Development tool:
 // uses the Rerun SDK, dynamic memory and the standard library freely; it is
 // not part of the MISRA-compliant text logger (logger.hpp / logger.cpp).
-#include <logging/rerun.hpp>
 #include <logging/logger.hpp>
-
-#include <models/inference.hpp>
+#include <logging/rerun.hpp>
 
 #include <opencv2/core.hpp>
 
@@ -66,7 +64,7 @@ namespace logging
             log_image_inplace("images/cropped", resized, scratch); // cropped+resized (AutoSteer/AutoSpeed)
         }
 
-        void log_inference(const visionpilot::models::InferenceFrameResult& r)
+        void log_inference(const InferenceResult& r)
         {
             // AutoDrive raw predictions
             log_scalar("inference/auto_drive/dist_normalized", r.auto_drive.dist_normalized);
@@ -209,7 +207,7 @@ namespace logging
                           const cv::Mat& frame,
                           const cv::Mat& warped,
                           const cv::Mat& resized,
-                          const visionpilot::models::InferenceFrameResult& r,
+                          const InferenceResult& r,
                           const Plan& plan,
                           double ego_speed_ms,
                           const cv::Mat& viz)
@@ -244,7 +242,7 @@ namespace logging
     }
 
     void Rerun::log_frame(std::uint64_t, const cv::Mat&, const cv::Mat&, const cv::Mat&,
-                          const visionpilot::models::InferenceFrameResult&, const Plan&,
+                          const InferenceResult&, const Plan&,
                           double, const cv::Mat&)
     {
     }
