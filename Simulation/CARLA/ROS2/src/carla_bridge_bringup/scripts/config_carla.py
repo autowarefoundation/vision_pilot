@@ -45,6 +45,13 @@ def _setup_vehicle(world, config):
     bp.set_attribute("role_name", config.get("id"))
     bp.set_attribute("ros_name", config.get("id"))
 
+    wp_cfg = config.get("spawn_waypoint")
+    if wp_cfg:
+        wp = map_.get_waypoint_xodr(wp_cfg["road_id"], wp_cfg["lane_id"], wp_cfg["s"])
+        spawn_pt = wp.transform
+        spawn_pt.location.z += 0.5
+        return world.spawn_actor(bp, spawn_pt, attach_to=None)
+
     spawn_points = map_.get_spawn_points()
     for i in range(len(spawn_points)):
         waypt = map_.get_waypoint(spawn_points[i].location)
@@ -128,17 +135,63 @@ def _follow_vehicle(world, vehicle, spectator):
 
 import random
 
+def _road_spawn_point(map_, npc, n):
+    """n-th car along OpenDRIVE road "road_id", "spacing_m" apart, alternating "lane_ids"."""
+    lanes = npc["lane_ids"]
+    s = npc["s_start"] + n * npc["spacing_m"] / len(lanes)
+    wp = map_.get_waypoint_xodr(npc["road_id"], lanes[n % len(lanes)], s)
+    if wp is None:
+        return None
+    spawn_pt = wp.transform
+    spawn_pt.location.z += 0.5
+    return spawn_pt
+
+
+MPH_TO_MS = 0.44704
+DEFAULT_EGO_SPEED_MS = 33.3  # VisionPilot default speed_limit
+DEFAULT_SPEED_LIMIT_KMH = 30.0
+
+
+def _ego_speed_mph(config):
+    return config.get("ego_speed_mph", DEFAULT_EGO_SPEED_MS / MPH_TO_MS)
+
+
+def _npc_speed_diff_percent(actor, npc, config):
+    """TM speed difference for "speed_diff_percent", or for ego_speed_mph - "npc_speed_delta_mph"."""
+    if "speed_diff_percent" in npc:
+        return npc["speed_diff_percent"]
+    if "npc_speed_delta_mph" not in config:
+        return None
+    target_ms = (_ego_speed_mph(config) - config["npc_speed_delta_mph"]) * MPH_TO_MS
+    limit_kmh = actor.get_speed_limit() or DEFAULT_SPEED_LIMIT_KMH
+    return (1.0 - target_ms * 3.6 / limit_kmh) * 100.0
+
+
+def _start_autopilot(traffic_manager, actor, npc, config):
+    actor.set_autopilot(True, traffic_manager.get_port())
+    diff = _npc_speed_diff_percent(actor, npc, config)
+    if diff is not None:
+        traffic_manager.vehicle_percentage_speed_difference(actor, diff)
+
+
 def _setup_npc_traffic(world, traffic_manager, config, hero_spawn_index):
     bp_library = world.get_blueprint_library()
     map_ = world.get_map()
     spawn_points = map_.get_spawn_points()
 
     npc_vehicles = []
+    held = []
     for npc in config.get("npc_vehicles", []):
         count = npc.get("count", 1)
-        for _ in range(count):
+        for n in range(count):
             bp_filter = npc.get("type", "vehicle.*")
             candidates = bp_library.filter(bp_filter)
+            if "base_type" in npc:
+                candidates = [
+                    bp
+                    for bp in candidates
+                    if bp.get_attribute("base_type").as_str() == npc["base_type"]
+                ]
             if not candidates:
                 logging.warning("No blueprint matches '%s', skipping", bp_filter)
                 continue
@@ -148,7 +201,12 @@ def _setup_npc_traffic(world, traffic_manager, config, hero_spawn_index):
                 bp.set_attribute("color", color)
 
             idx = npc.get("spawn_index")
-            if idx is not None:
+            if "road_id" in npc:
+                spawn_pt = _road_spawn_point(map_, npc, n)
+                if spawn_pt is None:
+                    logging.warning("npc road position %d not on the map, skipping", n)
+                    continue
+            elif idx is not None:
                 if not 0 <= idx < len(spawn_points):
                     logging.warning("npc spawn_index %d out of range, skipping", idx)
                     continue
@@ -164,12 +222,20 @@ def _setup_npc_traffic(world, traffic_manager, config, hero_spawn_index):
                 continue
 
             if npc.get("autopilot", True):
-                actor.set_autopilot(True, traffic_manager.get_port())
+                if npc.get("hold_until_ego_moves"):
+                    held.append((actor, npc))
+                else:
+                    _start_autopilot(traffic_manager, actor, npc, config)
 
             npc_vehicles.append(actor)
 
-    logging.info("Spawned %d NPC vehicles", len(npc_vehicles))
-    return npc_vehicles
+    logging.info(
+        "Spawned %d NPC vehicles; ego speed %.1f mph = VisionPilot speed_limit %.3f m/s",
+        len(npc_vehicles),
+        _ego_speed_mph(config),
+        _ego_speed_mph(config) * MPH_TO_MS,
+    )
+    return npc_vehicles, held
 
 
 def main(args):
@@ -186,8 +252,7 @@ def main(args):
 
         # if args.map and "Town06" not in client.get_world().get_map().name:
         #     logging.info("Loading Town06 map")
-        client.load_world("Town04")
-        # client.load_world("Town06")
+        client.load_world(args.map)
 
         world = client.get_world()
 
@@ -212,7 +277,7 @@ def main(args):
         sensors = _setup_sensors(world, vehicle, config.get("sensors", []))
 
         # Spawn additional vehicles
-        npc_vehicles = _setup_npc_traffic(world, traffic_manager, config, config.get("spawn_index", 0))
+        npc_vehicles, held_npcs = _setup_npc_traffic(world, traffic_manager, config, config.get("spawn_index", 0))
 
         world.tick()  # initial tick to settle the world before autopilot/spectator setup
 
@@ -231,6 +296,10 @@ def main(args):
 
             world.tick()  # advances sim by exactly fixed_delta_seconds; blocks until the
                            # server has finished the step (including sensor captures)
+            if held_npcs and math.hypot(vehicle.get_velocity().x, vehicle.get_velocity().y) > 0.5:
+                for actor, npc in held_npcs:
+                    _start_autopilot(traffic_manager, actor, npc, config)
+                held_npcs = []
             _follow_vehicle(world, vehicle, spectator)
 
             elapsed = time.time() - loop_start
@@ -291,7 +360,7 @@ if __name__ == "__main__":
         dest="autopilot",
         help="turn on autopilot for the vehicle",
     )
-    argparser.add_argument("-m", "--map", action="store_true", dest="map", help="load Town06 map")
+    argparser.add_argument("-m", "--map", default="Town04", help="map to load (default: Town04)")
 
     args = argparser.parse_args()
 
