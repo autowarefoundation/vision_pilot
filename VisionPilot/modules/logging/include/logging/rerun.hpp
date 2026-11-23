@@ -75,7 +75,7 @@ namespace logging
             }
         default:
             {
-                result = Warning::None;
+                // result keeps its initial value Warning::None
                 break;
             }
         }

@@ -83,9 +83,7 @@ namespace logging
         {
             worker_.join();
         }
-        detail::LockGuard const guard{lock_};
-        static_cast<void>(drainLocked(kQueueCapacity));
-        flushBatchLocked();
+        flush();
     }
 
     void Logger::setSink(LogSink& sink) noexcept
