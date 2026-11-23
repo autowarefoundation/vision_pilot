@@ -99,9 +99,89 @@ To get started with the project, download the source code from:
   git clone https://github.com/autowarefoundation/autoware_vision_pilot.git
 ```
 
-Download ONNX Runtime from the GitHub [releases](https://github.com/microsoft/onnxruntime/releases) page.
+#### Get ONNX Runtime
 
-If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` package (for example `ros-jazzy-onnxruntime-vendor`, which `rosdep install` installs), you can skip this step and leave out `-DONNXRUNTIME_ROOT` in the commands below. The build then uses the CPU build of ONNX Runtime, so set `engine.provider = cpu` in `config/vision_pilot.conf`.
+VisionPilot uses ONNX Runtime to run the AI models. Select one of the three routes below. The GitHub releases of ONNX Runtime return 404 at the moment, so the CPU and GPU routes download ONNX Runtime from NuGet.
+
+- https://github.com/autowarefoundation/vision_pilot/issues/476
+
+The value of `engine.provider` in `config/vision_pilot.conf` must match the route. Set it before you build, because the build copies the `config` directory.
+
+| Route | ONNX Runtime | `engine.provider` |
+|---|---|---|
+| CPU | [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) 1.32.0, x64 or arm64 | `cpu` |
+| GPU | [Microsoft.ML.OnnxRuntime.Gpu.Linux](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Gpu.Linux) 1.32.0, x64, CUDA 13 | `cuda` or `tensorrt` |
+| ROS 2 | `onnxruntime_vendor` from `rosdep`, CPU only | `cpu` |
+
+##### CPU route
+
+These commands make the CPU build in `onnxruntime/`. That directory is `<ONNX_RUNTIME_ROOT_PATH>` below.
+
+1. Download the package and make sure that the SHA-256 is correct. On arm64, set `ORT_ARCH=arm64`.
+
+```bash
+  ORT_VERSION=1.32.0
+  ORT_ARCH=x64
+  wget -O ort.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ORT_VERSION}/microsoft.ml.onnxruntime.${ORT_VERSION}.nupkg"
+  echo "a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db  ort.nupkg" | sha256sum -c -
+```
+
+2. Extract the headers and the libraries.
+
+```bash
+  unzip -q ort.nupkg 'build/native/include/*' "runtimes/linux-${ORT_ARCH}/native/*" -d ort_extract
+  mkdir -p onnxruntime/include onnxruntime/lib
+  cp ort_extract/build/native/include/* onnxruntime/include/
+  cp ort_extract/runtimes/linux-${ORT_ARCH}/native/*.so onnxruntime/lib/
+  ln -s libonnxruntime.so onnxruntime/lib/libonnxruntime.so.1
+```
+
+3. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
+
+##### GPU route
+
+The GPU route needs an NVIDIA GPU, x64, and Ubuntu 24.04. The NuGet package for ONNX Runtime 1.32.0 uses CUDA 13, cuDNN 9, and TensorRT 10.
+
+1. Install the NVIDIA driver and the CUDA 13 toolkit. Use the instructions on the [CUDA downloads](https://developer.nvidia.com/cuda-downloads) page. The toolkit installer adds the NVIDIA apt repository.
+
+2. Install cuDNN and TensorRT from the NVIDIA apt repository.
+
+```bash
+  sudo apt install libcudnn9-cuda-13 libnvinfer10 libnvinfer-plugin10 libnvonnxparsers10 libnvinfer-dev
+```
+
+3. Download the package and make sure that the SHA-256 is correct.
+
+```bash
+  ORT_VERSION=1.32.0
+  wget -O ort-gpu.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.gpu.linux/${ORT_VERSION}/microsoft.ml.onnxruntime.gpu.linux.${ORT_VERSION}.nupkg"
+  echo "3d01949bc846d41961b37988d1e63d782a6effcb93b650a6e0577fef982d38b5  ort-gpu.nupkg" | sha256sum -c -
+```
+
+4. Extract the headers and the libraries. The GPU package keeps its headers in `buildTransitive/native/include/`.
+
+```bash
+  unzip -q ort-gpu.nupkg 'buildTransitive/native/include/*' 'runtimes/linux-x64/native/*' -d ort_extract
+  mkdir -p onnxruntime/include onnxruntime/lib
+  cp ort_extract/buildTransitive/native/include/* onnxruntime/include/
+  cp ort_extract/runtimes/linux-x64/native/*.so onnxruntime/lib/
+  ln -s libonnxruntime.so onnxruntime/lib/libonnxruntime.so.1
+```
+
+5. Make sure that the CUDA and TensorRT libraries load. These commands must print nothing. If a library shows `not found`, add its directory to `LD_LIBRARY_PATH`, for example `/usr/local/cuda/lib64`.
+
+```bash
+  ldd onnxruntime/lib/libonnxruntime_providers_cuda.so | grep "not found"
+  ldd onnxruntime/lib/libonnxruntime_providers_tensorrt.so | grep "not found"
+```
+
+6. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cuda` or `engine.provider = tensorrt`. With `tensorrt`, the first run builds the TensorRT engines and takes several minutes. Later runs read the engines from `engine.cache_dir`.
+
+##### ROS 2 route
+
+If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` package (for example `ros-jazzy-onnxruntime-vendor`, which `rosdep install` installs), you do not need to download ONNX Runtime. Leave out `-DONNXRUNTIME_ROOT` in the commands below. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
+
+#### Build
 
 Build the project:
 

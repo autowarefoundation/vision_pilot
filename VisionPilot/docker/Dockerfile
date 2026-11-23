@@ -7,7 +7,8 @@
 
 # syntax=docker/dockerfile:1
 ARG CUDA_TAG=13.0.0-devel-ubuntu24.04
-ARG ONNXRUNTIME_VERSION=1.26.0
+ARG ONNXRUNTIME_VERSION=1.32.0
+ARG ONNXRUNTIME_SHA256=3d01949bc846d41961b37988d1e63d782a6effcb93b650a6e0577fef982d38b5
 ARG ENABLE_ROS2=OFF
 ARG ENABLE_OCCUPANCY=OFF
 
@@ -15,6 +16,7 @@ ARG ENABLE_OCCUPANCY=OFF
 # build
 FROM nvcr.io/nvidia/cuda:${CUDA_TAG} AS builder
 ARG ONNXRUNTIME_VERSION
+ARG ONNXRUNTIME_SHA256
 ARG ENABLE_ROS2
 ARG ENABLE_OCCUPANCY
 ENV DEBIAN_FRONTEND=noninteractive
@@ -24,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         software-properties-common \
     && add-apt-repository -y universe \
     && apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake git wget ca-certificates gnupg \
+        build-essential cmake git wget unzip ca-certificates gnupg \
         python3 python3-pip \
         libopencv-dev \
         libgstreamer1.0-dev \
@@ -83,12 +85,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libnvinfer-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# ONNX Runtime GPU build from the NuGet package Microsoft.ML.OnnxRuntime.Gpu.Linux.
+# The GitHub release downloads of ONNX Runtime return 404. The GPU package
+# 1.26.0 on NuGet links CUDA 12, so this image uses 1.32.0, which links CUDA 13.
+# This step makes the include/ and lib/ layout of the release tarball.
+# If you change ONNXRUNTIME_VERSION, also change ONNXRUNTIME_SHA256.
 WORKDIR /opt
-RUN mkdir -p /usr/share/visionpilot /opt/ort_extract \
-    && wget -q -O ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-gpu_cuda13-${ONNXRUNTIME_VERSION}.tgz" \
-    && tar -xzf ort.tgz -C /opt/ort_extract \
-    && mv /opt/ort_extract/*/ /usr/share/visionpilot/onnxruntime \
-    && rm -rf ort.tgz /opt/ort_extract
+RUN set -eux; \
+    ort_root=/usr/share/visionpilot/onnxruntime; \
+    ort_native=/opt/ort_extract/runtimes/linux-x64/native; \
+    mkdir -p /opt/ort_extract "${ort_root}/include" "${ort_root}/lib"; \
+    wget -q -O ort.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.gpu.linux/${ONNXRUNTIME_VERSION}/microsoft.ml.onnxruntime.gpu.linux.${ONNXRUNTIME_VERSION}.nupkg"; \
+    echo "${ONNXRUNTIME_SHA256}  ort.nupkg" | sha256sum -c -; \
+    unzip -q ort.nupkg 'buildTransitive/native/include/*' 'runtimes/linux-x64/native/*' -d /opt/ort_extract; \
+    cp /opt/ort_extract/buildTransitive/native/include/* "${ort_root}/include/"; \
+    cp "${ort_native}"/libonnxruntime_providers_*.so "${ort_root}/lib/"; \
+    cp "${ort_native}/libonnxruntime.so" "${ort_root}/lib/libonnxruntime.so.${ONNXRUNTIME_VERSION}"; \
+    ln -s "libonnxruntime.so.${ONNXRUNTIME_VERSION}" "${ort_root}/lib/libonnxruntime.so.1"; \
+    ln -s libonnxruntime.so.1 "${ort_root}/lib/libonnxruntime.so"; \
+    rm -rf ort.nupkg /opt/ort_extract
 
 WORKDIR /opt/visionpilot
 COPY . .
