@@ -61,7 +61,7 @@ RUN hdr_dir="$(dirname "$(find /usr/include -name IpIpoptApplication.hpp | head 
 
 RUN pip3 install --no-cache-dir --break-system-packages opencv-python numpy
 
-# ROS2 Jazzy — only installed when ENABLE_ROS2=ON.
+# ROS 2 Jazzy — only installed when ENABLE_ROS2=ON.
 RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
         apt-get update && apt-get install -y --no-install-recommends \
             curl \
@@ -138,7 +138,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libcppad-lib1456.0t64 \
     && rm -rf /var/lib/apt/lists/*
 
-# ROS2 Jazzy runtime libs — only needed when built with ROS2 support (ENABLE_ROS2=ON).
+# ROS 2 Jazzy runtime libs — only needed when built with ROS 2 support (ENABLE_ROS2=ON).
 # Mirrors the builder-stage install so all transitive apt dependencies (fastrtps,
 # tinyxml2, python3, etc.) are present here too, not just in the builder image.
 RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
@@ -155,7 +155,7 @@ RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
-# ROS2 apt packages don't register /opt/ros/jazzy/lib with ldconfig — normally
+# ROS 2 apt packages don't register /opt/ros/jazzy/lib with ldconfig — normally
 # `setup.bash` sets LD_LIBRARY_PATH for you, but ENTRYPOINT runs the binary
 # directly with no shell in between to source it. Set it explicitly instead.
 ENV LD_LIBRARY_PATH="/opt/ros/jazzy/lib:${LD_LIBRARY_PATH}"
