@@ -1,5 +1,5 @@
 #include <fusion/longitudinal_fusion.hpp>
-#include "fusion_log.hpp"
+#include <logging/console.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -358,14 +358,14 @@ LongitudinalFusion::select_cipo(const std::vector<models::Detection>& dets) cons
         const float cx   = (d.x1 + d.x2) * 0.5f;
         const float dist = project_dist(H_, cx, d.y2);
         if (cfg_.debug) {
-            using detail::fmt_fixed;
+            using ::logging::fmt_fixed;
             std::ostringstream os;
             os << "[CIPO-DBG] cls=" << d.class_id
                << "  bbox=(" << fmt_fixed(d.x1, 0) << ',' << fmt_fixed(d.y1, 0) << ','
                << fmt_fixed(d.x2, 0) << ',' << fmt_fixed(d.y2, 0)
                << ")  bottom-center=(" << fmt_fixed(cx, 0) << ',' << fmt_fixed(d.y2, 0)
                << ") → " << fmt_fixed(dist, 1) << " m";
-            detail::log_info(os.str());
+            ::logging::log_info(os.str());
         }
         if ((d.class_id == 1) && (dist < best_l1)) best_l1 = dist;
         if ((d.class_id == 2) && (dist < best_l2)) best_l2 = dist;
