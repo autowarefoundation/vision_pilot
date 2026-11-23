@@ -1,5 +1,5 @@
 #include <fusion/longitudinal_fusion.hpp>
-#include "fusion_log.hpp"
+#include <logging/console.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -162,9 +162,9 @@ CIPOFusionEstimate LongitudinalFusion::update(
             if (initialised_) {
                 std::ostringstream os;
                 os << "[Fusion] No CIPO confirmed (AD="
-                   << detail::fmt_fixed(autodrive.valid ? (autodrive.flag_prob * 100.f) : 0.f, 0)
-                   << "%  AS=none) — reset to " << detail::fmt_fixed(D_MAX, 0) << " m";
-                detail::log_info(os.str());
+                   << ::logging::fmt_fixed(autodrive.valid ? (autodrive.flag_prob * 100.f) : 0.f, 0)
+                   << "%  AS=none) — reset to " << ::logging::fmt_fixed(D_MAX, 0) << " m";
+                ::logging::log_info(os.str());
                 reset();
             }
             // A gap frame breaks the confirmation streak. Otherwise a phantom,
@@ -189,8 +189,8 @@ CIPOFusionEstimate LongitudinalFusion::update(
         }
     } else if (src == TrackSrc::None) {
         if (initialised_ || (track_src_ != TrackSrc::None)) {
-            detail::log_info("[Fusion] No relevant radar / camera CIPO — reset to "
-                             + detail::fmt_fixed(D_MAX, 0) + " m");
+            ::logging::log_info("[Fusion] No relevant radar / camera CIPO — reset to "
+                             + ::logging::fmt_fixed(D_MAX, 0) + " m");
             reset();
         }
         pending_hits_ = 0;
@@ -266,7 +266,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
         std::ostringstream os;
         os << "[Fusion] Source switch " << ((track_src_ == TrackSrc::Radar) ? "radar" : "camera")
            << "→" << ((src == TrackSrc::Radar) ? "radar" : "camera") << " — reset filter";
-        detail::log_info(os.str());
+        ::logging::log_info(os.str());
         reset();
         prev_cut_in_ = cut;  // reset() drops the latch; this frame already consumed the edge
     }
@@ -286,23 +286,23 @@ CIPOFusionEstimate LongitudinalFusion::update(
     }
 
     auto seed_from_active = [this, &radar_f, &as_f, &ad_f](float mean_m, const char* reason) {
-        using detail::fmt_fixed;
+        using ::logging::fmt_fixed;
         std::ostringstream os;
         os << "[Fusion] " << reason << " — reinit " << fmt_fixed(mean_m, 1) << "→";
         if (radar_f.valid) {
             os << fmt_fixed(radar_f.distance_m, 1) << " m v="
                << fmt_fixed(radar_f.has_velocity ? radar_f.velocity_ms : 0.f, 2) << " (radar)";
-            detail::log_info(os.str());
+            ::logging::log_info(os.str());
             init_from(radar_f.distance_m, cfg_.cipo_noise_m,
                       radar_f.has_velocity ? radar_f.velocity_ms : 0.f,
                       radar_f.has_velocity ? radar_f.stddev_v : 2.f);
         } else if (as_f.valid) {
             os << fmt_fixed(as_f.distance_m, 1) << " m (AS+H)";
-            detail::log_info(os.str());
+            ::logging::log_info(os.str());
             init_from(as_f.distance_m, as_f.stddev_m);
         } else if (ad_f.valid) {
             os << fmt_fixed(ad_f.distance_m, 1) << " m (AD)";
-            detail::log_info(os.str());
+            ::logging::log_info(os.str());
             init_from(ad_f.distance_m, ad_f.stddev_m);
         } else {
             // No active measurement: keep the current cloud.
@@ -367,7 +367,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
     est.distance_stddev_m = std::sqrt(std::max(0.f, var_d));
 
     if (cfg_.debug) {
-        using detail::fmt_fixed;
+        using ::logging::fmt_fixed;
         const float ad_pct = autodrive.valid ? (autodrive.flag_prob * 100.f) : 0.f;
         const char* src_txt = !cfg_.radar_enabled ? "cam"
                             : (src == TrackSrc::Radar)  ? "radar"
@@ -398,7 +398,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
         os << (est.cut_in_detected ? " [CUT-IN]" : "")
            << " | Fused=" << fmt_fixed(est.distance_m, 1) << " m  v=" << fmt_fixed(est.velocity_ms, 2)
            << " m/s  ±" << fmt_fixed(est.distance_stddev_m, 1) << " m";
-        detail::log_info(os.str());
+        ::logging::log_info(os.str());
     }
 
     return est;
@@ -429,16 +429,16 @@ bool LongitudinalFusion::note_candidate(float dist_m)
         pending_hits_ = 1;
         pending_dist_m_ = dist_m;
         std::ostringstream os;
-        os << "[Fusion] CIPO candidate " << detail::fmt_fixed(dist_m, 1)
+        os << "[Fusion] CIPO candidate " << ::logging::fmt_fixed(dist_m, 1)
            << " m — hold braking until " << static_cast<int>(cfg_.confirm_frames) << " consecutive frames";
-        detail::log_info(os.str());
+        ::logging::log_info(os.str());
     }
     if (pending_hits_ < cfg_.confirm_frames)
         return false;
     std::ostringstream os;
-    os << "[Fusion] CIPO confirmed " << detail::fmt_fixed(dist_m, 1)
+    os << "[Fusion] CIPO confirmed " << ::logging::fmt_fixed(dist_m, 1)
        << " m across " << static_cast<int>(pending_hits_) << " frames";
-    detail::log_info(os.str());
+    ::logging::log_info(os.str());
     pending_hits_ = 0;
     return true;
 }
