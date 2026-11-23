@@ -45,7 +45,7 @@ LateralFusionEstimate LateralFusion::update(
     PathParams path;
     if (steer.valid) {
         const auto pts = project_waypoints(steer);
-        est.path_points = static_cast<int>(pts.size());
+        est.path_points = static_cast<std::int32_t>(pts.size());
         if (!pts.empty())
             path = fit_ransac(pts);
     }
@@ -81,7 +81,7 @@ LateralFusionEstimate LateralFusion::update(
             cy_predict(dt);
             cy_update(corrected_cte, cfg_.meas_noise_cte_m,
                       path.yaw_rad, cfg_.meas_noise_yaw_rad);
-            if (cy_eff_n() < 0.5f * static_cast<float>(cfg_.n_particles))
+            if (cy_eff_n() < (0.5f * static_cast<float>(cfg_.n_particles)))
                 cy_resample();
         }
     }
@@ -100,21 +100,25 @@ LateralFusionEstimate LateralFusion::update(
         k_predict(dt);
         if (path.valid)    k_update(path.curvature, cfg_.meas_noise_curv_path);
         if (ad_curv_valid) k_update(ad_curv,        cfg_.meas_noise_curv_ad);
-        if (k_eff_n() < 0.5f * static_cast<float>(cfg_.n_particles))
+        if (k_eff_n() < (0.5f * static_cast<float>(cfg_.n_particles)))
             k_resample();
     }
 
     // ── Step 6: Extract posterior means ──────────────────────────────────────
     if (cy_init_ && !cy_.empty()) {
         const auto w = linear_weights(cy_);
-        float mean_cte = 0.f, mean_cte_dot = 0.f, mean_yaw = 0.f, mean_yaw_dot = 0.f;
+        float mean_cte = 0.f;
+        float mean_cte_dot = 0.f;
+        float mean_yaw = 0.f;
+        float mean_yaw_dot = 0.f;
         for (std::size_t i = 0; i < cy_.size(); ++i) {
             mean_cte     += w[i] * cy_[i].cte;
             mean_cte_dot += w[i] * cy_[i].cte_dot;
             mean_yaw     += w[i] * cy_[i].yaw;
             mean_yaw_dot += w[i] * cy_[i].yaw_dot;
         }
-        float var_cte = 0.f, var_yaw = 0.f;
+        float var_cte = 0.f;
+        float var_yaw = 0.f;
         for (std::size_t i = 0; i < cy_.size(); ++i) {
             const float dc = cy_[i].cte - mean_cte;
             const float dy = cy_[i].yaw - mean_yaw;
@@ -155,9 +159,9 @@ LateralFusionEstimate LateralFusion::update(
             os << "raw_CTE=" << fmt_fixed(path.cte_m, 2) << "m  bias=" << fmt_fixed(cfg_.cte_bias_m, 2)
                << "m  corr=" << fmt_fixed(path.cte_m - cfg_.cte_bias_m, 2)
                << "m  yaw=" << fmt_fixed(path.yaw_rad, 3) << "rad  κ=" << fmt_fixed(path.curvature, 4)
-               << "  (" << path.inliers << " pts, xmin=" << fmt_fixed(path.x_min_m, 1) << "m)";
+               << "  (" << static_cast<int>(path.inliers) << " pts, xmin=" << fmt_fixed(path.x_min_m, 1) << "m)";
         } else {
-            os << "(no path fit, " << est.path_points << " pts)";
+            os << "(no path fit, " << static_cast<int>(est.path_points) << " pts)";
         }
 
         os << " | AD-κ=";
@@ -193,15 +197,17 @@ LateralFusion::project_waypoints(const models::AutoSteerOutput& steer) const
     out.reserve(N_WP);
 
     for (std::size_t i = 0U; i < N_WP; ++i) {
-        const float v_px = (N_WP <= 1U) ? 0.f
-            : static_cast<float>(i) * (NET_H - 1.f) / static_cast<float>(N_WP - 1U);
+        // N_WP is a fixed 64, so the row step never divides by zero.
+        const float v_px = (static_cast<float>(i) * (NET_H - 1.f)) / static_cast<float>(N_WP - 1U);
 
         if (steer.h_vector[i] < 0.5f) continue;
 
         const float u_px = steer.xp[i] * NET_W;
-        auto [xw, yw] = project_world(H_, u_px, v_px);
+        const std::pair<float, float> world = project_world(H_, u_px, v_px);
+        const float xw = world.first;
+        const float yw = world.second;
         // Keep points in a sensible forward range for the polynomial fit
-        if (xw < 0.5f || xw > 120.f) continue;
+        if ((xw < 0.5f) || (xw > 120.f)) continue;
         out.push_back({xw, yw});
     }
     return out;
@@ -211,7 +217,8 @@ LateralFusion::project_waypoints(const models::AutoSteerOutput& steer) const
 std::pair<float, float>
 LateralFusion::project_world(const cv::Mat& H, float u, float v)
 {
-    std::vector<cv::Point2f> src = {cv::Point2f(u, v)}, dst;
+    std::vector<cv::Point2f> src = {cv::Point2f(u, v)};
+    std::vector<cv::Point2f> dst;
     cv::perspectiveTransform(src, dst, H);
     return {dst[0].x, dst[0].y};
 }
@@ -224,7 +231,7 @@ LateralFusion::project_world(const cv::Mat& H, float u, float v)
 LateralFusion::PathParams
 LateralFusion::fit_ransac(const std::vector<WorldPt>& pts) const
 {
-    if (static_cast<int>(pts.size()) < 3) return {};
+    if (static_cast<std::int32_t>(pts.size()) < 3) return {};
 
     PathParams best;
     best.inliers = 0;
@@ -233,16 +240,17 @@ LateralFusion::fit_ransac(const std::vector<WorldPt>& pts) const
     // Fallback: all points
     best_inliers_pts = pts;
 
-    if (static_cast<int>(pts.size()) > 3) {
+    if (static_cast<std::int32_t>(pts.size()) > 3) {
         // pts.size() > 3 here, so size() - 1 cannot wrap.
         std::uniform_int_distribution<std::size_t> pick(static_cast<std::size_t>(0), pts.size() - 1U);
 
-        for (int iter = 0; iter < cfg_.ransac_iters; ++iter) {
+        for (std::int32_t iter = 0; iter < cfg_.ransac_iters; ++iter) {
             // Sample 3 distinct points
             const std::size_t ia = pick(const_cast<std::mt19937&>(rng_));
-            std::size_t ib, ic;
+            std::size_t ib = ia;
+            std::size_t ic = ia;
             do { ib = pick(const_cast<std::mt19937&>(rng_)); } while (ib == ia);
-            do { ic = pick(const_cast<std::mt19937&>(rng_)); } while (ic == ia || ic == ib);
+            do { ic = pick(const_cast<std::mt19937&>(rng_)); } while ((ic == ia) || (ic == ib));
 
             const std::vector<WorldPt> sample = {pts[ia], pts[ib], pts[ic]};
             const PathParams model = fit_quadratic(sample, cfg_.curv_x_min_m, cfg_.curv_x_max_m);
@@ -255,17 +263,17 @@ LateralFusion::fit_ransac(const std::vector<WorldPt>& pts) const
                 if (std::abs(y_pred - p.y) < cfg_.ransac_thresh_m)
                     inl.push_back(p);
             }
-            if (static_cast<int>(inl.size()) > best.inliers) {
-                best.inliers     = static_cast<int>(inl.size());
+            if (static_cast<std::int32_t>(inl.size()) > best.inliers) {
+                best.inliers     = static_cast<std::int32_t>(inl.size());
                 best_inliers_pts = inl;
             }
         }
     }
 
     // Final refit on inlier set
-    if (static_cast<int>(best_inliers_pts.size()) >= 3) {
+    if (static_cast<std::int32_t>(best_inliers_pts.size()) >= 3) {
         PathParams final_fit = fit_quadratic(best_inliers_pts, cfg_.curv_x_min_m, cfg_.curv_x_max_m);
-        final_fit.inliers    = static_cast<int>(best_inliers_pts.size());
+        final_fit.inliers    = static_cast<std::int32_t>(best_inliers_pts.size());
         if (final_fit.inliers < cfg_.ransac_min_inliers) return {};
         if (std::abs(final_fit.cte_m) > cfg_.max_abs_cte_m) return {};
         return final_fit;
@@ -276,8 +284,8 @@ LateralFusion::fit_ransac(const std::vector<WorldPt>& pts) const
 // κ(x) for y = a·x² + b·x + c  →  κ = 2a / (1 + (2ax + b)²)^(3/2)
 float LateralFusion::curvature_at_x(float a, float b, float x)
 {
-    const float dydx = 2.f * a * x + b;
-    const float denom = std::pow(1.f + dydx * dydx, 1.5f);
+    const float dydx = (2.f * a * x) + b;
+    const float denom = std::pow(1.f + (dydx * dydx), 1.5f);
     if (denom < 1e-6f) return 0.f;
     return (2.f * a) / denom;
 }
@@ -292,7 +300,7 @@ float LateralFusion::sample_path_curvature(const std::vector<WorldPt>& pts,
     std::vector<float> kappas;
     kappas.reserve(pts.size());
     for (const auto& p : pts) {
-        if (p.x < x_min_m || p.x > x_max_m) continue;
+        if ((p.x < x_min_m) || (p.x > x_max_m)) continue;
         kappas.push_back(curvature_at_x(a, b, p.x));
     }
 
@@ -310,12 +318,12 @@ LateralFusion::PathParams
 LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts,
                              float curv_x_min_m, float curv_x_max_m)
 {
-    const int n = static_cast<int>(pts.size());
+    const std::int32_t n = static_cast<std::int32_t>(pts.size());
     if (n < 3) return {};
 
-    cv::Mat A(n, 3, CV_32F);
-    cv::Mat B(n, 1, CV_32F);
-    for (int i = 0; i < n; ++i) {
+    cv::Mat A(static_cast<int>(n), 3, CV_32F);
+    cv::Mat B(static_cast<int>(n), 1, CV_32F);
+    for (std::int32_t i = 0; i < n; ++i) {
         const WorldPt& pt = pts[static_cast<std::size_t>(i)];
         A.at<float>(i, 0) = pt.x * pt.x;
         A.at<float>(i, 1) = pt.x;
@@ -343,7 +351,7 @@ LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts,
     // Evaluate CTE and yaw at x_min_m (closest observed waypoint) — avoids
     // extrapolating back to x=0 where there is no actual data.
     const float x_ref   = p.x_min_m;
-    const float dydx    = 2.f * p.a * x_ref + p.b;   // polynomial slope at x_ref
+    const float dydx    = (2.f * p.a * x_ref) + p.b;   // polynomial slope at x_ref
     p.cte_m   = eval_quad(p.a, p.b, p.c, x_ref);
     p.yaw_rad = std::atan(dydx);
     p.curvature = sample_path_curvature(pts, p.a, p.b, curv_x_min_m, curv_x_max_m);
@@ -353,14 +361,14 @@ LateralFusion::fit_quadratic(const std::vector<WorldPt>& pts,
 
 float LateralFusion::eval_quad(float a, float b, float c, float x)
 {
-    return a * x * x + b * x + c;
+    return (a * x * x) + (b * x) + c;
 }
 
 // ─── CTE / Yaw particle filter ────────────────────────────────────────────────
 
 void LateralFusion::cy_init(float cte, float yaw)
 {
-    const int N = cfg_.n_particles;
+    const std::int32_t N = cfg_.n_particles;
     cy_.resize(static_cast<std::size_t>(N));
     std::normal_distribution<float> nc(cte, cfg_.meas_noise_cte_m);
     std::normal_distribution<float> ny(yaw, cfg_.meas_noise_yaw_rad);
@@ -382,9 +390,9 @@ void LateralFusion::cy_predict(float dt)
     std::normal_distribution<float> ny(0.f, cfg_.proc_noise_yaw_rad * s);
     std::normal_distribution<float> nyd(0.f, cfg_.proc_noise_yaw_rate_rps * s);
     for (auto& p : cy_) {
-        p.cte     += p.cte_dot * dt + nc(rng_);
+        p.cte     += (p.cte_dot * dt) + nc(rng_);
         p.cte_dot += ncd(rng_);
-        p.yaw     += p.yaw_dot * dt + ny(rng_);
+        p.yaw     += (p.yaw_dot * dt) + ny(rng_);
         p.yaw_dot += nyd(rng_);
     }
 }
@@ -414,7 +422,7 @@ void LateralFusion::cy_resample() { systematic_resample(cy_); }
 
 void LateralFusion::k_init(float curv)
 {
-    const int N = cfg_.n_particles;
+    const std::int32_t N = cfg_.n_particles;
     k_.resize(static_cast<std::size_t>(N));
     std::normal_distribution<float> nd(curv, cfg_.meas_noise_curv_path);
     for (auto& p : k_) { p.curv = nd(rng_); p.log_w = 0.f; }
@@ -505,7 +513,7 @@ void LateralFusion::systematic_resample(std::vector<P>& particles)
     const float u0 = u(rng_);
     std::size_t j = 0U;
     for (std::size_t i = 0U; i < N; ++i) {
-        const float thr = u0 + static_cast<float>(i) / static_cast<float>(N);
+        const float thr = u0 + (static_cast<float>(i) / static_cast<float>(N));
         while (((j + 1U) < N) && (cs[j] < thr)) {
             ++j;
         }
