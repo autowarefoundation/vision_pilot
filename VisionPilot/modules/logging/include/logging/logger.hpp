@@ -1,11 +1,9 @@
-#pragma once
-#include <cstdio>
+#ifndef VISIONPILOT_LOGGING_LOGGER_HPP
+#define VISIONPILOT_LOGGING_LOGGER_HPP
 #include <string>
 #include <cstdint>
 
-#define VP_INFO(fmt, ...)  std::printf( "[INFO]  " fmt "\n", ##__VA_ARGS__)
-#define VP_WARN(fmt, ...)  std::fprintf(stderr, "[WARN]  " fmt "\n", ##__VA_ARGS__)
-#define VP_ERROR(fmt, ...) std::fprintf(stderr, "[ERROR] " fmt "\n", ##__VA_ARGS__)
+// Console output (log_info / log_warn / log_error) lives in <logging/console.hpp>.
 
 // Rerun logger - streams per-frame data directly to a native .rrd recording
 // through Rerun C++ SDK.
@@ -64,3 +62,4 @@ public:
 
 } // namespace logging
 
+#endif // VISIONPILOT_LOGGING_LOGGER_HPP
