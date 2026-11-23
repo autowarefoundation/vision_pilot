@@ -1,9 +1,11 @@
-#pragma once
+#ifndef VISIONPILOT_LONGITUDINAL_FUSION_HPP
+#define VISIONPILOT_LONGITUDINAL_FUSION_HPP
 
 #include <models/auto_drive.hpp>
 #include <models/auto_speed.hpp>
 #include <opencv2/core.hpp>
 
+#include <cstdint>
 #include <random>
 #include <vector>
 #include <common/types.hpp>
@@ -17,7 +19,7 @@ struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
 };
 
 // ─── Output ────────────────────────────────────────────────────────────────────
-enum class RadarHit { None, Fov, Path, L3 };
+enum class RadarHit : std::uint8_t { None, Fov, Path, L3 };
 
 // Snapshot for --debug-viz BEV. in_match / match_* are the association result
 // itself, so the panel never has to re-derive (and disagree about) the answer.
@@ -190,7 +192,7 @@ private:
     // Count a consecutive candidate. True once confirm_frames is reached.
     bool  note_candidate(float dist_m);
 
-    enum class TrackSrc { None, Radar, Camera };
+    enum class TrackSrc : std::uint8_t { None, Radar, Camera };
 
     Config cfg_;
     std::vector<Particle> particles_;
@@ -209,3 +211,5 @@ private:
 };
 
 }  // namespace visionpilot::fusion
+
+#endif // VISIONPILOT_LONGITUDINAL_FUSION_HPP
