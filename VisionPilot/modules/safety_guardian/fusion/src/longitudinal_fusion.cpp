@@ -1,12 +1,22 @@
 #include <fusion/longitudinal_fusion.hpp>
-#include <logging/logger.hpp>
+#include "fusion_log.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
+#include <sstream>
 #include <stdexcept>
 
 namespace visionpilot::fusion {
+
+namespace {
+
+// AutoSpeed class 1 (CIPO Level 1) or 2 (CIPO Level 2).
+bool is_cipo_box(const models::Detection& d)
+{
+    return d.class_id == 1 || d.class_id == 2;
+}
+
+}  // namespace
 
 // ─── Construction ─────────────────────────────────────────────────────────────
 
@@ -16,7 +26,7 @@ LongitudinalFusion::LongitudinalFusion()
 
 LongitudinalFusion::LongitudinalFusion(Config cfg)
     : cfg_(cfg)
-    , rng_(std::random_device{}())
+    , rng_(static_cast<std::mt19937::result_type>(std::random_device{}()))
 {
     if (cfg_.n_particles < 10)
         throw std::invalid_argument("LongitudinalFusion: n_particles must be >= 10");
@@ -60,9 +70,11 @@ CIPOFusionEstimate LongitudinalFusion::update(
             est.as_h_valid  = true;
             est.as_h_dist_m = as_h.distance_m;
         }
-        for (const auto& d : autospeed.detections)
-            if (d.class_id == 1 || d.class_id == 2)
+        for (const auto& d : autospeed.detections) {
+            if (is_cipo_box(d)) {
                 best_as_score = std::max(best_as_score, d.score);
+            }
+        }
     }
 
     static constexpr float CIPO_PROB_MIN = 0.40f;  // AD prior + AD-only camera fallback
@@ -72,10 +84,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
     // must not confirm a static rail at whatever the track already believes.
     const bool as_cipo_box =
         autospeed.valid &&
-        std::any_of(autospeed.detections.begin(), autospeed.detections.end(),
-                    [](const models::Detection& d) {
-                        return d.class_id == 1 || d.class_id == 2;
-                    });
+        std::any_of(autospeed.detections.begin(), autospeed.detections.end(), is_cipo_box);
     const bool ad_for_assoc =
         autodrive.valid && (as_cipo_box || autodrive.flag_prob >= CIPO_PROB_MIN);
 
@@ -107,9 +116,11 @@ CIPOFusionEstimate LongitudinalFusion::update(
             est.radar.match_range_m = radar_meas.distance_m;
             est.radar.match_rate_ms = radar_meas.velocity_ms;
             est.radar.in_match.assign(radar->size(), 0);
-            for (const int i : match_members)
-                if (i >= 0 && i < static_cast<int>(radar->size()))
+            for (const int i : match_members) {
+                if (i >= 0 && i < static_cast<int>(radar->size())) {
                     est.radar.in_match[static_cast<std::size_t>(i)] = 1;
+                }
+            }
             est.cipo_raw_found  = true;
             est.cipo_raw_dist_m = radar_meas.distance_m;
         }
@@ -149,8 +160,11 @@ CIPOFusionEstimate LongitudinalFusion::update(
             autodrive.valid && (as_cipo_box || autodrive.flag_prob >= CIPO_PROB_MIN);
         if (!ad_cipo_confirmed && !as_h.valid) {
             if (initialised_) {
-                VP_INFO("[Fusion] No CIPO confirmed (AD=%.0f%%  AS=none) — reset to %.0f m",
-                        autodrive.valid ? autodrive.flag_prob * 100.f : 0.f, D_MAX);
+                std::ostringstream os;
+                os << "[Fusion] No CIPO confirmed (AD="
+                   << detail::fmt_fixed(autodrive.valid ? autodrive.flag_prob * 100.f : 0.f, 0)
+                   << "%  AS=none) — reset to " << detail::fmt_fixed(D_MAX, 0) << " m";
+                detail::log_info(os.str());
                 reset();
             }
             // A gap frame breaks the confirmation streak. Otherwise a phantom,
@@ -165,15 +179,18 @@ CIPOFusionEstimate LongitudinalFusion::update(
             est.cipo_raw_found  = true;
             est.cipo_raw_dist_m = as_h.distance_m;
         }
-        if (!ad_cipo_confirmed)
+        if (!ad_cipo_confirmed) {
             ad_meas = {};
-        else if (!est.ad_meas_valid && ad_meas.valid) {
+        } else if (!est.ad_meas_valid && ad_meas.valid) {
             est.ad_meas_valid = true;
             est.ad_dist_m     = ad_meas.distance_m;
+        } else {
+            // AD confirmed and already reported on the HUD.
         }
     } else if (src == TrackSrc::None) {
         if (initialised_ || track_src_ != TrackSrc::None) {
-            VP_INFO("[Fusion] No relevant radar / camera CIPO — reset to %.0f m", D_MAX);
+            detail::log_info("[Fusion] No relevant radar / camera CIPO — reset to "
+                             + detail::fmt_fixed(D_MAX, 0) + " m");
             reset();
         }
         pending_hits_ = 0;
@@ -184,6 +201,8 @@ CIPOFusionEstimate LongitudinalFusion::update(
     } else if (src == TrackSrc::Camera && as_h.valid) {
         est.cipo_raw_found  = true;
         est.cipo_raw_dist_m = as_h.distance_m;
+    } else {
+        // Radar track, or AD-only camera track: raw CIPO already set above.
     }
 
     // Active filter inputs: radar alone, or camera (AS L1/L2 ± AD, else AD).
@@ -218,7 +237,9 @@ CIPOFusionEstimate LongitudinalFusion::update(
     float cloud_mean = 0.f;
     if (initialised_) {
         predict(dt);
-        for (const auto& p : particles_) cloud_mean += p.distance_m;
+        for (const auto& p : particles_) {
+            cloud_mean += p.distance_m;
+        }
         cloud_mean /= static_cast<float>(particles_.size());
     }
 
@@ -238,9 +259,10 @@ CIPOFusionEstimate LongitudinalFusion::update(
         cfg_.radar_enabled && track_src_ != TrackSrc::None && track_src_ != src;
     if (src_switch && accept) {
         const bool cut = prev_cut_in_;
-        VP_INFO("[Fusion] Source switch %s→%s — reset filter",
-                track_src_ == TrackSrc::Radar ? "radar" : "camera",
-                src == TrackSrc::Radar ? "radar" : "camera");
+        std::ostringstream os;
+        os << "[Fusion] Source switch " << (track_src_ == TrackSrc::Radar ? "radar" : "camera")
+           << "→" << (src == TrackSrc::Radar ? "radar" : "camera") << " — reset filter";
+        detail::log_info(os.str());
         reset();
         prev_cut_in_ = cut;  // reset() drops the latch; this frame already consumed the edge
     }
@@ -259,22 +281,27 @@ CIPOFusionEstimate LongitudinalFusion::update(
         radar_f = {};
     }
 
-    auto seed_from_active = [&](float mean_m, const char* reason) {
+    auto seed_from_active = [this, &radar_f, &as_f, &ad_f](float mean_m, const char* reason) {
+        using detail::fmt_fixed;
+        std::ostringstream os;
+        os << "[Fusion] " << reason << " — reinit " << fmt_fixed(mean_m, 1) << "→";
         if (radar_f.valid) {
-            VP_INFO("[Fusion] %s — reinit %.1f→%.1f m v=%.2f (radar)",
-                    reason, mean_m, radar_f.distance_m,
-                    radar_f.has_velocity ? radar_f.velocity_ms : 0.f);
+            os << fmt_fixed(radar_f.distance_m, 1) << " m v="
+               << fmt_fixed(radar_f.has_velocity ? radar_f.velocity_ms : 0.f, 2) << " (radar)";
+            detail::log_info(os.str());
             init_from(radar_f.distance_m, cfg_.cipo_noise_m,
                       radar_f.has_velocity ? radar_f.velocity_ms : 0.f,
                       radar_f.has_velocity ? radar_f.stddev_v : 2.f);
         } else if (as_f.valid) {
-            VP_INFO("[Fusion] %s — reinit %.1f→%.1f m (AS+H)",
-                    reason, mean_m, as_f.distance_m);
+            os << fmt_fixed(as_f.distance_m, 1) << " m (AS+H)";
+            detail::log_info(os.str());
             init_from(as_f.distance_m, as_f.stddev_m);
         } else if (ad_f.valid) {
-            VP_INFO("[Fusion] %s — reinit %.1f→%.1f m (AD)",
-                    reason, mean_m, ad_f.distance_m);
+            os << fmt_fixed(ad_f.distance_m, 1) << " m (AD)";
+            detail::log_info(os.str());
             init_from(ad_f.distance_m, ad_f.stddev_m);
+        } else {
+            // No active measurement: keep the current cloud.
         }
     };
 
@@ -305,6 +332,8 @@ CIPOFusionEstimate LongitudinalFusion::update(
                    std::abs(ad_f.distance_m - cloud_mean) > gate) {
             // Two-sided: cut-out (farther) and sudden drop (closer) on camera.
             seed_from_active(cloud_mean, "Camera jump");
+        } else {
+            // Same target: the weight update below refines the cloud.
         }
     }
 
@@ -333,36 +362,38 @@ CIPOFusionEstimate LongitudinalFusion::update(
     est.distance_stddev_m = std::sqrt(std::max(0.f, var_d));
 
     if (cfg_.debug) {
-        char ad_buf[48], ash_buf[32], rad_buf[48];
-        if (est.ad_meas_valid)
-            std::snprintf(ad_buf, sizeof(ad_buf), "%.1f m (p=%.0f%%)%s",
-                          est.ad_dist_m,
-                          autodrive.valid ? autodrive.flag_prob * 100.f : 0.f,
-                          ad_f.valid ? "" : " [idle]");
-        else
-            std::snprintf(ad_buf, sizeof(ad_buf), "(p=%.0f%%)",
-                          autodrive.valid ? autodrive.flag_prob * 100.f : 0.f);
-        if (est.as_h_valid)
-            std::snprintf(ash_buf, sizeof(ash_buf), "%.1f m (s=%.0f%%)%s",
-                          est.as_h_dist_m, best_as_score * 100.f,
-                          as_f.valid ? "" : " [idle]");
-        else
-            std::snprintf(ash_buf, sizeof(ash_buf), "(none)");
-        if (radar_ok)
-            std::snprintf(rad_buf, sizeof(rad_buf), "%.1f m v=%.2f case %d",
-                          radar_meas.distance_m, radar_meas.velocity_ms,
-                          est.radar_scenario);
-        else
-            std::snprintf(rad_buf, sizeof(rad_buf), "(none)");
-
+        using detail::fmt_fixed;
+        const float ad_pct = autodrive.valid ? autodrive.flag_prob * 100.f : 0.f;
         const char* src_txt = !cfg_.radar_enabled ? "cam"
                             : src == TrackSrc::Radar  ? "radar"
                             : src == TrackSrc::Camera ? "camera"
                                                       : "none";
-        VP_INFO("[Fusion] src=%s | AD=%s | AS+H=%s | Radar=%s%s | Fused=%.1f m  v=%.2f m/s  ±%.1f m",
-                src_txt, ad_buf, ash_buf, rad_buf,
-                est.cut_in_detected ? " [CUT-IN]" : "",
-                est.distance_m, est.velocity_ms, est.distance_stddev_m);
+        std::ostringstream os;
+        os << "[Fusion] src=" << src_txt << " | AD=";
+        if (est.ad_meas_valid) {
+            os << fmt_fixed(est.ad_dist_m, 1) << " m (p=" << fmt_fixed(ad_pct, 0) << "%)"
+               << (ad_f.valid ? "" : " [idle]");
+        } else {
+            os << "(p=" << fmt_fixed(ad_pct, 0) << "%)";
+        }
+        os << " | AS+H=";
+        if (est.as_h_valid) {
+            os << fmt_fixed(est.as_h_dist_m, 1) << " m (s=" << fmt_fixed(best_as_score * 100.f, 0)
+               << "%)" << (as_f.valid ? "" : " [idle]");
+        } else {
+            os << "(none)";
+        }
+        os << " | Radar=";
+        if (radar_ok) {
+            os << fmt_fixed(radar_meas.distance_m, 1) << " m v=" << fmt_fixed(radar_meas.velocity_ms, 2)
+               << " case " << est.radar_scenario;
+        } else {
+            os << "(none)";
+        }
+        os << (est.cut_in_detected ? " [CUT-IN]" : "")
+           << " | Fused=" << fmt_fixed(est.distance_m, 1) << " m  v=" << fmt_fixed(est.velocity_ms, 2)
+           << " m/s  ±" << fmt_fixed(est.distance_stddev_m, 1) << " m";
+        detail::log_info(os.str());
     }
 
     return est;
@@ -388,12 +419,17 @@ bool LongitudinalFusion::note_candidate(float dist_m)
     } else {
         pending_hits_ = 1;
         pending_dist_m_ = dist_m;
-        VP_INFO("[Fusion] CIPO candidate %.1f m — hold braking until %d consecutive frames",
-                dist_m, cfg_.confirm_frames);
+        std::ostringstream os;
+        os << "[Fusion] CIPO candidate " << detail::fmt_fixed(dist_m, 1)
+           << " m — hold braking until " << cfg_.confirm_frames << " consecutive frames";
+        detail::log_info(os.str());
     }
     if (pending_hits_ < cfg_.confirm_frames)
         return false;
-    VP_INFO("[Fusion] CIPO confirmed %.1f m across %d frames", dist_m, pending_hits_);
+    std::ostringstream os;
+    os << "[Fusion] CIPO confirmed " << detail::fmt_fixed(dist_m, 1)
+       << " m across " << pending_hits_ << " frames";
+    detail::log_info(os.str());
     pending_hits_ = 0;
     return true;
 }
@@ -441,7 +477,9 @@ std::vector<float> LongitudinalFusion::linear_weights() const
 {
     const std::size_t N = particles_.size();
     float max_lw = particles_[0].log_w;
-    for (const auto& p : particles_) max_lw = std::max(max_lw, p.log_w);
+    for (const auto& p : particles_) {
+        max_lw = std::max(max_lw, p.log_w);
+    }
 
     std::vector<float> w(N);
     float sum = 0.f;
@@ -451,9 +489,13 @@ std::vector<float> LongitudinalFusion::linear_weights() const
     }
     if (sum < 1e-12f) {
         const float w0 = 1.f / static_cast<float>(N);
-        for (auto& wi : w) wi = w0;
+        for (auto& wi : w) {
+            wi = w0;
+        }
     } else {
-        for (auto& wi : w) wi /= sum;
+        for (auto& wi : w) {
+            wi /= sum;
+        }
     }
     return w;
 }
@@ -462,33 +504,35 @@ float LongitudinalFusion::effective_n() const
 {
     const auto w = linear_weights();
     float ss = 0.f;
-    for (auto wi : w) ss += wi * wi;
+    for (auto wi : w) {
+        ss += wi * wi;
+    }
     return 1.f / (ss + 1e-12f);
 }
 
 void LongitudinalFusion::resample()
 {
-    const int N = static_cast<int>(particles_.size());
-    if (N == 0) return;
+    const std::size_t N = particles_.size();
+    if (N == 0U) return;
 
     const auto w = linear_weights();
-    std::vector<float> cs(static_cast<std::size_t>(N));
+    std::vector<float> cs(N);
     cs[0] = w[0];
-    for (int i = 1; i < N; ++i)
-        cs[static_cast<std::size_t>(i)] =
-            cs[static_cast<std::size_t>(i-1)] + w[static_cast<std::size_t>(i)];
+    for (std::size_t i = 1U; i < N; ++i) {
+        cs[i] = cs[i - 1U] + w[i];
+    }
 
     std::vector<Particle> np;
-    np.reserve(static_cast<std::size_t>(N));
+    np.reserve(N);
     std::uniform_real_distribution<float> u(0.f, 1.f / static_cast<float>(N));
     const float u0 = u(rng_);
-    int j = 0;
-    for (int i = 0; i < N; ++i) {
+    std::size_t j = 0U;
+    for (std::size_t i = 0U; i < N; ++i) {
         const float thr = u0 + static_cast<float>(i) / static_cast<float>(N);
-        while (j < N-1 && cs[static_cast<std::size_t>(j)] < thr) ++j;
-        np.push_back({particles_[static_cast<std::size_t>(j)].distance_m,
-                      particles_[static_cast<std::size_t>(j)].velocity_ms,
-                      0.f});
+        while (((j + 1U) < N) && (cs[j] < thr)) {
+            ++j;
+        }
+        np.push_back({particles_[j].distance_m, particles_[j].velocity_ms, 0.f});
     }
     particles_ = std::move(np);
 }
