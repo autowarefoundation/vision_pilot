@@ -1,7 +1,7 @@
 #include <models/inference.hpp>
 
 #include <common/utils.hpp>
-#include <logging/logger.hpp>
+#include <logging/console.hpp>
 
 #include <opencv2/imgproc.hpp>
 
@@ -92,9 +92,11 @@ namespace visionpilot::models
     void LatencyStats::print() const
     {
         const double total = pre + wall;
-        VP_INFO("Latency  pre=%.1f ms  AD=%.1f ms  AS=%.1f ms  ASp=%.1f ms  "
-                "parallel=%.1f ms  wall=%.1f ms  %.0f fps",
-                pre, ad, as, asp, wall, total, total > 0 ? 1000.0 / total : 0.0);
+        using logging::fmt_fixed;
+        logging::log_info("Latency  pre=" + fmt_fixed(pre, 1) + " ms  AD=" + fmt_fixed(ad, 1)
+                          + " ms  AS=" + fmt_fixed(as, 1) + " ms  ASp=" + fmt_fixed(asp, 1)
+                          + " ms  parallel=" + fmt_fixed(wall, 1) + " ms  wall=" + fmt_fixed(total, 1)
+                          + " ms  " + fmt_fixed((total > 0.0) ? (1000.0 / total) : 0.0, 0) + " fps");
     }
 
     void LatencyStats::reset() { *this = {}; }
@@ -140,8 +142,10 @@ namespace visionpilot::models
         H64_inv.convertTo(H_world2resized_, CV_32F);
         lat_fusion_.set_H(H_resized_);
         long_fusion_.set_H(H_resized_);
-        VP_INFO("[Pipeline] H_resized set — raw=%dx%d  top_crop=%d  sx=%.4f sy=%.4f",
-                raw_size.width, raw_size.height, crop_top, sx, sy);
+        logging::log_info("[Pipeline] H_resized set — raw=" + std::to_string(raw_size.width)
+                          + "x" + std::to_string(raw_size.height)
+                          + "  top_crop=" + std::to_string(crop_top)
+                          + "  sx=" + logging::fmt_fixed(sx, 4) + " sy=" + logging::fmt_fixed(sy, 4));
     }
 
     std::optional<InferenceFrameResult> InferencePipeline::process(const cv::Mat& warped,
