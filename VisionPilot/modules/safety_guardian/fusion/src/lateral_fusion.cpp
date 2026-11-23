@@ -1,5 +1,5 @@
 #include <fusion/lateral_fusion.hpp>
-#include "fusion_log.hpp"
+#include <logging/console.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -152,7 +152,7 @@ LateralFusionEstimate LateralFusion::update(
 
     // ── Step 7: Debug log ─────────────────────────────────────────────────────
     if (cfg_.debug) {
-        using detail::fmt_fixed;
+        using ::logging::fmt_fixed;
         std::ostringstream os;
         os << "[Lateral] Path: ";
         if (path.valid) {
@@ -174,7 +174,7 @@ LateralFusionEstimate LateralFusion::update(
         os << " | Fused CTE=" << fmt_fixed(est.cte_m, 2) << "m (" << fmt_fixed(est.cte_rate_mps, 2)
            << "m/s) yaw=" << fmt_fixed(est.yaw_rad, 3) << "rad (" << fmt_fixed(est.yaw_rate_rps, 3)
            << "rad/s) κ=" << fmt_fixed(est.curvature, 4);
-        detail::log_info(os.str());
+        ::logging::log_info(os.str());
     }
 
     return est;
