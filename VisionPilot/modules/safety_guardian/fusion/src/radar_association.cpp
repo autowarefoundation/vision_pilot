@@ -1,10 +1,10 @@
 #include <fusion/longitudinal_fusion.hpp>
-#include <logging/logger.hpp>
+#include "fusion_log.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <limits>
+#include <sstream>
 
 #include <opencv2/imgproc.hpp>
 
@@ -139,8 +139,9 @@ std::vector<RadarCluster> cluster_radar(const std::vector<RadarPoint>& pts, floa
             if (label != -3) continue;
             label = cluster_id;
             const auto expanded = region(j);
-            if (expanded.size() >= 2)
-                seeds.insert(seeds.end(), expanded.begin(), expanded.end());
+            if (expanded.size() >= 2) {
+                static_cast<void>(seeds.insert(seeds.end(), expanded.begin(), expanded.end()));
+            }
         }
         ++cluster_id;
     }
@@ -196,7 +197,8 @@ float bbox_u_to_radar_az(float u, const LongitudinalFusion::Config& cfg)
     const cv::Matx33d R_radar(cfg.radar_T(0,0), cfg.radar_T(0,1), cfg.radar_T(0,2),
                               cfg.radar_T(1,0), cfg.radar_T(1,1), cfg.radar_T(1,2),
                               cfg.radar_T(2,0), cfg.radar_T(2,1), cfg.radar_T(2,2));
-    const cv::Vec3d dir_radar = R_radar.t() * (R_cam * cv::Vec3d(std::sin(h), 0.0, std::cos(h)));
+    const cv::Vec3d ray_cam(static_cast<double>(std::sin(h)), 0.0, static_cast<double>(std::cos(h)));
+    const cv::Vec3d dir_radar = R_radar.t() * (R_cam * ray_cam);
     return static_cast<float>(std::atan2(dir_radar[1], dir_radar[0]));
 }
 
@@ -230,7 +232,7 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
     constexpr float kRateBandMs = 2.f;
 
     const int n = static_cast<int>(pts.size());
-    std::vector<char> member(static_cast<std::size_t>(n), 0);
+    std::vector<std::int32_t> member(static_cast<std::size_t>(n), 0);  // 1 = in the object
     std::vector<float> seed_rates;
     for (int i = 0; i < n; ++i) {
         const auto& p = pts[static_cast<std::size_t>(i)];
@@ -249,25 +251,27 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
 
     bool any = false;
     for (int i = 0; i < n; ++i) {
-        if (!member[static_cast<std::size_t>(i)]) continue;
-        if (std::abs(pts[static_cast<std::size_t>(i)].range_rate - rate_ref) > kRateBandMs)
+        if (member[static_cast<std::size_t>(i)] == 0) continue;
+        if (std::abs(pts[static_cast<std::size_t>(i)].range_rate - rate_ref) > kRateBandMs) {
             member[static_cast<std::size_t>(i)] = 0;
-        else
+        } else {
             any = true;
+        }
     }
     if (!any) return -1;
 
-    const std::vector<char> seeds = member;
+    const std::vector<std::int32_t> seeds = member;
     for (int i = 0; i < n; ++i) {
-        if (!seeds[static_cast<std::size_t>(i)]) continue;
+        if (seeds[static_cast<std::size_t>(i)] == 0) continue;
         for (int j = 0; j < n; ++j) {
-            if (member[static_cast<std::size_t>(j)]) continue;
+            if (member[static_cast<std::size_t>(j)] != 0) continue;
             const auto& q = pts[static_cast<std::size_t>(j)];
             if (q.range_m <= 0.f) continue;
             if (!in_lat(q)) continue;
             if (std::abs(q.range_rate - rate_ref) > kRateBandMs) continue;
-            if (polar_vel_dist(pts[static_cast<std::size_t>(i)], q, vel_scale) <= 1.f)
+            if (polar_vel_dist(pts[static_cast<std::size_t>(i)], q, vel_scale) <= 1.f) {
                 member[static_cast<std::size_t>(j)] = 1;
+            }
         }
     }
 
@@ -276,7 +280,7 @@ int cluster_in_window(const std::vector<RadarPoint>& pts,
     int representative = -1;
     std::vector<int> members;
     for (int i = 0; i < n; ++i) {
-        if (!member[static_cast<std::size_t>(i)]) continue;
+        if (member[static_cast<std::size_t>(i)] == 0) continue;
         const auto& p = pts[static_cast<std::size_t>(i)];
         range_sum += p.range_m;
         rate_sum += p.range_rate;
@@ -317,6 +321,12 @@ int closest_of(const std::vector<RadarCluster>& clusters, const std::vector<int>
     return best;
 }
 
+// Lowest box bottom first (largest y1 + y2 = closest to the ego vehicle).
+bool lower_box_first(const models::Detection& a, const models::Detection& b)
+{
+    return (a.y1 + a.y2) > (b.y1 + b.y2);
+}
+
 }  // namespace
 
 // ─── Camera / radar CIPO selection ───────────────────────────────────────────
@@ -344,8 +354,14 @@ LongitudinalFusion::select_cipo(const std::vector<models::Detection>& dets) cons
         const float cx   = (d.x1 + d.x2) * 0.5f;
         const float dist = project_dist(H_, cx, d.y2);
         if (cfg_.debug) {
-            VP_INFO("[CIPO-DBG] cls=%d  bbox=(%.0f,%.0f,%.0f,%.0f)  bottom-center=(%.0f,%.0f) → %.1f m",
-                    d.class_id, d.x1, d.y1, d.x2, d.y2, cx, d.y2, dist);
+            using detail::fmt_fixed;
+            std::ostringstream os;
+            os << "[CIPO-DBG] cls=" << d.class_id
+               << "  bbox=(" << fmt_fixed(d.x1, 0) << ',' << fmt_fixed(d.y1, 0) << ','
+               << fmt_fixed(d.x2, 0) << ',' << fmt_fixed(d.y2, 0)
+               << ")  bottom-center=(" << fmt_fixed(cx, 0) << ',' << fmt_fixed(d.y2, 0)
+               << ") → " << fmt_fixed(dist, 1) << " m";
+            detail::log_info(os.str());
         }
         if (d.class_id == 1 && dist < best_l1) best_l1 = dist;
         if (d.class_id == 2 && dist < best_l2) best_l2 = dist;
@@ -364,6 +380,8 @@ LongitudinalFusion::select_cipo(const std::vector<models::Detection>& dets) cons
     } else if (have_l1) {
         sel.meas.distance_m = best_l1;
         sel.meas.valid      = true;
+    } else {
+        // No CIPO box: sel.meas stays invalid.
     }
 
     // The homography inverts d = f·h / (v − v_horizon), so a fixed pixel error
@@ -387,7 +405,7 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
                                       const float* ego_speed_ms,
                                       const float* range_prior_m) const
 {
-    auto fill_c = [&](const RadarCluster& c, bool cut_in, RadarHit hit,
+    auto fill_c = [this](const RadarCluster& c, bool cut_in, RadarHit hit,
                       int scenario, bool fov_ok, float fov_az) {
         CIPOSelection sel;
         sel.meas.distance_m   = c.range_m;
@@ -420,13 +438,11 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
     const auto clusters = cluster_radar(radar, cfg_.radar_max_range_m, 1.0f, ego, have_ego);
 
     std::vector<models::Detection> cipo_boxes;
-    for (const auto& d : dets)
+    for (const auto& d : dets) {
         if (d.class_id == 1 || d.class_id == 2) cipo_boxes.push_back(d);
+    }
     if (!cipo_boxes.empty())
-        std::sort(cipo_boxes.begin(), cipo_boxes.end(),
-                  [](const models::Detection& a, const models::Detection& b) {
-                      return (a.y1 + a.y2) > (b.y1 + b.y2);
-                  });
+        std::sort(cipo_boxes.begin(), cipo_boxes.end(), lower_box_first);
 
     const bool have_box = !cipo_boxes.empty();
     float az = 0.f, az_min = 0.f, az_max = 0.f, d_h = 0.f;
@@ -459,13 +475,16 @@ LongitudinalFusion::select_cipo_radar(const std::vector<models::Detection>& dets
             *path, cfg_.radar_max_range_m, lat_zone);
         search.x_max_m = horizon;
         std::vector<int> candidates;
-        for (int i = 0; i < static_cast<int>(clusters.size()); ++i) {
-            const auto& c = clusters[static_cast<std::size_t>(i)];
+        for (std::size_t i = 0U; i < clusters.size(); ++i) {
+            const auto& c = clusters[i];
             if (!cluster_on_path(c, search, lat_zone)) continue;
-            if (cluster_is_moving(c, ego, have_ego))
-                candidates.push_back(i);
-            else if (c.members.size() >= 2 && near_cv(c))
-                candidates.push_back(i);
+            if (cluster_is_moving(c, ego, have_ego)) {
+                candidates.push_back(static_cast<int>(i));
+            } else if (c.members.size() >= 2 && near_cv(c)) {
+                candidates.push_back(static_cast<int>(i));
+            } else {
+                // Static and not confirmed by a camera range: not a candidate.
+            }
         }
 
         const int ic = closest_of(clusters, candidates);
