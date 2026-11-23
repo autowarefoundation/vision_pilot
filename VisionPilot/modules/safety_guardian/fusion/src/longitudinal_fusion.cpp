@@ -64,7 +64,7 @@ CIPOFusionEstimate LongitudinalFusion::update(
     // reset the particle filter so we start fresh when a target reappears.
     if (!ad_cipo_confirmed && !autospeed_cipo_confirmed) {
         if (initialised_) {
-            logging::info("[Fusion] No CIPO confirmed (AD=%.0f%%  AS=none) — reset to %.0f m",
+            logging::info("[Fusion] No CIPO confirmed (AD={:.0}%  AS=none) — reset to {:.0} m",
                     autodrive.valid ? autodrive.flag_prob * 100.f : 0.f, D_MAX);
             reset();
         }
@@ -105,12 +105,12 @@ CIPOFusionEstimate LongitudinalFusion::update(
 
         if (cipo_raw.valid &&
             std::abs(cipo_raw.distance_m - cloud_mean) > gate) {
-            logging::info("[Fusion] Target change — reinit %.1f→%.1f m (CIPO)  gate=%.1f",
+            logging::info("[Fusion] Target change — reinit {:.1}→{:.1} m (CIPO)  gate={:.1}",
                     cloud_mean, cipo_raw.distance_m, gate);
             init_from(cipo_raw.distance_m, cfg_.cipo_noise_m);
         } else if (ad_meas.valid &&
                    (ad_meas.distance_m - cloud_mean) > gate) {
-            logging::info("[Fusion] Cut-out — reinit %.1f→%.1f m (AD)  gate=%.1f",
+            logging::info("[Fusion] Cut-out — reinit {:.1}→{:.1} m (AD)  gate={:.1}",
                     cloud_mean, ad_meas.distance_m, gate);
             init_from(ad_meas.distance_m, ad_meas.stddev_m);
         }
@@ -144,20 +144,20 @@ CIPOFusionEstimate LongitudinalFusion::update(
     if (cfg_.debug) {
         char ad_buf[48], cr_buf[32];
         if (ad_meas.valid)
-            std::snprintf(ad_buf, sizeof(ad_buf), "%.1f m (p=%.0f%% σ=%.1fm)",
+            logging::info(ad_buf, sizeof(ad_buf), "{:.1} m (p={:.0}% σ={:.1}m)",
                           ad_meas.distance_m,
                           autodrive.valid ? autodrive.flag_prob * 100.f : 0.f,
                           ad_meas.stddev_m);
         else
-            std::snprintf(ad_buf, sizeof(ad_buf), "(p=%.0f%% < %.0f%%)",
+            logging::info(ad_buf, sizeof(ad_buf), "(p={:.0}% < {:.0}%)",
                           autodrive.valid ? autodrive.flag_prob * 100.f : 0.f,
                           CIPO_PROB_MIN * 100.f);
         if (cipo_raw.valid)
-            std::snprintf(cr_buf, sizeof(cr_buf), "%.1f m", cipo_raw.distance_m);
+            logging::info(cr_buf, sizeof(cr_buf), "{:.1} m", cipo_raw.distance_m);
         else
-            std::snprintf(cr_buf, sizeof(cr_buf), "(none)");
+            logging::info(cr_buf, sizeof(cr_buf), "(none)");
 
-        logging::info("[Fusion] AD=%s | CIPO=%s%s | Fused=%.1f m  v=%.2f m/s  ±%.1f m",
+        logging::info("[Fusion] AD={} | CIPO={}{} | Fused={:.1} m  v={:.2} m/s  ±{:.1} m",
                 ad_buf, cr_buf,
                 est.cut_in_detected ? " [CUT-IN]" : "",
                 est.distance_m, est.velocity_ms, est.distance_stddev_m);
@@ -191,7 +191,7 @@ LongitudinalFusion::select_cipo(const std::vector<models::Detection>& dets) cons
         const float cx   = (d.x1 + d.x2) * 0.5f;
         const float dist = project_dist(H_, cx, d.y2);
         if (cfg_.debug) {
-            logging::info("[CIPO-DBG] cls=%d  bbox=(%.0f,%.0f,%.0f,%.0f)  bottom-center=(%.0f,%.0f) → %.1f m",
+            logging::info("[CIPO-DBG] cls={}  bbox=({:.0},{:.0},{:.0},{:.0})  bottom-center=({:.0},{:.0}) → {:.1} m",
                     d.class_id, d.x1, d.y1, d.x2, d.y2, cx, d.y2, dist);
         }
         if (d.class_id == 1 && dist < best_l1) best_l1 = dist;

@@ -1,5 +1,5 @@
-#include "models/auto_speed.hpp"
-
+#include <models/auto_speed.hpp>
+#include <logging/logger.hpp>
 #include <onnxruntime_run_options_config_keys.h>
 
 #include <algorithm>
@@ -26,7 +26,7 @@ namespace visionpilot::models
         {
             in_name_strs_[i] = session_->GetInputNameAllocated(i, alloc).get();
             in_names_[i] = in_name_strs_[i].c_str();
-            printf("[AutoSpeed] input[%zu]  = %s\n", i, in_names_[i]);
+            logging::info("[AutoSpeed] input[{}]  = {}", i, in_names_[i]);
         }
 
         out_name_strs_.resize(n_out);
@@ -35,11 +35,11 @@ namespace visionpilot::models
         {
             out_name_strs_[i] = session_->GetOutputNameAllocated(i, alloc).get();
             out_names_[i] = out_name_strs_[i].c_str();
-            printf("[AutoSpeed] output[%zu] = %s\n", i, out_names_[i]);
+            logging::info("[AutoSpeed] output[{}] = {}", i, out_names_[i]);
         }
 
-        printf("[AutoSpeed] Ready — %zu inputs, %zu outputs | "
-               "frame [1, 3, %d, %d]\n", n_in, n_out, NET_H, NET_W);
+        logging::info("[AutoSpeed] Ready — {} inputs, {} outputs | "
+               "frame [1, 3, {}, {}]\n", n_in, n_out, NET_H, NET_W);
     }
 
     // ─── Inference ───────────────────────────────────────────────────────────────
@@ -67,13 +67,13 @@ namespace visionpilot::models
         }
         catch (const Ort::Exception& e)
         {
-            printf("[AutoSpeed] Inference error: %s\n", e.what());
+            logging::info("[AutoSpeed] Inference error: {}", e.what());
             return out;
         }
 
         if (results.empty())
         {
-            printf("[AutoSpeed] No output tensors returned\n");
+            logging::info("[AutoSpeed] No output tensors returned");
             return out;
         }
 
@@ -91,7 +91,7 @@ namespace visionpilot::models
         // Expected layout: [1, C, N]  where C = 4 + num_classes
         if (shape.size() < 3)
         {
-            printf("[AutoSpeed] Unexpected output rank: %zu\n", shape.size());
+            logging::info("[AutoSpeed] Unexpected output rank: {}", shape.size());
             return out;
         }
 
@@ -100,8 +100,7 @@ namespace visionpilot::models
 
         if (C <= 4)
         {
-            printf("[AutoSpeed] Invalid channel count C=%lld\n",
-                   static_cast<long long>(C));
+            logging::info("[AutoSpeed] Invalid channel count C={}", static_cast<long long>(C));
             return out;
         }
         // MISRA 4.1.3 justified: C > 4 is guaranteed by the check above, so C - 4 is in [1, C).

@@ -145,20 +145,19 @@ LateralFusionEstimate LateralFusion::update(
     if (cfg_.debug) {
         char path_buf[96], ad_buf[32];
         if (path.valid)
-            std::snprintf(path_buf, sizeof(path_buf),
-                          "raw_CTE=%.2fm  bias=%.2fm  corr=%.2fm  yaw=%.3frad  κ=%.4f  (%d pts, xmin=%.1fm)",
+            logging::info(path_buf, sizeof(path_buf),
+                          "raw_CTE={:.2}m  bias={:.2}m  corr={:.2}m  yaw={:.3}rad  κ={:.4}  ({} pts, xmin={:.1}m)",
                           path.cte_m, cfg_.cte_bias_m, path.cte_m - cfg_.cte_bias_m,
                           path.yaw_rad, path.curvature, path.inliers, path.x_min_m);
         else
-            std::snprintf(path_buf, sizeof(path_buf), "(no path fit, %d pts)", est.path_points);
+            logging::info(path_buf, sizeof(path_buf), "(no path fit, {} pts)", est.path_points);
 
         if (ad_curv_valid)
-            std::snprintf(ad_buf, sizeof(ad_buf), "%.4f (raw=%.4f)",
-                          ad_curv, drive.curvature_raw);
+            logging::info(ad_buf, sizeof(ad_buf), "{:.4} (raw={:.4})", ad_curv, drive.curvature_raw);
         else
-            std::snprintf(ad_buf, sizeof(ad_buf), "(none)");
+            logging::info(ad_buf, sizeof(ad_buf), "(none)");
 
-        logging::info("[Lateral] Path: %s | AD-κ=%s | Fused CTE=%.2fm (%.2fm/s) yaw=%.3frad (%.3frad/s) κ=%.4f",
+        logging::info("[Lateral] Path: {} | AD-κ={} | Fused CTE={:.2}m ({:.2}m/s) yaw={:.3}rad ({:.3}rad/s) κ={:.4}",
                 path_buf, ad_buf,
                 est.cte_m, est.cte_rate_mps, est.yaw_rad, est.yaw_rate_rps, est.curvature);
     }
