@@ -5,7 +5,6 @@
 
 #include <memory>
 #include <string>
-#include <logging/logger.hpp>
 
 namespace visionpilot::engine
 {

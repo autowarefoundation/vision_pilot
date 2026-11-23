@@ -1,9 +1,11 @@
-#pragma once
+#ifndef VISIONPILOT_LONGITUDINAL_FUSION_HPP
+#define VISIONPILOT_LONGITUDINAL_FUSION_HPP
 
 #include <models/auto_drive.hpp>
 #include <models/auto_speed.hpp>
 #include <opencv2/core.hpp>
 
+#include <cstdint>
 #include <random>
 #include <vector>
 #include <common/types.hpp>
@@ -17,7 +19,7 @@ struct PathPoly {  // y = a·x² + b·x + c, same frame as radar
 };
 
 // ─── Output ────────────────────────────────────────────────────────────────────
-enum class RadarHit { None, Fov, Path, L3 };
+enum class RadarHit : std::uint8_t { None, Fov, Path, L3 };
 
 // Snapshot for --debug-viz BEV. in_match / match_* are the association result
 // itself, so the panel never has to re-derive (and disagree about) the answer.
@@ -32,7 +34,7 @@ struct RadarAssocDebug {
     bool  fov_valid      = false;
     float fov_az_rad     = 0.f;
     RadarHit hit         = RadarHit::None;
-    int   match_i        = -1;
+    std::int32_t match_i        = -1;
     float match_range_m  = 0.f;      // exactly what fusion reported
     float match_rate_ms  = 0.f;
 };
@@ -58,7 +60,7 @@ struct CIPOFusionEstimate {
     bool  radar_meas_valid  = false;
     float radar_dist_m      = 0.f;
     float radar_vel_ms      = 0.f;
-    int   radar_scenario    = 0;  // 0 none, 1 path mover, 2 path static, 3 box azimuth
+    std::int32_t radar_scenario    = 0;  // 0 none, 1 path mover, 2 path static, 3 box azimuth
 
     RadarAssocDebug radar;
 };
@@ -81,7 +83,7 @@ struct CIPOFusionEstimate {
 class LongitudinalFusion {
 public:
     struct Config {
-        int   n_particles          = 500;
+        std::int32_t n_particles          = 500;
         float d_max_m              = 150.f;
         float dt_s                 = 0.10f;   // nominal dt; overridden per-call
         // Keep small (MRPT uses 0.03 m). Large values cause particle drift → bad velocity.
@@ -103,7 +105,7 @@ public:
         // Consecutive agreeing frames before a new or jumped range may brake.
         // 1 disables the hold. At 20 Hz one extra frame is about 1.5 m of
         // travel at 30 m/s; at 10 Hz it is about 3 m.
-        int   confirm_frames        = 2;
+        std::int32_t confirm_frames        = 2;
         bool  debug                = false;
 
         bool  radar_enabled        = false;
@@ -140,14 +142,19 @@ public:
         const float* ego_speed_ms = nullptr);
 
     void reset();
-    const Config& config() const { return cfg_; }
+    const Config& config() const& { return cfg_; }
+    const Config& config() const&& = delete;  // no reference into a temporary
 
     // Override the internal H matrix used to project AutoSpeed bboxes to world
     // space.  Call once when AutoSpeed runs on a non-BEV image.
     void set_H(const cv::Mat& H) { H_ = H.clone(); }
 
 private:
-    struct Particle { float distance_m, velocity_ms, log_w; };
+    struct Particle {
+        float distance_m;
+        float velocity_ms;
+        float log_w;
+    };
     struct Meas {
         float distance_m = 0.f;
         float velocity_ms = 0.f;
@@ -163,9 +170,9 @@ private:
         bool from_path = false;
         bool fov_valid = false;
         float fov_az_rad = 0.f;
-        int match_i = -1;
-        std::vector<int> members;
-        int scenario = 0;
+        std::int32_t match_i = -1;
+        std::vector<std::int32_t> members;
+        std::int32_t scenario = 0;
         RadarHit hit = RadarHit::None;
         float search_x_max_m = 0.f;
     };
@@ -190,14 +197,14 @@ private:
     // Count a consecutive candidate. True once confirm_frames is reached.
     bool  note_candidate(float dist_m);
 
-    enum class TrackSrc { None, Radar, Camera };
+    enum class TrackSrc : std::uint8_t { None, Radar, Camera };
 
     Config cfg_;
     std::vector<Particle> particles_;
     bool   initialised_ = false;
     bool   prev_cut_in_ = false;
     TrackSrc track_src_ = TrackSrc::None;
-    int    pending_hits_ = 0;
+    std::int32_t pending_hits_ = 0;
     float  pending_dist_m_ = 0.f;
     std::mt19937 rng_;
     // DO NOT MODIFY! VisionPilot model-view homography (1024x512 pixel -> world). Zenseact Open Dataset
@@ -209,3 +216,5 @@ private:
 };
 
 }  // namespace visionpilot::fusion
+
+#endif // VISIONPILOT_LONGITUDINAL_FUSION_HPP

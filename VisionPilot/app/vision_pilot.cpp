@@ -16,6 +16,7 @@
 #include <visualization/webrtc_stream.hpp>
 #include <image_preprocessing/image_preprocessor.hpp>
 #include <logging/logger.hpp>
+#include <logging/console.hpp>
 #include <models/inference.hpp>
 #include <planning/planning.hpp>
 #include <visualization/debug_display.hpp>
@@ -44,7 +45,7 @@ int main(int argc, char** argv)
     try { cfg = load_vision_pilot_config(); }
     catch (const std::exception& e)
     {
-        VP_ERROR("Config: %s", e.what());
+        logging::log_error(std::string("Config: ") + e.what());
         return 1;
     }
 
@@ -116,7 +117,7 @@ int main(int argc, char** argv)
 
     if (!camera_interface || !camera_interface->is_device_open())
     {
-        VP_ERROR("Cannot open frame source");
+        logging::log_error("Cannot open frame source");
         return 1;
     }
 
@@ -179,19 +180,21 @@ int main(int argc, char** argv)
             const Plan plan = planner.compute_plan(
                 cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
 
-            VP_INFO(
-                "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm) cte_dot=%+.2fm/s  epsi=%.3f epsi_dot=%+.3frad/s  kappa=%.4f  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
-                plan.steering.empty() ? 0.0 : plan.steering[1],
-                plan.acceleration,
-                cte,
-                raw_cte,
-                r->lateral.cte_rate_mps,
-                epsi,
-                r->lateral.yaw_rate_rps,
-                kappa,
-                has_cipo ? "true" : "false",
-                cipo_dist,
-                r->cipo.velocity_ms);
+            {
+                using logging::fmt_fixed;
+                using logging::fmt_signed;
+                logging::log_info(
+                    "plan: tyre=" + fmt_fixed(plan.steering.empty() ? 0.0 : plan.steering[1], 4)
+                    + " rad  accel=" + fmt_fixed(plan.acceleration, 3)
+                    + " m/s²  |  cte=" + fmt_fixed(cte, 2) + "m(raw=" + fmt_fixed(raw_cte, 2)
+                    + "m) cte_dot=" + fmt_signed(r->lateral.cte_rate_mps, 2)
+                    + "m/s  epsi=" + fmt_fixed(epsi, 3)
+                    + " epsi_dot=" + fmt_signed(r->lateral.yaw_rate_rps, 3)
+                    + "rad/s  kappa=" + fmt_fixed(kappa, 4)
+                    + "  |  cipo=" + (has_cipo ? "true" : "false")
+                    + "  dist=" + fmt_fixed(cipo_dist, 1)
+                    + " m  vel=" + fmt_signed(r->cipo.velocity_ms, 2) + " m/s");
+            }
 
             vehicle_interface->write(plan.steering.empty() ? 0.0 : plan.steering[1], plan.acceleration);
 
