@@ -29,7 +29,7 @@ To establish a highly precise mapping from pixels to physical road coordinates, 
    * **Crucial Detail:** The exact intersection point at the center serves as the single pixel-accurate coordinate $(u,v)$.
    
 2. **Lay Out the Grid on the Ground:**
-   * Using an A4 papger, print out four copies of the [checkerboard grid pattern](checkerboard-bw.png), each page should have one 4x4 checkerboard pattern on it. Place the checkerboards on the flat asphalt in front of the vehicle in a rectangular pattern such that they are visible to the camera and firmly tape the pages flat to the road surface.
+   * Using an A4 paper, print out four copies of the [checkerboard grid pattern](checkerboard-bw.png), each page should have one 4x4 checkerboard pattern on it. Place the checkerboards on the flat asphalt in front of the vehicle in a rectangular pattern such that they are visible to the camera and firmly tape the pages flat to the road surface.
    * Ensure they do not slide or warp.
 
 3. **Measure Your Coordinates:**
@@ -38,7 +38,7 @@ To establish a highly precise mapping from pixels to physical road coordinates, 
 
 4. **Save a calibration image:**
    * Save an image of the scene in which the camera sees the checkerboard patterns on the asphalt, this image will be used by the script as the input calibration image. 
-   * Ensure that camera is firmly and rigidly mounted - if the camera moves after you have run the calibraiton script, the calibration parameters will be invalid and you will need to re-run the calibration script again.
+   * Ensure that camera is firmly and rigidly mounted - if the camera moves after you have run the calibration script, the calibration parameters will be invalid and you will need to re-run the calibration script again.
 
 ---
 

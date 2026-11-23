@@ -238,3 +238,6 @@ Tutorials/E2E_Models/weights/
 # Open AD Kit demo assets (downloaded via OpenADKit/download-assets.sh, not tracked)
 VisionPilot/software_defined_vehicle/OpenADKit/Test/
 VisionPilot/software_defined_vehicle/OpenADKit/**/model-weights/
+# colcon workspace output (e.g. Simulation/CARLA/ROS2)
+install/
+log/

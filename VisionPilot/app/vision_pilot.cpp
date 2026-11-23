@@ -13,6 +13,7 @@
 #include <visualization/webrtc_stream.hpp>
 #include <image_preprocessing/image_preprocessor.hpp>
 #include <logging/logger.hpp>
+#include <logging/rerun.hpp>
 #include <models/inference.hpp>
 #include <planning/planning.hpp>
 #include <visualization/debug_display.hpp>
@@ -41,7 +42,7 @@ int main(int argc, char** argv)
     try { cfg = load_vision_pilot_config(); }
     catch (const std::exception& e)
     {
-        VP_ERROR("Config: %s", e.what());
+        logging::error("Config: {}", e.what());
         return 1;
     }
 
@@ -60,8 +61,8 @@ int main(int argc, char** argv)
     rclcpp::init(argc, argv);
     camera_interface = std::make_unique<camera_interface::CameraRos2Interface>(cfg.source.input_camera_topic);
     vehicle_interface = std::make_shared<::vehicle_interface::VehicleRos2Interface>(cfg.vehicle_speed_topic,
-                                                               cfg.vehicle_steering_topic,
-                                                               cfg.vehicle_acceleration_topic);
+        cfg.vehicle_steering_topic,
+        cfg.vehicle_acceleration_topic);
 #else
     if (cfg.source.mode == SourceMode::Video)
     {
@@ -77,16 +78,20 @@ int main(int argc, char** argv)
         vehicle_interface = std::make_shared<CanInterface>();
     }
 #endif
-    if (cfg.webrtc_on) {
+    if (cfg.webrtc_on)
+    {
         visual_interface = std::make_unique<visualization::WebRTCStreamer>();
-        static_cast<visualization::WebRTCStreamer *>(visual_interface.get())->init(cfg.webrtc_port);
-    } else {
+        static_cast<visualization::WebRTCStreamer*>(visual_interface.get())->init(cfg.webrtc_port);
+    }
+    else
+    {
         // visual_interface = std::make_unique<visualization::LocalDisplay>(cfg.show_window);
 #if BUILD_TESTING
         if (debug_viz)
         {
             visual_interface = std::make_unique<visualization::DebugDisplay>(cfg.visualization_on);
-        } else
+        }
+        else
 #endif
         {
             visual_interface = std::make_unique<visualization::LocalDisplay>(cfg.visualization_on);
@@ -96,14 +101,14 @@ int main(int argc, char** argv)
     ImagePreprocessor preprocessor;
     ve::OnnxEngine engine(cfg.engine);
     vm::InferencePipeline pipeline(engine, cfg.inference);
-    Planner planner(cfg.speed_limit, cfg.L);
+    planning::Planner planner(cfg.speed_limit, cfg.L);
     if (cfg.rrd_on) logging::Rerun::init(cfg.rrd_log);
 
     // ── Initialize camera interface ───────────────────────────────────────────
 
     if (!camera_interface || !camera_interface->is_device_open())
     {
-        VP_ERROR("Cannot open frame source");
+        logging::error("Cannot open frame source");
         return 1;
     }
 
@@ -157,8 +162,9 @@ int main(int argc, char** argv)
             const Plan plan = planner.compute_plan(
                 cte, epsi, kappa, ego_v, has_cipo, cipo_v, cipo_dist);
 
-            VP_INFO(
-                "plan: tyre=%.4f rad  accel=%.3f m/s²  |  cte=%.2fm(raw=%.2fm) cte_dot=%+.2fm/s  epsi=%.3f epsi_dot=%+.3frad/s  kappa=%.4f  |  cipo=%s  dist=%.1f m  vel=%+.2f m/s",
+            logging::info(
+                "plan: tyre={:.4} rad  accel={:.3} m/s²  |  cte={:.2}m(raw={:.2}m) cte_dot={:+.2}m/s  "
+                "epsi={:.3} epsi_dot={:+.3}rad/s  kappa={:.4}  |  cipo={}  dist={:.1} m  vel={:+.2} m/s",
                 plan.steering.empty() ? 0.0 : plan.steering[1],
                 plan.acceleration,
                 cte,
@@ -173,7 +179,7 @@ int main(int argc, char** argv)
 
             vehicle_interface->write(plan.steering.empty() ? 0.0 : plan.steering[1], plan.acceleration);
 
-            cv::Mat viz;  // output visualization image (empty when viz is off)
+            cv::Mat viz; // output visualization image (empty when viz is off)
             if (cfg.visualization_on)
             {
                 visual_interface->visualize(resized, *r, plan, ego_v, pipeline.H_resized(), cfg.speed_limit);
@@ -182,11 +188,19 @@ int main(int argc, char** argv)
 
             // Submit all required logging params to single logger func
             if (cfg.rrd_on)
-                logging::Rerun::log_frame(r->frame_id, frame, warped, resized, *r, plan, ego_v, viz);
+            {
+                logging::Rerun::log_frame(r->frame_id, frame, warped, resized,
+                                          logging::InferenceResult{*r},
+                                          logging::Plan{plan.acceleration, plan.steering, plan.warnings},
+                                          ego_v, viz);
+            }
         }
     }
 
-    if (cfg.rrd_on) logging::Rerun::shutdown();  // flush & close .rrd
+    if (cfg.rrd_on)
+    {
+        logging::Rerun::shutdown(); // flush & close .rrd
+    }
 
     // stop() returns true on a clean shutdown; translate that to a 0 exit code
     // so VisionPilot can be supervised as a batch/oneshot job (a successful run

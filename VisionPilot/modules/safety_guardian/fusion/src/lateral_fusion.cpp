@@ -158,7 +158,7 @@ LateralFusionEstimate LateralFusion::update(
         else
             std::snprintf(ad_buf, sizeof(ad_buf), "(none)");
 
-        VP_INFO("[Lateral] Path: %s | AD-κ=%s | Fused CTE=%.2fm (%.2fm/s) yaw=%.3frad (%.3frad/s) κ=%.4f",
+        logging::info("[Lateral] Path: %s | AD-κ=%s | Fused CTE=%.2fm (%.2fm/s) yaw=%.3frad (%.3frad/s) κ=%.4f",
                 path_buf, ad_buf,
                 est.cte_m, est.cte_rate_mps, est.yaw_rad, est.yaw_rate_rps, est.curvature);
     }
