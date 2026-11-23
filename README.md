@@ -105,8 +105,7 @@ VisionPilot uses ONNX Runtime to run the AI models. The GitHub releases of ONNX 
 
 - https://github.com/autowarefoundation/vision_pilot/issues/476
 
-> [!IMPORTANT]
-> Pick one of the three routes below and follow only that route. Each route needs a different value of `engine.provider` in `config/vision_pilot.conf`. Set this value before you build, because the build copies the `config` directory.
+> **Pick one of the three routes below and follow only that route.** Each route needs a different value of `engine.provider` in `config/vision_pilot.conf`. Set this value before you build, because the build copies the `config` directory.
 
 | Route | Pick this route if | ONNX Runtime | `engine.provider` |
 |---|---|---|---|
