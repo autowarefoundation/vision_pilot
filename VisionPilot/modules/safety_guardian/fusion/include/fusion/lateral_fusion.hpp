@@ -1,4 +1,5 @@
-#pragma once
+#ifndef VISIONPILOT_LATERAL_FUSION_HPP
+#define VISIONPILOT_LATERAL_FUSION_HPP
 
 #include <models/auto_drive.hpp>
 #include <models/auto_steer.hpp>
@@ -195,3 +196,5 @@ private:
 };
 
 }  // namespace visionpilot::fusion
+
+#endif // VISIONPILOT_LATERAL_FUSION_HPP
