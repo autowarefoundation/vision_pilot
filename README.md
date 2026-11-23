@@ -101,19 +101,21 @@ To get started with the project, download the source code from:
 
 #### Get ONNX Runtime
 
-VisionPilot uses ONNX Runtime to run the AI models. Select one of the three routes below. The GitHub releases of ONNX Runtime return 404 at the moment, so the CPU and GPU routes download ONNX Runtime from NuGet.
+VisionPilot uses ONNX Runtime to run the AI models. The GitHub releases of ONNX Runtime return 404 at the moment, so the CPU and GPU routes below download ONNX Runtime from NuGet.
 
 - https://github.com/autowarefoundation/vision_pilot/issues/476
 
-The value of `engine.provider` in `config/vision_pilot.conf` must match the route. Set it before you build, because the build copies the `config` directory.
+> [!IMPORTANT]
+> Pick one of the three routes below and follow only that route. Each route needs a different value of `engine.provider` in `config/vision_pilot.conf`. Set this value before you build, because the build copies the `config` directory.
 
-| Route | ONNX Runtime | `engine.provider` |
-|---|---|---|
-| CPU | [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) 1.32.0, x64 or arm64 | `cpu` |
-| GPU | [Microsoft.ML.OnnxRuntime.Gpu.Linux](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Gpu.Linux) 1.32.0, x64, CUDA 13 | `cuda` or `tensorrt` |
-| ROS 2 | `onnxruntime_vendor` from `rosdep`, CPU only | `cpu` |
+| Route | Pick this route if | ONNX Runtime | `engine.provider` |
+|---|---|---|---|
+| 1. CPU | You have no NVIDIA GPU, or you use arm64. | [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) 1.32.0 | `cpu` |
+| 2. GPU | You have an NVIDIA GPU on x64. | [Microsoft.ML.OnnxRuntime.Gpu.Linux](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Gpu.Linux) 1.32.0, CUDA 13 | `cuda` or `tensorrt` |
+| 3. ROS 2 | You build with `rosdep` in a ROS 2 environment. | `onnxruntime_vendor`, CPU only | `cpu` |
 
-##### CPU route
+<details>
+<summary><b>Route 1: CPU</b> (no NVIDIA GPU, x64 or arm64)</summary>
 
 These commands make the CPU build in `onnxruntime/`. That directory is `<ONNX_RUNTIME_ROOT_PATH>` below.
 
@@ -138,7 +140,10 @@ These commands make the CPU build in `onnxruntime/`. That directory is `<ONNX_RU
 
 3. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
 
-##### GPU route
+</details>
+
+<details>
+<summary><b>Route 2: GPU</b> (NVIDIA GPU, x64, CUDA 13)</summary>
 
 The GPU route needs an NVIDIA GPU, x64, and Ubuntu 24.04. The NuGet package for ONNX Runtime 1.32.0 uses CUDA 13, cuDNN 9, and TensorRT 10.
 
@@ -177,9 +182,17 @@ The GPU route needs an NVIDIA GPU, x64, and Ubuntu 24.04. The NuGet package for 
 
 6. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cuda` or `engine.provider = tensorrt`. With `tensorrt`, the first run builds the TensorRT engines and takes several minutes. Later runs read the engines from `engine.cache_dir`.
 
-##### ROS 2 route
+</details>
 
-If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` package (for example `ros-jazzy-onnxruntime-vendor`, which `rosdep install` installs), you do not need to download ONNX Runtime. Leave out `-DONNXRUNTIME_ROOT` in the commands below. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
+<details>
+<summary><b>Route 3: ROS 2</b> (<code>rosdep</code> and <code>onnxruntime_vendor</code>)</summary>
+
+If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` package (for example `ros-jazzy-onnxruntime-vendor`, which `rosdep install` installs), you do not need to download ONNX Runtime.
+
+1. Leave out `-DONNXRUNTIME_ROOT` in the build commands below.
+2. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
+
+</details>
 
 #### Build
 
