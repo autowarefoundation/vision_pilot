@@ -1,7 +1,8 @@
 {
   "ignorePaths": [],
   "ignoreRegExpList": [
-    "CARLA/ROS2"
+    "CARLA/ROS2",
+    "\\b1[0-9A-Za-z_-]{32}\\b"
   ],
   "words": [
     "appsrc",
@@ -17,6 +18,7 @@
     "cmapy",
     "colcon",
     "cpack",
+    "cppad",
     "cstring",
     "cuda",
     "cudnn",
@@ -38,14 +40,24 @@
     "imagetools",
     "imgcodecs",
     "imgproc",
+    "ipopt",
     "keepalive",
     "keyout",
     "khawaja",
     "lcppad",
+    "ldconfig",
+    "lede",
+    "libblas",
+    "libcppad",
     "libglib",
+    "libipopt",
     "libjson",
+    "liblapack",
+    "libnice",
+    "libonnxruntime",
     "libopencv",
     "libsoup",
+    "libsrtp",
     "libyaml",
     "lkas",
     "mapless",
