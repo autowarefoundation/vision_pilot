@@ -18,7 +18,7 @@ target_link_libraries(fusion
         models          # AutoDriveOutput, AutoSpeedOutput, Detection in public API
         opencv_core     # cv::Mat in public header
     PRIVATE
-        logging         # VP_INFO macros
+        logging         # logging/console.hpp
         opencv_imgproc  # perspectiveTransform in radar association
 )
 
