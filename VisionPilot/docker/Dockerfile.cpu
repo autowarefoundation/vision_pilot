@@ -9,7 +9,6 @@
 ARG UBUNTU_VERSION=24.04
 ARG ONNXRUNTIME_VERSION=1.32.0
 ARG ONNXRUNTIME_SHA256=a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db
-ARG TARGETARCH=amd64
 ARG ENABLE_ROS2=OFF
 ARG ENABLE_OCCUPANCY=OFF
 
@@ -83,17 +82,18 @@ RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
 # change ONNXRUNTIME_SHA256.
 WORKDIR /opt
 RUN set -eux; \
-    case "${TARGETARCH}" in \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "${arch}" in \
         amd64) ORT_ARCH=x64 ;; \
         arm64) ORT_ARCH=arm64 ;; \
-        *) echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
+        *) echo "unsupported arch: ${arch}" >&2; exit 1 ;; \
     esac; \
     ort_root=/usr/share/visionpilot/onnxruntime; \
     mkdir -p /opt/ort_extract "${ort_root}/include" "${ort_root}/lib"; \
     wget -q -O ort.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ONNXRUNTIME_VERSION}/microsoft.ml.onnxruntime.${ONNXRUNTIME_VERSION}.nupkg"; \
     echo "${ONNXRUNTIME_SHA256}  ort.nupkg" | sha256sum -c -; \
     unzip -q ort.nupkg 'build/native/include/*' "runtimes/linux-${ORT_ARCH}/native/*" -d /opt/ort_extract; \
-    cp /opt/ort_extract/build/native/include/* "${ort_root}/include/"; \
+    cp -r /opt/ort_extract/build/native/include/* "${ort_root}/include/"; \
     cp "/opt/ort_extract/runtimes/linux-${ORT_ARCH}/native/libonnxruntime_providers_shared.so" "${ort_root}/lib/"; \
     cp "/opt/ort_extract/runtimes/linux-${ORT_ARCH}/native/libonnxruntime.so" "${ort_root}/lib/libonnxruntime.so.${ONNXRUNTIME_VERSION}"; \
     ln -s "libonnxruntime.so.${ONNXRUNTIME_VERSION}" "${ort_root}/lib/libonnxruntime.so.1"; \

@@ -98,7 +98,7 @@ RUN set -eux; \
     wget -q -O ort.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.gpu.linux/${ONNXRUNTIME_VERSION}/microsoft.ml.onnxruntime.gpu.linux.${ONNXRUNTIME_VERSION}.nupkg"; \
     echo "${ONNXRUNTIME_SHA256}  ort.nupkg" | sha256sum -c -; \
     unzip -q ort.nupkg 'buildTransitive/native/include/*' 'runtimes/linux-x64/native/*' -d /opt/ort_extract; \
-    cp /opt/ort_extract/buildTransitive/native/include/* "${ort_root}/include/"; \
+    cp -r /opt/ort_extract/buildTransitive/native/include/* "${ort_root}/include/"; \
     cp "${ort_native}"/libonnxruntime_providers_*.so "${ort_root}/lib/"; \
     cp "${ort_native}/libonnxruntime.so" "${ort_root}/lib/libonnxruntime.so.${ONNXRUNTIME_VERSION}"; \
     ln -s "libonnxruntime.so.${ONNXRUNTIME_VERSION}" "${ort_root}/lib/libonnxruntime.so.1"; \

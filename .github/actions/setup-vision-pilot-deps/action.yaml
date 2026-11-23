@@ -89,7 +89,7 @@ runs:
         echo "${{ inputs.onnxruntime-sha256 }}  $work_dir/ort.nupkg" | sha256sum -c -
         unzip -q "$work_dir/ort.nupkg" 'build/native/include/*' 'runtimes/linux-x64/native/*' -d "$work_dir"
         sudo mkdir -p "$root/include" "$root/lib"
-        sudo cp "$work_dir"/build/native/include/* "$root/include/"
+        sudo cp -r "$work_dir"/build/native/include/* "$root/include/"
         sudo cp "$work_dir/runtimes/linux-x64/native/libonnxruntime_providers_shared.so" "$root/lib/"
         sudo cp "$work_dir/runtimes/linux-x64/native/libonnxruntime.so" "$root/lib/libonnxruntime.so.${version}"
         sudo ln -s "libonnxruntime.so.${version}" "$root/lib/libonnxruntime.so.1"
