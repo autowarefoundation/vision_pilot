@@ -85,8 +85,8 @@ namespace logging
     struct Plan
     {
         double acceleration{0.0};
-        std::vector<double> steering{};
-        std::vector<Warning> warnings{};
+        std::vector<double> steering;
+        std::vector<Warning> warnings;
 
         Plan() = default;
 
@@ -147,7 +147,7 @@ namespace logging
 
     struct AutoSpeedOutput
     {
-        std::vector<Detection> detections{};
+        std::vector<Detection> detections;
 
         AutoSpeedOutput() = default;
 

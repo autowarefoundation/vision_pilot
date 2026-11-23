@@ -157,7 +157,7 @@ namespace logging
         /// Decimals printed for a floating-point argument by a plain {}.
         constexpr std::size_t kDefaultFloatPrecision{6U};
 
-        constexpr std::string_view kDecimalDigits{"0123456789"};
+        inline constexpr std::string_view kDecimalDigits{"0123456789"};
 
         struct LogRecord
         {

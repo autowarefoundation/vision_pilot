@@ -34,7 +34,7 @@ namespace logging
 
         /// Background thread sleep when the queue is empty: upper bound on how long
         /// an async line waits before it is written.
-        constexpr std::chrono::milliseconds kIdleSleep{1};
+        constexpr std::chrono::milliseconds::rep kIdleSleepMs{1};
     } // namespace
 
     // MISRA C++:2023 deviation DEV-LOG-001 - Rule 6.7.1 (Required)
@@ -144,7 +144,7 @@ namespace logging
             std::size_t const written{drainChunk()};
             if (written == 0U)
             {
-                std::this_thread::sleep_for(kIdleSleep);
+                std::this_thread::sleep_for(std::chrono::milliseconds{kIdleSleepMs});
             }
         }
     }
