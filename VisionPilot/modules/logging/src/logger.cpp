@@ -1,4 +1,5 @@
 #include <logging/logger.hpp>
+#include <logging/console.hpp>
 
 #include <models/inference.hpp>
 #include <common/types.hpp>
@@ -173,11 +174,11 @@ void Rerun::init(const std::string& rrd_path, const std::string& app_id) {
 	std::lock_guard<std::mutex> lk(g_mutex);
 	auto rec = std::make_unique<rerun::RecordingStream>(app_id);
 	if (rec->save(rrd_path).is_err()) {
-		VP_ERROR("[Rerun] Failed to open recording '%s' — logging disabled", rrd_path.c_str());
+		log_error("[Rerun] Failed to open recording '" + rrd_path + "' — logging disabled");
 		return;
 	}
 	g_rec = std::move(rec);
-	VP_INFO("[Rerun] Streaming recording to '%s'", rrd_path.c_str());
+	log_info("[Rerun] Streaming recording to '" + rrd_path + "'");
 }
 
 void Rerun::log_frame(uint64_t frame_id,
