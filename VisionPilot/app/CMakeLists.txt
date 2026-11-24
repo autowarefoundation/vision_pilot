@@ -1,3 +1,4 @@
+# cspell:ignore RUNPATH dtags gdal miniforge shlib
 add_executable(VisionPilot
         vision_pilot.cpp
 )
@@ -9,6 +10,12 @@ set_target_properties(VisionPilot PROPERTIES
 
 if(ONNXRUNTIME_ROOT)
     set_target_properties(VisionPilot PROPERTIES BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib")
+    # Write DT_RPATH, not DT_RUNPATH. The loader reads DT_RPATH before
+    # LD_LIBRARY_PATH. In a sourced ROS 2 shell, onnxruntime_vendor puts its own
+    # ONNX Runtime library on LD_LIBRARY_PATH. With DT_RUNPATH, that library
+    # replaces the ONNX Runtime from ONNXRUNTIME_ROOT, and VisionPilot stops at
+    # start with "version `VERS_<x.y.z>' not found".
+    target_link_options(VisionPilot PRIVATE "LINKER:--disable-new-dtags")
 endif()
 
 add_dependencies(VisionPilot generate_config)
