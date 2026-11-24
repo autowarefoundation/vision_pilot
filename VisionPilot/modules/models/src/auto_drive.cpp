@@ -1,5 +1,5 @@
-#include "models/auto_drive.hpp"
-
+#include <models/auto_drive.hpp>
+#include <logging/logger.hpp>
 #include <onnxruntime_run_options_config_keys.h>
 
 #include <array>
@@ -24,7 +24,7 @@ namespace visionpilot::models
         {
             in_name_strs_[i] = session_->GetInputNameAllocated(i, alloc).get();
             in_names_[i] = in_name_strs_[i].c_str();
-            printf("[AutoDrive] input[%zu]  = %s\n", i, in_names_[i]);
+            logging::info("[AutoDrive] input[{}]  = {}", i, in_names_[i]);
         }
 
         out_name_strs_.resize(n_out);
@@ -33,11 +33,11 @@ namespace visionpilot::models
         {
             out_name_strs_[i] = session_->GetOutputNameAllocated(i, alloc).get();
             out_names_[i] = out_name_strs_[i].c_str();
-            printf("[AutoDrive] output[%zu] = %s\n", i, out_names_[i]);
+            logging::info("[AutoDrive] output[{}] = {}", i, out_names_[i]);
         }
 
-        printf("[AutoDrive] Ready — %zu inputs, %zu outputs | "
-               "frame [1, 3, %d, %d]\n", n_in, n_out, NET_H, NET_W);
+        logging::info("[AutoDrive] Ready — {} inputs, {} outputs | "
+               "frame [1, 3, {}, {}]", n_in, n_out, NET_H, NET_W);
     }
 
     AutoDriveOutput AutoDrive::infer(float* prev_chw, float* curr_chw)
@@ -68,13 +68,13 @@ namespace visionpilot::models
         }
         catch (const Ort::Exception& e)
         {
-            printf("[AutoDrive] Inference error: %s\n", e.what());
+            logging::info("[AutoDrive] Inference error: {}", e.what());
             return out;
         }
 
         if (results.size() < 3)
         {
-            printf("[AutoDrive] Expected 3 outputs, got %zu\n", results.size());
+            logging::info("[AutoDrive] Expected 3 outputs, got {}", results.size());
             return out;
         }
 

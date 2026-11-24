@@ -23,7 +23,7 @@ namespace visionpilot::models
         {
             in_name_strs_[i] = session_->GetInputNameAllocated(i, alloc).get();
             in_names_[i] = in_name_strs_[i].c_str();
-            printf("[AutoSteer] input[%zu]  = %s\n", i, in_names_[i]);
+            logging::info("[AutoSteer] input[{}]  = {}", i, in_names_[i]);
         }
 
         // Expect two outputs: xp [1, 1, 64, 1] and h_vector [1, 1, 64, 1]
@@ -33,11 +33,11 @@ namespace visionpilot::models
         {
             out_name_strs_[i] = session_->GetOutputNameAllocated(i, alloc).get();
             out_names_[i] = out_name_strs_[i].c_str();
-            printf("[AutoSteer] output[%zu] = %s\n", i, out_names_[i]);
+            logging::info("[AutoSteer] output[{}] = {}", i, out_names_[i]);
         }
 
-        printf("[AutoSteer] Ready — %zu inputs, %zu outputs | "
-               "frame [1, 3, %d, %d]\n", n_in, n_out, NET_H, NET_W);
+        logging::info("[AutoSteer] Ready — {} inputs, {} outputs | "
+               "frame [1, 3, {}, {}]\n", n_in, n_out, NET_H, NET_W);
     }
 
     AutoSteerOutput AutoSteer::infer(float* image_chw)
@@ -62,13 +62,13 @@ namespace visionpilot::models
         }
         catch (const Ort::Exception& e)
         {
-            printf("[AutoSteer] Inference error: %s\n", e.what());
+            logging::info("[AutoSteer] Inference error: {}", e.what());
             return out;
         }
 
         if (results.size() < 2)
         {
-            printf("[AutoSteer] Expected 2 outputs, got %zu\n", results.size());
+            logging::info("[AutoSteer] Expected 2 outputs, got {}", results.size());
             return out;
         }
 

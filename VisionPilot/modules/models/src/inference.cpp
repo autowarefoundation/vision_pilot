@@ -91,8 +91,8 @@ namespace visionpilot::models
     void LatencyStats::print() const
     {
         const double total = pre + wall;
-        logging::info("Latency  pre=%.1f ms  AD=%.1f ms  AS=%.1f ms  ASp=%.1f ms  "
-                "parallel=%.1f ms  wall=%.1f ms  %.0f fps",
+        logging::info("Latency  pre={:.1} ms  AD={:.1} ms  AS={:.1} ms  ASp={:.1} ms  "
+                "parallel={:.1} ms  wall={:.1} ms  {.0} fps",
                 pre, ad, as, asp, wall, total, total > 0 ? 1000.0 / total : 0.0);
     }
 
@@ -139,7 +139,7 @@ namespace visionpilot::models
         H64_inv.convertTo(H_world2resized_, CV_32F);
         lat_fusion_.set_H(H_resized_);
         long_fusion_.set_H(H_resized_);
-        logging::info("[Pipeline] H_resized set — raw=%dx%d  top_crop=%d  sx=%.4f sy=%.4f",
+        logging::info("[Pipeline] H_resized set — raw={}x{}  top_crop={}  sx={:.4} sy={:.4}",
                 raw_size.width, raw_size.height, crop_top, sx, sy);
     }
 
