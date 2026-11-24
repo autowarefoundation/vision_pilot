@@ -32,6 +32,7 @@ jobs:
   build-vision-pilot:
     name: build-vision-pilot (ros2-${{ matrix.ros2 }})
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

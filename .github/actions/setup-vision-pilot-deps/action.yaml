@@ -4,7 +4,11 @@ description: Install the dependencies needed to configure and build VisionPilot 
 inputs:
   onnxruntime-version:
     description: ONNX Runtime release to install.
-    default: 1.26.0
+    default: 1.32.0
+    required: false
+  onnxruntime-sha256:
+    description: SHA-256 of the Microsoft.ML.OnnxRuntime NuGet package for onnxruntime-version.
+    default: a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db
     required: false
   onnxruntime-root:
     description: Directory to install ONNX Runtime into.
@@ -72,12 +76,23 @@ runs:
           ros-jazzy-image-transport
       shell: bash
 
+    # The GitHub release downloads of ONNX Runtime return 404. The NuGet package
+    # Microsoft.ML.OnnxRuntime has the same CPU library and headers. This step
+    # makes the include/ and lib/ layout of the release tarball from it.
     - name: Install ONNX Runtime
       run: |
-        extract_dir=$(mktemp -d)
-        wget -q -O "$extract_dir/ort.tgz" \
-          "https://github.com/microsoft/onnxruntime/releases/download/v${{ inputs.onnxruntime-version }}/onnxruntime-linux-x64-${{ inputs.onnxruntime-version }}.tgz"
-        tar -xzf "$extract_dir/ort.tgz" -C "$extract_dir"
-        rm "$extract_dir/ort.tgz"
-        sudo mv "$extract_dir"/*/ "${{ inputs.onnxruntime-root }}"
+        version="${{ inputs.onnxruntime-version }}"
+        root="${{ inputs.onnxruntime-root }}"
+        work_dir=$(mktemp -d)
+        curl -fsSL --retry 3 -o "$work_dir/ort.nupkg" \
+          "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${version}/microsoft.ml.onnxruntime.${version}.nupkg"
+        echo "${{ inputs.onnxruntime-sha256 }}  $work_dir/ort.nupkg" | sha256sum -c -
+        unzip -q "$work_dir/ort.nupkg" 'build/native/include/*' 'runtimes/linux-x64/native/*' -d "$work_dir"
+        sudo mkdir -p "$root/include" "$root/lib"
+        sudo cp -r "$work_dir"/build/native/include/* "$root/include/"
+        sudo cp "$work_dir/runtimes/linux-x64/native/libonnxruntime_providers_shared.so" "$root/lib/"
+        sudo cp "$work_dir/runtimes/linux-x64/native/libonnxruntime.so" "$root/lib/libonnxruntime.so.${version}"
+        sudo ln -s "libonnxruntime.so.${version}" "$root/lib/libonnxruntime.so.1"
+        sudo ln -s libonnxruntime.so.1 "$root/lib/libonnxruntime.so"
+        rm -rf "$work_dir"
       shell: bash
