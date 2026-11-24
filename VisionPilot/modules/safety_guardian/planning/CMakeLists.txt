@@ -5,7 +5,8 @@ pkg_check_modules(IPOPT REQUIRED ipopt)
 
 if(USE_SYSTEM_EIGEN)
     # A colcon build has no network access. rosdep installs libeigen3-dev.
-    find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+    # No version: a request for 3.4 rejects Eigen 5, and a range rejects Eigen 3.4.
+    find_package(Eigen3 REQUIRED NO_MODULE)
 else()
     include(FetchContent)
 

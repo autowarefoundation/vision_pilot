@@ -46,7 +46,7 @@ option(ENABLE_ROS2_INTERFACE "Enable ROS 2 support" ${COLCON_BUILD})
 message(STATUS "ROS 2 interface: ${ENABLE_ROS2_INTERFACE}")
 
 # Eigen
-option(USE_SYSTEM_EIGEN "Use the installed Eigen 3.4 instead of downloading Eigen 5.0.0" ${COLCON_BUILD})
+option(USE_SYSTEM_EIGEN "Use the installed Eigen instead of downloading Eigen 5.0.0" ${COLCON_BUILD})
 message(STATUS "System Eigen: ${USE_SYSTEM_EIGEN}")
 
 # Build testing code

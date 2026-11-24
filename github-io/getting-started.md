@@ -82,7 +82,7 @@ The `VisionPilot` executable is written to the `build` directory.
 | --- | --- | --- |
 | `ONNXRUNTIME_ROOT` | - | Path to the extracted ONNX Runtime. A relative path is resolved against the build directory. **Required** outside ROS 2. In a sourced ROS 2 environment that has the `onnxruntime_vendor` package (`ros-jazzy-onnxruntime-vendor` on Jazzy), the CPU build from that package is used when it is not set. Then set `engine.provider = cpu` in `config/vision_pilot.conf` |
 | `ENABLE_ROS2_INTERFACE` | `OFF`, `ON` in a colcon build | Build the ROS 2 camera/vehicle interfaces |
-| `USE_SYSTEM_EIGEN` | `OFF`, `ON` in a colcon build | Use the installed Eigen 3.4 (`libeigen3-dev`). When `OFF`, CMake downloads Eigen 5.0.0 |
+| `USE_SYSTEM_EIGEN` | `OFF`, `ON` in a colcon build | Use the installed Eigen (`libeigen3-dev`, 3.4 on Ubuntu 24.04). When `OFF`, CMake downloads Eigen 5.0.0 |
 | `ENABLE_OCCUPANCY` | `OFF` | Build the Occupancy BEV visualisation window |
 | `GPU` | `ON` | Link the GPU execution provider; set `OFF` for a CPU-only package |
 

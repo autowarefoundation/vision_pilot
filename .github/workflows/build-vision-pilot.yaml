@@ -20,7 +20,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not cancel a run in progress on main, so that it can save its ccache.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -32,6 +33,9 @@ jobs:
   changes:
     name: changes
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       build: ${{ steps.filter.outputs.build == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
@@ -47,6 +51,13 @@ jobs:
               - VisionPilot/**
               - .github/actions/setup-vision-pilot-deps/**
               - .github/workflows/build-vision-pilot.yaml
+              # The autoware-index job discovers every package of the repository
+              # and picks its image from their package.xml and CMake files.
+              - '**/package.xml'
+              - '**/CMakeLists.txt'
+              - '**/*.cmake'
+              - '**/COLCON_IGNORE'
+              - .clang-tidy-ignore
 
   standalone-build:
     name: standalone-build
