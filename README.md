@@ -211,6 +211,8 @@ If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` pa
 1. Leave out `-DONNXRUNTIME_ROOT` in the build commands below.
 2. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
 
+A `colcon build` turns on the ROS 2 interface by default. To build without it, add `--cmake-args -DENABLE_ROS2_INTERFACE=OFF`.
+
 </details>
 
 #### Build

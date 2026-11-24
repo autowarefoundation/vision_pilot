@@ -1,21 +1,21 @@
 name: build-vision-pilot
 
-# Builds VisionPilot (CPU variant) including the test executables, with and
-# without the ROS 2 interface, to catch build breakages before merging.
+# The standalone-build job builds VisionPilot (CPU variant) and the test
+# executables with plain CMake, without ROS 2, to catch build breakages before
+# merging. The autoware-index job builds, tests and runs clang-tidy on the
+# package with rosdep and colcon in the Autoware Core image, the same way the
+# Autoware Index sweep builds it. A colcon build turns on the ROS 2 interface,
+# so the autoware-index job covers the ROS 2 build.
+#
+# The workflow runs on every pull request. The changes job skips the build
+# jobs when no build file changed. The ci-result job always reports, so it
+# can be a required check.
 
 on:
   pull_request:
-    paths:
-      - VisionPilot/**
-      - .github/actions/setup-vision-pilot-deps/**
-      - .github/workflows/build-vision-pilot.yaml
   push:
     branches:
       - main
-    paths:
-      - VisionPilot/**
-      - .github/actions/setup-vision-pilot-deps/**
-      - .github/workflows/build-vision-pilot.yaml
   workflow_dispatch:
 
 concurrency:
@@ -29,16 +29,31 @@ env:
   ONNXRUNTIME_ROOT: /opt/onnxruntime
 
 jobs:
-  build-vision-pilot:
-    name: build-vision-pilot (ros2-${{ matrix.ros2 }})
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.filter.outputs.build == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Find changed build files
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            build:
+              - VisionPilot/**
+              - .github/actions/setup-vision-pilot-deps/**
+              - .github/workflows/build-vision-pilot.yaml
+
+  standalone-build:
+    name: standalone-build
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        ros2:
-          - "OFF"
-          - "ON"
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -47,18 +62,14 @@ jobs:
         uses: ./.github/actions/setup-vision-pilot-deps
         with:
           onnxruntime-root: ${{ env.ONNXRUNTIME_ROOT }}
-          enable-ros2: ${{ matrix.ros2 == 'ON' }}
 
       - name: Configure
         run: |
-          if [ "${{ matrix.ros2 }}" = "ON" ]; then
-            . /opt/ros/jazzy/setup.bash
-          fi
           cmake -S VisionPilot -B VisionPilot/build \
             -DCMAKE_BUILD_TYPE=Release \
             -DONNXRUNTIME_ROOT="${ONNXRUNTIME_ROOT}" \
             -DGPU=OFF \
-            -DENABLE_ROS2_INTERFACE=${{ matrix.ros2 }} \
+            -DENABLE_ROS2_INTERFACE=OFF \
             -DBUILD_TESTING=ON \
             -DCMAKE_CXX_STANDARD_LIBRARIES="-lcppad_lib"
         shell: bash
@@ -66,3 +77,28 @@ jobs:
       - name: Build
         run: cmake --build VisionPilot/build -j "$(nproc)"
         shell: bash
+
+  autoware-index:
+    name: autoware-index
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+    uses: autowarefoundation/autoware-index-github-actions/.github/workflows/validate-package.yaml@main
+    with:
+      ros_distro: jazzy
+      package_name: vision_pilot
+      pull-ccache: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+      push-ccache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      cache-key-element: build
+
+  ci-result:
+    name: ci-result
+    if: always()
+    needs:
+      - changes
+      - standalone-build
+      - autoware-index
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Fail if a job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

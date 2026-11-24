@@ -32,7 +32,15 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 option(GPU "Enable GPU support" ON)
 
 # ROS2 packages
-option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
+# colcon sets the COLCON environment variable. A colcon build is a ROS 2 build,
+# so the ROS 2 interface is on by default there. A plain CMake build keeps it off.
+if(DEFINED ENV{COLCON})
+    set(ENABLE_ROS2_INTERFACE_DEFAULT ON)
+else()
+    set(ENABLE_ROS2_INTERFACE_DEFAULT OFF)
+endif()
+option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" ${ENABLE_ROS2_INTERFACE_DEFAULT})
+message(STATUS "ROS 2 interface: ${ENABLE_ROS2_INTERFACE}")
 
 # Build testing code
 option(BUILD_TESTING "Build the testing tree" OFF)
