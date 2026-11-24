@@ -29,6 +29,7 @@
   <depend>libgstreamer1.0-dev</depend>
   <depend>libgstreamer-plugins-base1.0-dev</depend>
   <depend>libgstreamer-plugins-bad1.0-dev</depend>
+  <build_depend>eigen</build_depend>
   <build_depend>nlohmann-json-dev</build_depend>
   <build_depend>python3-numpy</build_depend>
   <build_depend>python3-opencv</build_depend>
