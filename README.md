@@ -99,9 +99,121 @@ To get started with the project, download the source code from:
   git clone https://github.com/autowarefoundation/autoware_vision_pilot.git
 ```
 
-Download ONNX Runtime from the GitHub [releases](https://github.com/microsoft/onnxruntime/releases) page.
+#### Get ONNX Runtime
 
-If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` package (for example `ros-jazzy-onnxruntime-vendor`, which `rosdep install` installs), you can skip this step and leave out `-DONNXRUNTIME_ROOT` in the commands below. The build then uses the CPU build of ONNX Runtime, so set `engine.provider = cpu` in `config/vision_pilot.conf`.
+VisionPilot uses ONNX Runtime to run the AI models. The GitHub releases of ONNX Runtime return 404 at the moment, so the CPU and GPU routes below download ONNX Runtime from NuGet.
+
+- https://github.com/autowarefoundation/vision_pilot/issues/476
+
+> **Pick one of the three routes below and follow only that route.** Each route ends with the value of `engine.provider` to set in `config/vision_pilot.conf`. Set this value before you build, because the build copies the `config` directory.
+
+| Route | Pick this route if | ONNX Runtime | `engine.provider` |
+|---|---|---|---|
+| 1. CPU | You have no NVIDIA GPU, or you use arm64. | [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) 1.32.0 | `cpu` |
+| 2. GPU | You have an NVIDIA GPU on x64. | [Microsoft.ML.OnnxRuntime.Gpu.Linux](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Gpu.Linux) 1.32.0, CUDA 13 | `cuda` or `tensorrt` |
+| 3. ROS 2 | You build with `rosdep` in a ROS 2 environment. | `onnxruntime_vendor`, CPU only | `cpu` |
+
+<details>
+<summary><b>Route 1: CPU</b> (no NVIDIA GPU, x64 or arm64)</summary>
+
+These commands make the CPU build in `onnxruntime/`. Run all commands of this route in one directory, for example your home directory.
+
+1. Install the download tools.
+
+```bash
+  sudo apt install wget unzip
+```
+
+2. Download the package and make sure that the SHA-256 is correct. On arm64, set `ORT_ARCH=arm64`.
+
+```bash
+  ORT_VERSION=1.32.0
+  ORT_ARCH=x64
+  wget -O ort.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ORT_VERSION}/microsoft.ml.onnxruntime.${ORT_VERSION}.nupkg"
+  echo "a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db  ort.nupkg" | sha256sum -c -
+```
+
+3. Extract the headers and the libraries, then delete the downloaded files.
+
+```bash
+  unzip -q ort.nupkg 'build/native/include/*' "runtimes/linux-${ORT_ARCH}/native/*" -d ort_extract
+  mkdir -p onnxruntime/include onnxruntime/lib
+  cp -r ort_extract/build/native/include/* onnxruntime/include/
+  cp ort_extract/runtimes/linux-${ORT_ARCH}/native/*.so onnxruntime/lib/
+  ln -sf libonnxruntime.so onnxruntime/lib/libonnxruntime.so.1
+  rm -rf ort.nupkg ort_extract
+```
+
+4. Get the absolute path of `onnxruntime/`. Use this path for `<ONNX_RUNTIME_ROOT_PATH>` in the build commands below. Do not use a relative path, because CMake resolves it from the build directory.
+
+```bash
+  realpath onnxruntime
+```
+
+5. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
+
+</details>
+
+<details>
+<summary><b>Route 2: GPU</b> (NVIDIA GPU, x64, CUDA 13)</summary>
+
+The GPU route needs an NVIDIA GPU, x64, and Ubuntu 24.04. The NuGet package for ONNX Runtime 1.32.0 uses CUDA 13, cuDNN 9, and TensorRT 10. Run all commands of this route in one directory, for example your home directory.
+
+1. Install the NVIDIA driver and the CUDA 13 toolkit. Use the instructions on the [CUDA downloads](https://developer.nvidia.com/cuda-downloads) page. The toolkit installer adds the NVIDIA apt repository.
+
+2. Install cuDNN and TensorRT from the NVIDIA apt repository, and the download tools.
+
+```bash
+  sudo apt install libcudnn9-cuda-13 libnvinfer10 libnvinfer-plugin10 libnvonnxparsers10 wget unzip
+```
+
+3. Download the package and make sure that the SHA-256 is correct.
+
+```bash
+  ORT_VERSION=1.32.0
+  wget -O ort-gpu.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.gpu.linux/${ORT_VERSION}/microsoft.ml.onnxruntime.gpu.linux.${ORT_VERSION}.nupkg"
+  echo "3d01949bc846d41961b37988d1e63d782a6effcb93b650a6e0577fef982d38b5  ort-gpu.nupkg" | sha256sum -c -
+```
+
+4. Extract the headers and the libraries, then delete the downloaded files. The GPU package keeps its headers in `buildTransitive/native/include/`.
+
+```bash
+  unzip -q ort-gpu.nupkg 'buildTransitive/native/include/*' 'runtimes/linux-x64/native/*' -d ort_extract
+  mkdir -p onnxruntime/include onnxruntime/lib
+  cp -r ort_extract/buildTransitive/native/include/* onnxruntime/include/
+  cp ort_extract/runtimes/linux-x64/native/*.so onnxruntime/lib/
+  ln -sf libonnxruntime.so onnxruntime/lib/libonnxruntime.so.1
+  rm -rf ort-gpu.nupkg ort_extract
+```
+
+5. Make sure that the CUDA and TensorRT libraries load. These commands must print nothing. If a library shows `not found`, add its directory to `LD_LIBRARY_PATH`, for example `/usr/local/cuda/lib64`.
+
+```bash
+  ldd onnxruntime/lib/libonnxruntime_providers_cuda.so | grep "not found"
+  ldd onnxruntime/lib/libonnxruntime_providers_tensorrt.so | grep "not found"
+```
+
+6. Get the absolute path of `onnxruntime/`. Use this path for `<ONNX_RUNTIME_ROOT_PATH>` in the build commands below. Do not use a relative path, because CMake resolves it from the build directory.
+
+```bash
+  realpath onnxruntime
+```
+
+7. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cuda` or `engine.provider = tensorrt`. With `tensorrt`, the first run builds the TensorRT engines and takes several minutes. Later runs read the engines from `engine.cache_dir`.
+
+</details>
+
+<details>
+<summary><b>Route 3: ROS 2</b> (<code>rosdep</code> and <code>onnxruntime_vendor</code>)</summary>
+
+If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` package (for example `ros-jazzy-onnxruntime-vendor`, which `rosdep install` installs), you do not need to download ONNX Runtime.
+
+1. Leave out `-DONNXRUNTIME_ROOT` in the build commands below.
+2. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
+
+</details>
+
+#### Build
 
 Build the project:
 

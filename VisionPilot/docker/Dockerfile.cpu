@@ -7,8 +7,8 @@
 
 # syntax=docker/dockerfile:1
 ARG UBUNTU_VERSION=24.04
-ARG ONNXRUNTIME_VERSION=1.26.0
-ARG TARGETARCH=amd64
+ARG ONNXRUNTIME_VERSION=1.32.0
+ARG ONNXRUNTIME_SHA256=a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db
 ARG ENABLE_ROS2=OFF
 ARG ENABLE_OCCUPANCY=OFF
 
@@ -17,6 +17,7 @@ ARG ENABLE_OCCUPANCY=OFF
 FROM ubuntu:${UBUNTU_VERSION} AS builder
 ARG TARGETARCH
 ARG ONNXRUNTIME_VERSION
+ARG ONNXRUNTIME_SHA256
 ARG ENABLE_ROS2
 ARG ENABLE_OCCUPANCY
 ENV DEBIAN_FRONTEND=noninteractive
@@ -26,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         software-properties-common \
     && add-apt-repository -y universe \
     && apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake git wget ca-certificates gnupg \
+        build-essential cmake git wget unzip ca-certificates gnupg \
         python3 python3-pip \
         libopencv-dev \
         libgstreamer1.0-dev \
@@ -59,7 +60,7 @@ RUN hdr_dir="$(dirname "$(find /usr/include -name IpIpoptApplication.hpp | head 
 
 RUN pip3 install --no-cache-dir --break-system-packages opencv-python numpy
 
-# ROS2 Jazzy — only installed when ENABLE_ROS2=ON.
+# ROS 2 Jazzy — only installed when ENABLE_ROS2=ON.
 RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
         apt-get update && apt-get install -y --no-install-recommends \
             curl \
@@ -74,23 +75,30 @@ RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
-# ONNX Runtime CPU build. Unlike the GPU asset, the CPU tarball name has no
-# "gpu"/"gpu_cuda13" split — it's just onnxruntime-linux-<arch>-<version>.tgz.
-# Extracted into an empty scratch dir first and moved via glob, since the
-# tarball's internal folder name isn't guaranteed to match its filename
-# (confirmed this mismatch firsthand on the GPU asset for 1.26.0).
+# ONNX Runtime CPU build from the NuGet package Microsoft.ML.OnnxRuntime.
+# The GitHub release downloads of ONNX Runtime return 404. The package holds
+# the x64 and the arm64 libraries. This step makes the include/ and lib/
+# layout of the release tarball. If you change ONNXRUNTIME_VERSION, also
+# change ONNXRUNTIME_SHA256.
 WORKDIR /opt
 RUN set -eux; \
-    case "${TARGETARCH}" in \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "${arch}" in \
         amd64) ORT_ARCH=x64 ;; \
-        arm64) ORT_ARCH=aarch64 ;; \
-        *) echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
+        arm64) ORT_ARCH=arm64 ;; \
+        *) echo "unsupported arch: ${arch}" >&2; exit 1 ;; \
     esac; \
-    mkdir -p /usr/share/visionpilot /opt/ort_extract; \
-    wget -q -O ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-${ORT_ARCH}-${ONNXRUNTIME_VERSION}.tgz"; \
-    tar -xzf ort.tgz -C /opt/ort_extract; \
-    mv /opt/ort_extract/*/ /usr/share/visionpilot/onnxruntime; \
-    rm -rf ort.tgz /opt/ort_extract
+    ort_root=/usr/share/visionpilot/onnxruntime; \
+    mkdir -p /opt/ort_extract "${ort_root}/include" "${ort_root}/lib"; \
+    wget -q -O ort.nupkg "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${ONNXRUNTIME_VERSION}/microsoft.ml.onnxruntime.${ONNXRUNTIME_VERSION}.nupkg"; \
+    echo "${ONNXRUNTIME_SHA256}  ort.nupkg" | sha256sum -c -; \
+    unzip -q ort.nupkg 'build/native/include/*' "runtimes/linux-${ORT_ARCH}/native/*" -d /opt/ort_extract; \
+    cp -r /opt/ort_extract/build/native/include/* "${ort_root}/include/"; \
+    cp "/opt/ort_extract/runtimes/linux-${ORT_ARCH}/native/libonnxruntime_providers_shared.so" "${ort_root}/lib/"; \
+    cp "/opt/ort_extract/runtimes/linux-${ORT_ARCH}/native/libonnxruntime.so" "${ort_root}/lib/libonnxruntime.so.${ONNXRUNTIME_VERSION}"; \
+    ln -s "libonnxruntime.so.${ONNXRUNTIME_VERSION}" "${ort_root}/lib/libonnxruntime.so.1"; \
+    ln -s libonnxruntime.so.1 "${ort_root}/lib/libonnxruntime.so"; \
+    rm -rf ort.nupkg /opt/ort_extract
 
 WORKDIR /opt/visionpilot
 COPY . .
@@ -130,7 +138,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libcppad-lib1456.0t64 \
     && rm -rf /var/lib/apt/lists/*
 
-# ROS2 Jazzy runtime libs — only needed when built with ROS2 support (ENABLE_ROS2=ON).
+# ROS 2 Jazzy runtime libs — only needed when built with ROS 2 support (ENABLE_ROS2=ON).
 # Mirrors the builder-stage install so all transitive apt dependencies (fastrtps,
 # tinyxml2, python3, etc.) are present here too, not just in the builder image.
 RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
@@ -147,7 +155,7 @@ RUN if [ "$ENABLE_ROS2" = "ON" ]; then \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 
-# ROS2 apt packages don't register /opt/ros/jazzy/lib with ldconfig — normally
+# ROS 2 apt packages don't register /opt/ros/jazzy/lib with ldconfig — normally
 # `setup.bash` sets LD_LIBRARY_PATH for you, but ENTRYPOINT runs the binary
 # directly with no shell in between to source it. Set it explicitly instead.
 ENV LD_LIBRARY_PATH="/opt/ros/jazzy/lib:${LD_LIBRARY_PATH}"

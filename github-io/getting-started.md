@@ -31,9 +31,10 @@ sudo apt install -y \
   libsoup2.4-dev libjson-glib-dev
 ```
 
-You also need **ONNX Runtime**. Download a release for your platform from the
-[ONNX Runtime releases page]({{ site.links.onnxruntime_releases }}) and extract it - the path you
-extract it to is `<ONNX_RUNTIME_ROOT_PATH>` below.
+You also need **ONNX Runtime**. Download the [CPU package]({{ site.links.onnxruntime_nuget }}) or the
+[GPU package]({{ site.links.onnxruntime_nuget_gpu }}) from NuGet, because the GitHub releases of ONNX
+Runtime return 404 at the moment. The ["Get ONNX Runtime"]({{ site.links.onnxruntime_install }})
+section of the README shows the commands that make `<ONNX_RUNTIME_ROOT_PATH>` from the package.
 
 <div class="note" markdown="1">
 Pick the **GPU** ONNX Runtime build if you intend to run with `engine.provider = cuda`, and the

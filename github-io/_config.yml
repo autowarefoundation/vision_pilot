@@ -31,7 +31,9 @@ links:
   auto_speed: https://github.com/autowarefoundation/auto_speed
   auto_steer: https://github.com/autowarefoundation/auto_steer
   auto_drive: https://github.com/autowarefoundation/auto_drive
-  onnxruntime_releases: https://github.com/microsoft/onnxruntime/releases
+  onnxruntime_nuget: https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime
+  onnxruntime_nuget_gpu: https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime.Gpu.Linux
+  onnxruntime_install: https://github.com/autowarefoundation/vision_pilot#get-onnx-runtime
 
 # Google Drive file ids for the embedded demo videos
 videos:
