@@ -12,7 +12,7 @@
   <buildtool_depend>git</buildtool_depend>
   <buildtool_depend>pkg-config</buildtool_depend>
 
-  <!-- Core ROS2 dependencies -->
+  <!-- Core ROS 2 dependencies -->
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
