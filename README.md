@@ -211,6 +211,8 @@ If you build in a sourced ROS 2 environment that has the `onnxruntime_vendor` pa
 1. Leave out `-DONNXRUNTIME_ROOT` in the build commands below.
 2. In `VisionPilot/config/vision_pilot.conf`, set `engine.provider = cpu`.
 
+A `colcon build` turns on the ROS 2 interface by default. To build without it, add `--cmake-args -DENABLE_ROS2_INTERFACE=OFF`. A `colcon build` also uses the Eigen that `rosdep install` installs (`libeigen3-dev`, 3.4 on Ubuntu 24.04), so the build does not need network access. A plain CMake build downloads Eigen 5.0.0. CMake keeps these defaults from the first configure of a build directory. If you built this package with colcon before, delete `build/vision_pilot` once, or pass both options explicitly.
+
 </details>
 
 #### Build

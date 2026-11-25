@@ -3,25 +3,31 @@ cmake_minimum_required(VERSION 3.22.1)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(IPOPT REQUIRED ipopt)
 
-include(FetchContent)
+if(USE_SYSTEM_EIGEN)
+    # A colcon build has no network access. rosdep installs libeigen3-dev.
+    # No version: a request for 3.4 rejects Eigen 5, and a range rejects Eigen 3.4.
+    find_package(Eigen3 REQUIRED NO_MODULE)
+else()
+    include(FetchContent)
 
-FetchContent_Declare(
-        eigen
-        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-        GIT_TAG 5.0.0
-        GIT_SHALLOW TRUE
-)
+    FetchContent_Declare(
+            eigen
+            GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+            GIT_TAG 5.0.0
+            GIT_SHALLOW TRUE
+    )
 
-# Skip building tests/docs
-set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
-set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
+    # Skip building tests/docs
+    set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
+    set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
 
-# Install vendored Eigen headers to a private path so packaging doesn't
-# collide with the system libeigen3-dev package
-set(INCLUDE_INSTALL_DIR "include/visionpilot/eigen3" CACHE STRING "" FORCE)
+    # Install vendored Eigen headers to a private path so packaging doesn't
+    # collide with the system libeigen3-dev package
+    set(INCLUDE_INSTALL_DIR "include/visionpilot/eigen3" CACHE STRING "" FORCE)
 
-FetchContent_MakeAvailable(eigen)
+    FetchContent_MakeAvailable(eigen)
+endif()
 
 add_library(planning
         src/planning.cpp

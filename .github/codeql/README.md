@@ -6,9 +6,9 @@ VisionPilot is developed as an ISO 26262 Safety Element out of Context (see [`Fu
 
 ## What it does
 
-1. **Sets up the build environment.** It uses [`setup-vision-pilot-deps`](../actions/setup-vision-pilot-deps/action.yaml) on Ubuntu 24.04 with ROS 2 Jazzy, the same environment as `build-vision-pilot`.
+1. **Sets up the build environment.** It uses [`setup-vision-pilot-deps`](../actions/setup-vision-pilot-deps/action.yaml) on Ubuntu 24.04 with ROS 2 Jazzy.
 2. **Downloads the tools.** It downloads the CodeQL CLI and the Coding Standards query packs, checks them against their published checksums, and caches them for later runs.
-3. **Configures CMake.** It uses the same options as `build-vision-pilot`: `GPU=OFF`, `ENABLE_ROS2_INTERFACE=ON` and `-lcppad_lib`. Dependencies fetched by CMake (Eigen) are put outside the repository, so their code is not reported as VisionPilot findings. Configure is retried up to 3 times, because gitlab.com sometimes rejects the Eigen download.
+3. **Configures CMake.** It uses `GPU=OFF`, `ENABLE_ROS2_INTERFACE=ON` and `-lcppad_lib`. Dependencies fetched by CMake (Eigen) are put outside the repository, so their code is not reported as VisionPilot findings. Configure is retried up to 3 times, because gitlab.com sometimes rejects the Eigen download.
 4. **Builds the code under CodeQL.** CodeQL records a clean build of the `VisionPilot` target and creates a database from it.
 5. **Analyzes the database.** It runs the MISRA C++ 2023 suite in [`misra-cpp-2023.qls`](misra-cpp-2023.qls).
 6. **Reports the results:**

@@ -31,8 +31,23 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # GPU support
 option(GPU "Enable GPU support" ON)
 
-# ROS2 packages
-option(ENABLE_ROS2_INTERFACE "Enable ROS2 support" OFF)
+# colcon sets the COLCON environment variable. A colcon build is a ROS 2 build:
+# it turns on the ROS 2 interface and uses the Eigen that rosdep installs
+# (libeigen3-dev). A plain CMake build keeps the ROS 2 interface off and
+# downloads Eigen 5.0.0.
+if(DEFINED ENV{COLCON})
+    set(COLCON_BUILD ON)
+else()
+    set(COLCON_BUILD OFF)
+endif()
+
+# ROS 2 packages
+option(ENABLE_ROS2_INTERFACE "Enable ROS 2 support" ${COLCON_BUILD})
+message(STATUS "ROS 2 interface: ${ENABLE_ROS2_INTERFACE}")
+
+# Eigen
+option(USE_SYSTEM_EIGEN "Use the installed Eigen instead of downloading Eigen 5.0.0" ${COLCON_BUILD})
+message(STATUS "System Eigen: ${USE_SYSTEM_EIGEN}")
 
 # Build testing code
 option(BUILD_TESTING "Build the testing tree" OFF)

@@ -26,7 +26,7 @@ env:
 
 jobs:
   codeql-misra-cpp:
-    # Same environment as build-vision-pilot (Ubuntu 24.04 + ROS 2 Jazzy)
+    # Ubuntu 24.04 + ROS 2 Jazzy, with the ROS 2 interface on
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:

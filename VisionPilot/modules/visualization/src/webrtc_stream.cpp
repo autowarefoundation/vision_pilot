@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include <string>
+#include <tuple>
 #include <thread>
 #include <mutex>
 #include <vector>
@@ -448,7 +449,7 @@ namespace visualization
             boost::system::error_code ec;
 
             acceptor->non_blocking(true);
-            acceptor->accept(socket, ec);
+            std::ignore = acceptor->accept(socket, ec);
 
             if (ec == boost::asio::error::would_block)
             {
@@ -499,7 +500,7 @@ namespace visualization
             res.prepare_payload();
 
             http::write(socket, res, ec);
-            socket.shutdown(tcp::socket::shutdown_send, ec);
+            std::ignore = socket.shutdown(tcp::socket::shutdown_send, ec);
         }
         catch (const std::exception& e)
         {
@@ -667,8 +668,8 @@ namespace visualization
         if (acceptor != nullptr)
         {
             boost::system::error_code ec;
-            acceptor->cancel(ec);
-            acceptor->close(ec);
+            std::ignore = acceptor->cancel(ec);
+            std::ignore = acceptor->close(ec);
         }
 
         if (accept_thread.joinable())
