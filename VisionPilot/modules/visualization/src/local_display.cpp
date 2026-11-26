@@ -8,10 +8,7 @@
 
 namespace visualization
 {
-    LocalDisplay::LocalDisplay(bool show_window) : show_window_(show_window)
-    {
-        if (show_window_) cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
-    }
+    LocalDisplay::LocalDisplay(bool show_window) : show_window_(show_window){}
 
     LocalDisplay::~LocalDisplay()
     {
@@ -42,6 +39,10 @@ namespace visualization
         constexpr int kGap = 8;
 
         build_frame(frame, result, plan, ego_speed_ms, H_resized, speed_limit_ms);
+        cv::namedWindow("VisionPilot", cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_NORMAL);
+        // cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL | cv::WINDOW_GUI_NORMAL);
+        // cv::resizeWindow("VisionPilot", frame.cols, frame.rows);
+        cv::imshow("VisionPilot", frame);
 
         cv::Mat occ_show;
         if (!aux_frame_.empty())
@@ -58,14 +59,11 @@ namespace visualization
             }
         }
 
-        cv::resizeWindow("VisionPilot", frame.cols, frame.rows);
-        cv::imshow("VisionPilot", frame);
-
         if (!occ_show.empty())
         {
             if (!aux_window_ready_)
             {
-                cv::namedWindow("Occupancy", cv::WINDOW_NORMAL);
+                cv::namedWindow("Occupancy", cv::WINDOW_NORMAL | cv::WINDOW_GUI_NORMAL);
 #if defined(ENABLE_OCCUPANCY)
                 cv::setMouseCallback("Occupancy", occupancy::on_mouse, nullptr);
 #endif
