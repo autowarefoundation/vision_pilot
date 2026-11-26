@@ -13,6 +13,8 @@ def generate_launch_description():
     host_arg = DeclareLaunchArgument('host', default_value='localhost')
     port_arg = DeclareLaunchArgument('port', default_value='2000')
 
+    map_arg = DeclareLaunchArgument('map', default_value='Town04')
+
     default_rig_file = os.path.join(ws_root, "config", "carla916.json")
     rig_file_arg = DeclareLaunchArgument(
         "rig_file",
@@ -31,6 +33,7 @@ def generate_launch_description():
             "--host", LaunchConfiguration("host"),
             "--port", LaunchConfiguration("port"),
              "-f", LaunchConfiguration("rig_file"),
+            "--map", LaunchConfiguration("map"),
             # "-a",
         ],
         output="screen",
@@ -71,7 +74,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        host_arg, port_arg, rig_file_arg,
+        host_arg, port_arg, map_arg, rig_file_arg,
         carla_config,
         start_nodes_when_ready,
     ])
