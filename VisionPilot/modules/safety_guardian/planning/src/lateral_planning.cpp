@@ -3,6 +3,7 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <cstddef>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -218,6 +219,16 @@ namespace planning
             vars_lb, vars_ub,
             con_lb, con_ub,
             fg_eval, solution);
+
+        const std::size_t required_solution_size = delta_start + (N - 1U);
+        if (solution.x.size() < required_solution_size)
+        {
+            std::cerr
+                << "[LateralPlanner] IPOPT returned no usable solution "
+                << "(x_size=" << solution.x.size()
+                << ", required=" << required_solution_size << ")\n";
+            return std::vector<double>(N - 1U, 0.0);
+        }
 
         std::vector<double> result;
         for (std::size_t i = 0U; i < N - 1U; i++)

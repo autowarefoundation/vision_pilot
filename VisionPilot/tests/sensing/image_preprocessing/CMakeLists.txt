@@ -9,3 +9,11 @@ target_link_libraries(image_preprocessing_tests
             image_preprocessing
             ${OpenCV_LIBS}
 )
+
+if(VISIONPILOT_ENABLE_GUI)
+    target_compile_definitions(
+        image_preprocessing_tests
+        PRIVATE
+        VISIONPILOT_ENABLE_GUI
+    )
+endif()

@@ -293,8 +293,10 @@ int main(int argc, char* argv[]) {
     const int SIM_STEPS = 8000;
     const int DELAY_MS  =  100;
 
+#ifdef VISIONPILOT_ENABLE_GUI
     cv::namedWindow("MPC Test: " + scenario_name, cv::WINDOW_NORMAL);
     cv::resizeWindow("MPC Test: " + scenario_name, W, H);
+#endif
 
     double delta_cmd   = 0.0;
     int    closest_idx = 0;
@@ -488,7 +490,9 @@ int main(int argc, char* argv[]) {
                 accel, lead_active, gap,
                 lead_active ? lead_v_actual : 0.0);
 
+#ifdef VISIONPILOT_ENABLE_GUI
         cv::imshow("MPC Test: " + scenario_name, canvas);
+#endif
 
         if (step % 10 == 0) {
             if (lead_active)
@@ -506,8 +510,10 @@ int main(int argc, char* argv[]) {
                             accel, delta_cmd * 180.0/M_PI);
         }
 
+#ifdef VISIONPILOT_ENABLE_GUI
         int key = cv::waitKey(DELAY_MS);
         if (key == 27 || key == 'q') break;
+#endif
 
         if (std::abs(cte) < 0.01 && std::abs(epsi) < 0.001 && step % 20 == 0)
             std::cout << "Tracking tight at step " << step
@@ -516,13 +522,17 @@ int main(int argc, char* argv[]) {
 
         if (closest_idx >= PATH_PTS - 3) {
             std::cout << "End of path reached at step " << step << std::endl;
+#ifdef VISIONPILOT_ENABLE_GUI
             cv::waitKey(1500);
+#endif
             break;
         }
     }
 
+#ifdef VISIONPILOT_ENABLE_GUI
     cv::waitKey(0);
     cv::destroyAllWindows();
+#endif
     std::cout << "Done." << std::endl;
     return 0;
 }

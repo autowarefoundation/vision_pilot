@@ -28,11 +28,13 @@ int main(const int argc, const char *argv[]) {
     image_preprocessor.preprocess(image, warped_image, resized_image, size);
     std::cout << "Image warped: " << warped_image.cols << "x" << warped_image.rows << std::endl;
 
+#ifdef VISIONPILOT_ENABLE_GUI
     cv::namedWindow("Warped Image", cv::WINDOW_NORMAL);
     cv::imshow("Warped Image", warped_image);
     cv::imshow("Resized image", resized_image);
     cv::resizeWindow("Resized image", size.width, size.height);
     cv::waitKey(0); // waits for key press
+#endif
 
     return 0;
 }
