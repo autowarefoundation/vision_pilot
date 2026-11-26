@@ -573,8 +573,6 @@ namespace visualization
 
     DebugDisplay::DebugDisplay(bool show_window) : show_window_(show_window)
     {
-        if (show_window_) cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
-
         std::lock_guard<std::mutex> lock(g_homo_mu);
         if (g_homo_tried) return;
         g_homo_tried = true;
@@ -601,7 +599,7 @@ namespace visualization
 
         auto dv = debug_view_from(result, "src_label");
         annotate_frame(frame, dv, H_resized);
-        cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL);
+        cv::namedWindow("VisionPilot", cv::WINDOW_NORMAL | cv::WINDOW_GUI_NORMAL);
         cv::resizeWindow("VisionPilot", frame.cols, frame.rows);
         cv::imshow("VisionPilot", frame);
         cv::waitKey(1);
