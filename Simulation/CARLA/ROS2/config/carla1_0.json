@@ -1,0 +1,52 @@
+{
+  "type": "vehicle.lincoln.mkz",
+  "id": "hero",
+  "spawn_index": 100,
+  "sensors": [
+    {
+      "type": "sensor.camera.rgb",
+      "id": "main_cam",
+      "spawn_point": {
+        "x": 1.544,
+        "y": -0.0243,
+        "z": 2.116,
+        "roll": -0.1,
+        "pitch": 0.11,
+        "yaw": 0.23
+      },
+      "attributes": {
+        "image_size_x": 1920,
+        "image_size_y": 1280,
+        "fov": 50,
+        "sensor_tick": 0.0
+      }
+    },
+    {
+      "type": "sensor.other.imu",
+      "id": "imu",
+      "spawn_point": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+      },
+      "attributes": {
+        "sensor_tick": 0.1
+      }
+    }
+  ],
+  "npc_vehicles": [
+    {
+      "type": "vehicle.tesla.model3",
+      "spawn_index": 152,
+      "autopilot": true
+    },
+    {
+      "type": "vehicle.*",
+      "count": 10,
+      "autopilot": true
+    }
+  ]
+}
