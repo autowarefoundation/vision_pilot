@@ -92,13 +92,21 @@ source ./install/setup.bash
 ```
 
 ```bash
-ros2 launch carla_bridge_bringup carla_bridge.launch.py host:=<HOST> port:=<PORT>
+ros2 launch carla_bridge_bringup carla_bridge.launch.py host:=<HOST> port:=<PORT> carla_version:=0.9.16
 ```
 
 <div class="note" markdown="1">
 `host` and `port` only need to be set if CARLA runs on a **different machine** to Vision Pilot.
 Use the IP of the machine running CARLA and the port it publishes on.
 </div>
+
+`carla_version` (`0.9.16` or `1.0`) picks the rig JSON `config/carla_<version>.json` and its map
+(`Town04` / `Town04_Opt`). Leave it out to detect the version from the server; `rig_file:=<path>`
+overrides the JSON. It does not pick the `carla` Python module: that must match the server.
+
+To load another map add `map:=<MAP>` (e.g. `map:=Town06`); without it the map comes from
+`CARLA_MAP`, else the rig JSON `"map"` key. The map must exist on the server (1.0 uses the
+`*_Opt` names, e.g. `Town06_Opt`).
 
 ## 6. Run Vision Pilot
 
@@ -189,10 +197,15 @@ Use the CARLA 1.0 Python client matching the server (conda env or
 
 ```bash
 cd Simulation/CARLA/ROS2
-python src/carla_bridge_bringup/scripts/config_carla_1_0.py -f config/carla1_0.json
+ros2 launch carla_bridge_bringup carla_bridge.launch.py host:=<HOST> port:=<PORT> carla_version:=1.0
 ```
 
-Differences from 0.9.16 (`config_carla.py` / `carla916.json`):
+To run only the spawn script: `python src/carla_bridge_bringup/scripts/config_carla.py --carla-version 1.0`.
+`config_carla.py` serves 0.9.16 and 1.0: `--carla-version` (or, without it, the server version) picks
+`config/carla_1.0.json` or `config/carla_0.9.16.json`; `-f` overrides. The map comes from `-m` /
+`CARLA_MAP`, else the JSON `"map"` key.
+
+Differences from 0.9.16 (`carla_0.9.16.json`):
 
 - Map `Town04_Opt` (plain `Town04` fails with `Map not found`); spawn index 100 is valid.
 - Ego blueprint `vehicle.lincoln.mkz` (not `mkz_2020`); `vehicle.audi.a2` does not exist.

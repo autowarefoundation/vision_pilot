@@ -1,4 +1,5 @@
 {
+  "map": "Town04",
   "type": "vehicle.lincoln.mkz_2020",
   "id": "hero",
   "spawn_index": 100,

@@ -13,11 +13,26 @@ def generate_launch_description():
     host_arg = DeclareLaunchArgument('host', default_value='localhost')
     port_arg = DeclareLaunchArgument('port', default_value='2000')
 
-    default_rig_file = os.path.join(ws_root, "config", "carla916.json")
+    # "0.9.16" or "1.0" picks config/carla_<version>.json and the map; empty = ask the server.
+    carla_version_arg = DeclareLaunchArgument(
+        "carla_version",
+        default_value="",
+        description="CARLA version: 0.9.16 or 1.0 (empty = detect from the server)",
+    )
+
+    # Empty: CARLA_MAP env, else the rig JSON "map", else Town04 (0.9.x) / Town04_Opt (1.0).
+    map_arg = DeclareLaunchArgument(
+        "map",
+        default_value="",
+        description="CARLA map to load, e.g. Town04 / Town04_Opt (empty = from the rig JSON)",
+    )
+
+    # Empty: config_carla.py picks config/carla_0.9.16.json or config/carla_1.0.json
+    # from the CARLA server version.
     rig_file_arg = DeclareLaunchArgument(
         "rig_file",
-        default_value=default_rig_file,
-        description="Path to the CARLA sensor rig JSON",
+        default_value="",
+        description="Path to the CARLA sensor rig JSON (empty = chosen by server version)",
     )
 
     carla_config = ExecuteProcess(
@@ -30,7 +45,9 @@ def generate_launch_description():
             ),
             "--host", LaunchConfiguration("host"),
             "--port", LaunchConfiguration("port"),
-             "-f", LaunchConfiguration("rig_file"),
+            "-f", LaunchConfiguration("rig_file"),
+            "--carla-version", LaunchConfiguration("carla_version"),
+            "-m", LaunchConfiguration("map"),
             # "-a",
         ],
         output="screen",
@@ -71,7 +88,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        host_arg, port_arg, rig_file_arg,
+        host_arg, port_arg, carla_version_arg, map_arg, rig_file_arg,
         carla_config,
         start_nodes_when_ready,
     ])
