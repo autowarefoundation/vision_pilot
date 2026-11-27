@@ -6,9 +6,31 @@ nodes are required, one to publish vehicle speed and one to publish a command me
 `carla_vehicle_speed_publisher` package publishes the vehicle speed to `/vehicle/speed` topic, and
 `carla_control_publisher` publish control messages to `/carla/hero/vehicle_control_cmd`.
 
+## Launch
+
+```bash
+colcon build && source ./install/setup.bash
+ros2 launch carla_bridge_bringup carla_bridge.launch.py host:=<HOST> port:=<PORT> carla_version:=<VERSION>
+```
+
+| Argument        | Default     | Meaning                                                                         |
+| --------------- | ----------- | ------------------------------------------------------------------------------- |
+| `host`          | `localhost` | IP of the machine running CARLA                                                 |
+| `port`          | `2000`      | CARLA port                                                                      |
+| `carla_version` | (empty)     | `0.9.16` or `1.0`: picks `config/carla_<version>.json` and its map. Empty = ask the server |
+| `map`           | (empty)     | Map to load, e.g. `Town04` (0.9.16) / `Town04_Opt` (1.0). Empty = `CARLA_MAP` env, else the JSON `"map"` |
+| `rig_file`      | (empty)     | Rig JSON path; overrides the one `carla_version` picks                          |
+
+`carla_version` only picks the config and map. The `carla` Python module must still match the
+server: put the matching wheel (unzipped) first on `PYTHONPATH`, or the client can segfault.
+
 ## CARLA 0.9.16 (UE4)
 
-Spawn the ego with `config_carla.py -f config/carla916.json`; use the 0.9.16 client wheel.
+```bash
+ros2 launch carla_bridge_bringup carla_bridge.launch.py carla_version:=0.9.16
+```
+
+Loads `config/carla_0.9.16.json` (map `Town04`); use the 0.9.16 client wheel.
 
 ## CARLA 1.0 (UE5)
 
@@ -24,11 +46,16 @@ docker run -d --name carla-server --runtime=nvidia --net=host --user=$(id -u):$(
   carlasim/carla:1.0-maps bash CarlaUnreal.sh -nosound -quality-level=Low -RenderOffScreen --ros2
 ```
 
-Ego (CARLA 1.0 client matching the server; a mismatch can segfault):
+Bridge (CARLA 1.0 client matching the server; a mismatch can segfault):
 
 ```bash
-python src/carla_bridge_bringup/scripts/config_carla_1_0.py -f config/carla1_0.json
+ros2 launch carla_bridge_bringup carla_bridge.launch.py carla_version:=1.0
 ```
+
+Or run only the spawn script: `python src/carla_bridge_bringup/scripts/config_carla.py --carla-version 1.0`.
+The same script serves both versions: `--carla-version` (or, without it, the server version) picks
+`config/carla_0.9.16.json` or `config/carla_1.0.json`; `-f` overrides. The map comes from `-m` /
+`CARLA_MAP`, else the JSON `"map"` key.
 
 - Map `Town04_Opt` (`Town04` is not found); ego `vehicle.lincoln.mkz`.
 - Sensors publish natively (`ros_name`); `ros2_ackermann_control=true` makes the ego subscribe
