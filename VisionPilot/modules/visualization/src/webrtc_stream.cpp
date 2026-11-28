@@ -126,8 +126,11 @@ namespace visualization
         // Helper func to initialize GStreamer once (thread-safe)
         void init_gstreamer_once()
         {
+            // MISRA Rule 6.7.1: process-wide one-time init flag for gst_init() (deviation below).
+            // codeql::misra_deviation_next_line(misra-6-7-1-gstreamer-once)
             static std::once_flag once;
-            std::call_once(once, []()
+            // MISRA Rule 15.1.3: [&] instead of [] avoids the implicit function-pointer conversion; nothing is captured.
+            std::call_once(once, [&]()
             {
                 gst_init(nullptr, nullptr);
             });

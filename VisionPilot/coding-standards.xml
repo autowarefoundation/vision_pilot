@@ -7,5 +7,43 @@
       <justification>Tool false positive. The reported "conversion from 'bool' to 'bool &amp;'" is the binding of a bool lvalue to the forwarding-reference parameter (Args&amp;&amp;) of std::make_unique. Reference binding is not a conversion (C++ [dcl.init.ref]); the value is forwarded unchanged to a bool constructor parameter. No integral or arithmetic use of bool occurs. Avoiding std::make_unique would require raw new (Rule 21.6.2).</justification>
       <code-identifier>misra-7-0-1-make-unique-bool-fwd</code-identifier>
     </deviations-entry>
+    <deviations-entry>
+      <rule-id>RULE-6-7-1</rule-id>
+      <query-id>cpp/misra/local-variable-static-storage-duration</query-id>
+      <justification>DEV-LOG-001. The process-wide logger Logger::instance()::s_instance is a function-local static so that it is created on first use, also when used during static initialisation of other translation units (no initialisation-order dependency); its initialisation is thread-safe ([stmt.dcl]/4); and it is destroyed, after flushing, at normal program exit.</justification>
+      <background>Alternatives rejected: a namespace-scope or static-member object violates Rule 6.7.2 and has unspecified cross-TU initialisation order; allocating it with new violates Rule 21.6.1/21.6.2 and is never flushed at exit.</background>
+      <scope>Logger::instance()::s_instance in modules/logging/src/logger.cpp only.</scope>
+      <code-identifier>misra-6-7-1-logger-instance</code-identifier>
+    </deviations-entry>
+    <deviations-entry>
+      <rule-id>RULE-4-1-3</rule-id>
+      <query-id>cpp/misra/signed-integer-overflow</query-id>
+      <justification>Tool false positive. In chw_imagenet() and chw_01(), c * NET_H * NET_W is evaluated with c bounded by the loop condition c &lt; 3 and NET_H, NET_W constexpr (AutoDrive::NET_H, AutoDrive::NET_W). The maximum value is 2 * NET_H * NET_W (2 * 512 * 1024 = 1 048 576), far below INT_MAX. CodeQL does not propagate the loop bound.</justification>
+      <scope>modules/models/src/inference.cpp, channel offset c * NET_H * NET_W in the CHW conversion loops only.</scope>
+      <code-identifier>misra-4-1-3-chw-loop-bound</code-identifier>
+    </deviations-entry>
+    <deviations-entry>
+      <rule-id>RULE-4-1-3</rule-id>
+      <query-id>cpp/misra/signed-integer-overflow</query-id>
+      <justification>Tool false positive. C - 4 is evaluated only after the guard if (C &lt;= 4) return, so C is in [5, INT64_MAX] and C - 4 is in [1, INT64_MAX - 4]; the int64_t subtraction cannot overflow or underflow.</justification>
+      <scope>modules/models/src/auto_speed.cpp, num_classes = C - 4 only.</scope>
+      <code-identifier>misra-4-1-3-autospeed-class-count</code-identifier>
+    </deviations-entry>
+    <deviations-entry>
+      <rule-id>RULE-4-1-3</rule-id>
+      <query-id>cpp/misra/signed-integer-overflow</query-id>
+      <justification>The AutoSpeed output tensor has shape [1, C, N] (channel-major); element (k, n) is at data[k * N + n] with 0 &lt;= k &lt; C and 0 &lt;= n &lt; N. Every index is at most C * N - 1, the element count of the tensor allocated by ONNX Runtime, so it is representable in int64_t. 4 + c is at most C - 1 because c &lt; num_classes = C - 4. (AutoSpeed: C = 8, N = 10752, maximum index 86015.)</justification>
+      <background>CodeQL cannot bound the runtime tensor dimensions C and N. The bound relies on ONNX Runtime returning a shape consistent with the allocated tensor data.</background>
+      <scope>modules/models/src/auto_speed.cpp, tensor index expressions k * N + n and (4 + c) * N + n in the decode loop only.</scope>
+      <code-identifier>misra-4-1-3-autospeed-tensor-index</code-identifier>
+    </deviations-entry>
+    <deviations-entry>
+      <rule-id>RULE-6-7-1</rule-id>
+      <query-id>cpp/misra/local-variable-static-storage-duration</query-id>
+      <justification>init_gstreamer_once()::once is a function-local std::once_flag that guards the process-wide gst_init() call. It must have static storage duration so that it is shared by all WebRTCStreamer instances and threads and outlives every call. std::once_flag has a constexpr constructor (constant initialisation, no cross-TU initialisation-order dependency), and std::call_once makes the one-time initialisation thread-safe. Function-local scope limits its visibility to this function.</justification>
+      <background>Alternatives rejected: a namespace-scope or static-member flag violates Rule 6.7.2 and widens visibility; a per-instance flag would call gst_init() once per streamer instead of once per process; relying on gst_init() being safe to call repeatedly would change the logic and depend on GStreamer internals.</background>
+      <scope>init_gstreamer_once()::once in modules/visualization/src/webrtc_stream.cpp only.</scope>
+      <code-identifier>misra-6-7-1-gstreamer-once</code-identifier>
+    </deviations-entry>
   </deviations>
 </codingstandards>

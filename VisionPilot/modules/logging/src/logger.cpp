@@ -47,9 +47,10 @@ namespace logging
     // Alternatives rejected: a namespace-scope or static-member object violates
     // Rule 6.7.2 and has unspecified cross-TU initialisation order; allocating it
     // with new violates Rule 21.6.1/21.6.2 and is never flushed at exit.
-    // Scope: this object only.
+    // Scope: this object only. Recorded in coding-standards.xml (misra-6-7-1-logger-instance).
     Logger& Logger::instance() noexcept
     {
+        // codeql::misra_deviation_next_line(misra-6-7-1-logger-instance)
         static Logger s_instance{};
         return s_instance;
     }

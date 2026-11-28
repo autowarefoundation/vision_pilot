@@ -103,7 +103,8 @@ namespace visionpilot::models
             logging::info("[AutoSpeed] Invalid channel count C={}", static_cast<long long>(C));
             return out;
         }
-        // MISRA 4.1.3 justified: C > 4 is guaranteed by the check above, so C - 4 is in [1, C).
+        // MISRA Rule 4.1.3: C > 4 (guard above), so C - 4 is in [1, INT64_MAX - 4] (deviation below).
+        // codeql::misra_deviation_next_line(misra-4-1-3-autospeed-class-count)
         const int num_classes = static_cast<int>(C - 4);
 
         // data[c * N + n] gives channel c for anchor n
@@ -112,29 +113,23 @@ namespace visionpilot::models
         std::vector<Detection> candidates;
         candidates.reserve(256);
 
-        // MISRA C++:2023 Rule 4.1.3 (overflow) — justified, not a defect:
-        // Output tensor is [1, C, N], channel-major: element (k, n) is at data[k * N + n],
-        // with 0 <= k < C and 0 <= n < N. The largest index is C * N - 1, which is the
-        // size of the tensor ONNX Runtime allocated, so it always fits in int64_t
-        // (AutoSpeed: C = 8, N = 10752 → max index 86015).
-        // CodeQL cannot bound runtime C/N and reports this as a possible overflow.
+        // MISRA Rule 4.1.3: tensor [1, C, N]; every index k * N + n <= C * N - 1, the tensor size (deviation below).
         for (int64_t n = 0; n < N; ++n)
         {
+            // codeql::misra_deviation_begin(misra-4-1-3-autospeed-tensor-index)
             const float cx = data[0 * N + n];
             const float cy = data[1 * N + n];
             const float w = data[2 * N + n];
             const float h = data[3 * N + n];
+            // codeql::misra_deviation_end(misra-4-1-3-autospeed-tensor-index)
 
             float best_prob = -1.f;
             int best_cls = 0;
             for (int c = 0; c < num_classes; ++c)
             {
-                // MISRA 4.1.3 justified:
-                //  - int  '4 + c':   c < num_classes = C - 4, so 4 + c <= C - 1 (AutoSpeed: <= 7),
-                //                    far below INT_MAX.
-                //  - long '* N' and '+ n': index (4 + c) * N + n <= C * N - 1, the tensor size
-                //                    (see tensor-indexing note above).
-                // MISRA Dir 0.3.1 justified: exp() → +inf gives 1/inf = 0, the correct sigmoid limit.
+                // MISRA Rule 4.1.3: index (4 + c) * N + n <= C * N - 1, the tensor size (deviation below).
+                // MISRA Dir 0.3.1: exp() -> +inf gives 1/inf = 0, the correct sigmoid limit.
+                // codeql::misra_deviation_next_line(misra-4-1-3-autospeed-tensor-index)
                 const float prob = 1.f / (1.f + std::exp(-data[(4 + c) * N + n]));
                 if (prob > best_prob)
                 {
