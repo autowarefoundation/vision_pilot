@@ -54,34 +54,41 @@ int main(int argc, char** argv)
         if (arg == "--debug-viz") debug_viz = true;
     }
 
-    std::shared_ptr<camera_interface::CameraInterface> camera_interface;
-    std::shared_ptr<VehicleInterface> vehicle_interface;
+    std::unique_ptr<camera_interface::CameraInterface> camera_interface;
+    std::unique_ptr<VehicleInterface> vehicle_interface;
     std::unique_ptr<VisualInterface> visual_interface;
 #if ENABLE_ROS2_INTERFACE
     rclcpp::init(argc, argv);
     camera_interface = std::make_unique<camera_interface::CameraRos2Interface>(cfg.source.input_camera_topic);
-    vehicle_interface = std::make_shared<::vehicle_interface::VehicleRos2Interface>(cfg.vehicle_speed_topic,
+    vehicle_interface = std::make_unique<::vehicle_interface::VehicleRos2Interface>(cfg.vehicle_speed_topic,
         cfg.vehicle_steering_topic,
         cfg.vehicle_acceleration_topic);
 #else
     if (cfg.source.mode == SourceMode::Video)
     {
+        // codeql::misra_deviation_begin(misra-7-0-1-make-unique-bool-fwd)
         camera_interface = std::make_unique<camera_interface::FileInterface>(
             cfg.source.input_video, cfg.source.video_loop, cfg.source.video_realtime);
-        vehicle_interface = std::make_shared<vehicle_interface::FileInterface>(
+        vehicle_interface = std::make_unique<vehicle_interface::FileInterface>(
             cfg.source.input_vehicle_speed, cfg.source.video_loop);
+        // codeql::misra_deviation_end(misra-7-0-1-make-unique-bool-fwd)
     }
     else
     {
         camera_interface = std::make_unique<camera_interface::V4L2CameraInterface>(
             cfg.source.v4l2_device, static_cast<uint32_t>(cfg.source.v4l2_fps));
-        vehicle_interface = std::make_shared<CanInterface>();
+        vehicle_interface = std::make_unique<CanInterface>();
     }
 #endif
     if (cfg.webrtc_on)
     {
         visual_interface = std::make_unique<visualization::WebRTCStreamer>();
-        static_cast<visualization::WebRTCStreamer*>(visual_interface.get())->init(cfg.webrtc_port);
+        if (!static_cast<visualization::WebRTCStreamer*>(visual_interface.get())->init(
+            static_cast<uint16_t>(cfg.webrtc_port)))
+        {
+            logging::error("WebRTC init failed on port {}", cfg.webrtc_port);
+            return 1;
+        }
     }
     else
     {
@@ -94,6 +101,7 @@ int main(int argc, char** argv)
         else
 #endif
         {
+            // codeql::misra_deviation_next_line(misra-7-0-1-make-unique-bool-fwd)
             visual_interface = std::make_unique<visualization::LocalDisplay>(cfg.visualization_on);
         }
     }
@@ -140,21 +148,21 @@ int main(int argc, char** argv)
         // ── Default frame no inference ────────────────────────────────────────────
         cv::Mat display_frame = resized;
 
-        if (const auto r = pipeline.process(warped, resized))
+        if (const auto r = pipeline.process(warped, resized); r.has_value())
         {
             // pipeline.latency().print();
 
             const double ego_v = vehicle_interface->read();
-            const double cte = r->lateral.cte_m;
-            const double epsi = r->lateral.yaw_rad;
-            const double kappa = r->lateral.curvature;
+            const double cte = static_cast<double>(r->lateral.cte_m);
+            const double epsi = static_cast<double>(r->lateral.yaw_rad);
+            const double kappa = static_cast<double>(r->lateral.curvature);
 
             // has_cipo: tracker-based — true only when filter tracks a target
             // closer than D_MAX. cipo_raw_found alone must not gate the planner.
             static constexpr double D_MAX = 150.0;
             const bool has_cipo = r->cipo.valid && r->cipo.distance_m < D_MAX;
             const double cipo_v = has_cipo ? r->cipo.velocity_ms : cfg.speed_limit;
-            const double cipo_dist = r->cipo.distance_m;
+            const double cipo_dist = static_cast<double>(r->cipo.distance_m);
 
             const double raw_cte = r->lateral.path_valid
                                        ? static_cast<double>(r->lateral.raw_cte_m)
@@ -182,7 +190,11 @@ int main(int argc, char** argv)
             cv::Mat viz; // output visualization image (empty when viz is off)
             if (cfg.visualization_on)
             {
-                visual_interface->visualize(resized, *r, plan, ego_v, pipeline.H_resized(), cfg.speed_limit);
+                if (!visual_interface->visualize(resized, *r, plan, ego_v, pipeline.H_resized(), cfg.speed_limit))
+                {
+                    logging::error("Visualization failed!");
+                    return 1;
+                }
                 viz = resized;
             }
 
