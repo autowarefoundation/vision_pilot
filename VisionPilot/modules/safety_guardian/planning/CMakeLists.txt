@@ -61,6 +61,7 @@ target_link_libraries(planning
         PUBLIC
         common
         Eigen3::Eigen
+        cppad_lib
         PRIVATE
         ${IPOPT_LIBRARIES}
 )
