@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<codingstandards>
+  <deviations>
+    <deviations-entry>
+      <rule-id>RULE-7-0-1</rule-id>
+      <query-id>cpp/misra/no-conversion-from-bool</query-id>
+      <justification>Tool false positive. The reported "conversion from 'bool' to 'bool &amp;'" is the binding of a bool lvalue to the forwarding-reference parameter (Args&amp;&amp;) of std::make_unique. Reference binding is not a conversion (C++ [dcl.init.ref]); the value is forwarded unchanged to a bool constructor parameter. No integral or arithmetic use of bool occurs. Avoiding std::make_unique would require raw new (Rule 21.6.2).</justification>
+      <code-identifier>misra-7-0-1-make-unique-bool-fwd</code-identifier>
+    </deviations-entry>
+  </deviations>
+</codingstandards>

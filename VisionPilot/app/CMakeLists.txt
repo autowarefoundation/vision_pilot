@@ -3,6 +3,9 @@ add_executable(VisionPilot
         vision_pilot.cpp
 )
 
+target_compile_definitions(VisionPilot PRIVATE BUILD_TESTING=$<BOOL:${BUILD_TESTING}>)
+target_compile_definitions(VisionPilot PRIVATE ENABLE_ROS2_INTERFACE=$<BOOL:${ENABLE_ROS2_INTERFACE}>)
+
 set_target_properties(VisionPilot PROPERTIES
         INSTALL_RPATH "/usr/share/visionpilot/onnxruntime/lib"
         BUILD_WITH_INSTALL_RPATH FALSE
@@ -26,7 +29,6 @@ if (ENABLE_ROS2_INTERFACE)
 
     target_link_libraries(VisionPilot PUBLIC rclcpp::rclcpp)
     target_link_libraries(VisionPilot PRIVATE camera_ros2_interface vehicle_ros2_interface)
-    target_compile_definitions(VisionPilot PRIVATE ENABLE_ROS2_INTERFACE)
 endif ()
 
 target_link_libraries(VisionPilot
