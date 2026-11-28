@@ -33,8 +33,8 @@ namespace visionpilot::models
             std::vector<float> out(CHW_SIZE);
             for (int c = 0; c < 3; ++c)
             {
-                // MISRA 4.1.3 justified: c in [0, 2] (loop bound), so c * NET_H * NET_W <= 2 * 512 * 1024
-                // = 1 048 576, far below INT_MAX. CodeQL loses the loop bound (unreachable-code false positive).
+                // MISRA Rule 4.1.3: c in [0, 2], so c * NET_H * NET_W <= 2 * NET_H * NET_W (deviation below).
+                // codeql::misra_deviation_next_line(misra-4-1-3-chw-loop-bound)
                 float* dst = out.data() + c * NET_H * NET_W;
                 // const float* src = reinterpret_cast<const float*>(ch[c].data);
                 const float* src = ch[static_cast<std::size_t>(c)].ptr<float>(0);
@@ -57,11 +57,12 @@ namespace visionpilot::models
             std::vector<float> out(CHW_SIZE);
             for (int c = 0; c < 3; ++c)
             {
-                // MISRA 4.1.3 justified: c in [0, 2] (loop bound), so c * NET_H * NET_W <= 2 * 512 * 1024
-                // = 1 048 576, far below INT_MAX. CodeQL loses the loop bound (unreachable-code false positive).
+                // MISRA Rule 4.1.3: c in [0, 2], so c * NET_H * NET_W <= 2 * NET_H * NET_W (deviation below).
+                // codeql::misra_deviation_begin(misra-4-1-3-chw-loop-bound)
                 static_cast<void>(std::copy_n(ch[static_cast<std::size_t>(c)].ptr<float>(0),
                                 NET_H * NET_W,
                                 out.data() + (c * NET_H * NET_W)));
+                // codeql::misra_deviation_end(misra-4-1-3-chw-loop-bound)
             }
 
             return out;
