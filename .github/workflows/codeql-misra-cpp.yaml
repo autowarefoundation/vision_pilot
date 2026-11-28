@@ -90,9 +90,20 @@ jobs:
       - name: Create CodeQL database (traced clean build)
         run: |
           . /opt/ros/jazzy/setup.bash
-          ~/codeql-cs/codeql/codeql database create "${RUNNER_TEMP}/codeql-db" --language=cpp \
-            --source-root=. --threads=0 \
-            --command="cmake --build VisionPilot/build --target VisionPilot -j$(nproc)"
+          codeql=~/codeql-cs/codeql/codeql
+          db="${RUNNER_TEMP}/codeql-db"
+          # 'database create' extracts only C/C++. The MISRA deviation records in
+          # VisionPilot/coding-standards.xml must also be in the database, so build it in steps:
+          # init -> traced build -> index the XML -> finalize.
+          "${codeql}" database init --language=cpp --build-mode=manual --source-root=. -- "${db}"
+          "${codeql}" database trace-command -- "${db}" \
+            cmake --build VisionPilot/build --target VisionPilot -j"$(nproc)"
+          "${codeql}" database index-files --language=xml \
+            --include="**/coding-standards.xml" --prune="**/build" -- "${db}"
+          "${codeql}" database finalize --threads=0 -- "${db}"
+          # fail if the deviation records are missing: results would silently ignore them
+          unzip -l "${db}/src.zip" | grep 'coding-standards\.xml' >/dev/null \
+            || { echo "::error::coding-standards.xml not in the CodeQL database"; exit 1; }
         shell: bash
 
       - name: Analyze (MISRA C++ 2023)
