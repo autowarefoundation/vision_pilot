@@ -9,7 +9,7 @@ VisionPilot is developed as an ISO 26262 Safety Element out of Context (see [`Fu
 1. **Sets up the build environment.** It uses [`setup-vision-pilot-deps`](../actions/setup-vision-pilot-deps/action.yaml) on Ubuntu 24.04 with ROS 2 Jazzy.
 2. **Downloads the tools.** It downloads the CodeQL CLI and the Coding Standards query packs, checks them against their published checksums, and caches them for later runs.
 3. **Configures CMake.** It uses `GPU=OFF`, `ENABLE_ROS2_INTERFACE=ON` and `-lcppad_lib`. Dependencies fetched by CMake (Eigen) are put outside the repository, so their code is not reported as VisionPilot findings. Configure is retried up to 3 times, because gitlab.com sometimes rejects the Eigen download.
-4. **Builds the code under CodeQL.** CodeQL records a clean build of the `VisionPilot` target and creates a database from it.
+4. **Builds the code under CodeQL.** CodeQL records a clean build of the `VisionPilot` target and creates a database from it. It also adds [`VisionPilot/coding-standards.xml`](../../VisionPilot/coding-standards.xml), which holds the approved MISRA deviation records; the job fails if that file is missing from the database.
 5. **Analyzes the database.** It runs the MISRA C++ 2023 suite in [`misra-cpp-2023.qls`](misra-cpp-2023.qls).
 6. **Reports the results:**
    - uploads the SARIF file to GitHub Code Scanning, under the category `misra-cpp-2023`
@@ -66,8 +66,12 @@ Update them together. Each Coding Standards release supports exactly one CLI ver
 
 ```bash
 # CodeQL bundle and packs for the versions in the workflow
-codeql database create /tmp/codeql-db --language=cpp --source-root=. \
-  --command="cmake --build VisionPilot/build --target VisionPilot -j$(nproc)"
+codeql database init --language=cpp --build-mode=manual --source-root=. -- /tmp/codeql-db
+codeql database trace-command -- /tmp/codeql-db \
+  cmake --build VisionPilot/build --target VisionPilot -j$(nproc)
+codeql database index-files --language=xml --include="**/coding-standards.xml" \
+  --prune="**/build" -- /tmp/codeql-db
+codeql database finalize -- /tmp/codeql-db
 codeql database analyze /tmp/codeql-db .github/codeql/misra-cpp-2023.qls \
   --additional-packs=<dir with the extracted misra-cpp-coding-standards pack> \
   --format=sarifv2.1.0 --output=misra-cpp-2023.sarif
